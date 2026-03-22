@@ -1,0 +1,248 @@
+# =============================================================================
+# Protocol Security - Full Stack Docker Compose
+# Created by Theodor Munch
+# Copyright (c) 2026 Theodor Munch. All rights reserved.
+# =============================================================================
+# Запуск: docker-compose up -d
+# Остановка: docker-compose down
+# Логи: docker-compose logs -f
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Protocol Security Application
+  # ===========================================================================
+  protocol-security:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: protocol-security:latest
+    container_name: protocol-security
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-devpassword}
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - VAULT_URL=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN:-dev-token}
+      - LOG_LEVEL=info
+      - SIEM_ENABLED=true
+      - ML_ENABLED=true
+      - ZTNA_ENABLED=true
+      - MTLS_ENABLED=false
+    depends_on:
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      vault:
+        condition: service_started
+    networks:
+      - protocol-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ===========================================================================
+  # Redis - Sessions & Rate Limiting
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: protocol-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-devpassword} --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - protocol-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ===========================================================================
+  # Elasticsearch - Log Storage & SIEM
+  # ===========================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: protocol-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-changeme}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - protocol-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  # ===========================================================================
+  # HashiCorp Vault - Secrets Management
+  # ===========================================================================
+  vault:
+    image: vault:1.15
+    container_name: protocol-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_ROOT_TOKEN:-dev-token}
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault-data:/vault/data
+      - ./vault/policies:/vault/policies:ro
+    networks:
+      - protocol-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "vault", "status", "-format=json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ===========================================================================
+  # Logstash - Log Processing (Optional)
+  # ===========================================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: protocol-logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config:/usr/share/logstash/config:ro
+    environment:
+      - LS_JAVA_OPTS=-Xmx512m -Xms512m
+    networks:
+      - protocol-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    profiles:
+      - siem
+
+  # ===========================================================================
+  # Kibana - Visualization Dashboard (Optional)
+  # ===========================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: protocol-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-changeme}
+    ports:
+      - "5601:5601"
+    networks:
+      - protocol-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    profiles:
+      - siem
+
+  # ===========================================================================
+  # Prometheus - Metrics Collection (Optional)
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: protocol-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - protocol-network
+    depends_on:
+      - protocol-security
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  # ===========================================================================
+  # Grafana - Monitoring Dashboard (Optional)
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: protocol-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3001"
+    networks:
+      - protocol-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  protocol-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  redis-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+  vault-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local

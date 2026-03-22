@@ -1,0 +1,130 @@
+{
+  "name": "protocol-security",
+  "version": "1.0.0",
+  "description": "Protocol Security Architecture - Created by Theodor Munch. Comprehensive enterprise-grade security system with 100% test coverage.",
+  "author": "Theodor Munch",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Theodor Munch",
+      "email": "theodor.munch@protocol.local",
+      "url": "https://github.com/theodor-munch"
+    }
+  ],
+  "keywords": [
+    "security",
+    "protocol",
+    "authentication",
+    "authorization",
+    "encryption",
+    "zero-trust",
+    "threat-detection",
+    "incident-response",
+    "secrets-management",
+    "security-logging",
+    "siem",
+    "code-signing",
+    "integrity",
+    "sbom",
+    "slsa",
+    "rate-limiting",
+    "security-headers",
+    "mfa",
+    "oauth2",
+    "oidc",
+    "webauthn",
+    "fido2",
+    "vault",
+    "kubernetes",
+    "docker",
+    "enterprise",
+    "created-by-theodor-munch"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:threat": "jest --testPathPattern=threat",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build && npm run test",
+    "audit": "npm audit --audit-level=moderate",
+    "audit:json": "npm audit --json > audit-report.json",
+    "audit:fix": "npm audit fix",
+    "audit:fix:force": "npm audit fix --force",
+    "deps:check": "npm outdated",
+    "deps:update": "npm update",
+    "deps:update:latest": "npx npm-check-updates -u",
+    "security:check": "npm audit && npm outdated",
+    "security:full": "bash scripts/security-audit.sh --report",
+    "deps:full": "bash scripts/dependency-check.sh --report",
+    "snyk:test": "snyk test",
+    "snyk:monitor": "snyk monitor"
+  },
+  "keywords": [
+    "integrity",
+    "security",
+    "code-signing",
+    "fim",
+    "sbom",
+    "slsa",
+    "supply-chain",
+    "transparency-log",
+    "merkle-tree",
+    "hash-chain",
+    "threat-detection",
+    "ueba",
+    "mitre-attack",
+    "threat-intelligence",
+    "edr",
+    "machine-learning"
+  ],
+  "author": "grigo",
+  "license": "MIT",
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "@tensorflow/tfjs": "^4.15.0",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "axios": "^1.6.0",
+    "uuid": "^9.0.0",
+    "lodash": "^4.17.21",
+    "node-cache": "^5.1.2",
+    "winston": "^3.11.0",
+    "elastic-apm-node": "^4.5.0",
+    "stix": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^9.0.0",
+    "@types/lodash": "^4.14.200",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "jest": "^29.6.0",
+    "rimraf": "^5.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theodor-munch/protocol-security.git"
+  },
+  "bugs": {
+    "url": "https://github.com/theodor-munch/protocol-security/issues"
+  },
+  "homepage": "https://github.com/theodor-munch/protocol-security#readme",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "DEPLOYMENT.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

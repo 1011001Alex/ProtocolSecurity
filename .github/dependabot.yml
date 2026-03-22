@@ -1,0 +1,95 @@
+# Dependabot Configuration
+# Автоматическое обновление зависимостей
+# Документация: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+registries:
+  npm-registry:
+    type: npm-registry
+    url: https://registry.npmjs.org
+    replaces-base: true
+
+updates:
+  # NPM зависимости
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 20
+    versioning-strategy: increase
+    labels:
+      - "dependencies"
+      - "security"
+      - "automated-pr"
+    assignees:
+      - "grigo"
+    reviewers:
+      - "grigo"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      # Группировка обновлений по типам
+      production-deps:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-deps:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+    ignore:
+      # Игнорировать major обновления для стабильности
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Конкретные пакеты которые не нужно обновлять автоматически
+      - dependency-name: "typescript"
+        versions: [">=6.0.0"]
+      - dependency-name: "eslint"
+        versions: [">=9.0.0"]
+    # Labels для security updates
+    security-updates-only: false
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "github-actions"
+      - "ci/cd"
+      - "automated-pr"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Docker образы (если используются)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "docker"
+      - "containers"
+      - "automated-pr"
+    commit-message:
+      prefix: "chore(docker)"

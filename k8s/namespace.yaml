@@ -1,0 +1,57 @@
+# Kubernetes Namespace for Protocol Security
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: protocol-security
+  labels:
+    name: protocol-security
+    environment: production
+
+---
+# Resource Quota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: protocol-security-quota
+  namespace: protocol-security
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    pods: "50"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"
+
+---
+# Limit Range
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: protocol-security-limits
+  namespace: protocol-security
+spec:
+  limits:
+  - default:
+      cpu: "500m"
+      memory: "512Mi"
+    defaultRequest:
+      cpu: "250m"
+      memory: "256Mi"
+    type: Container
+
+---
+# Network Policy (default deny all)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: protocol-security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

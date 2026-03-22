@@ -1,0 +1,42 @@
+# Kubernetes ConfigMap for Protocol Security
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: protocol-config
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+data:
+  # Redis Configuration
+  redis-host: "redis.protocol-security.svc.cluster.local"
+  redis-port: "6379"
+  
+  # Elasticsearch Configuration
+  elasticsearch-host: "elasticsearch.protocol-security.svc.cluster.local"
+  elasticsearch-port: "9200"
+  
+  # Vault Configuration
+  vault-url: "http://vault.protocol-security.svc.cluster.local:8200"
+  
+  # Application Configuration
+  log-level: "info"
+  siem-enabled: "true"
+  ml-enabled: "true"
+  ztna-enabled: "true"
+  mtls-enabled: "false"
+  
+  # JWT Configuration
+  jwt-issuer: "https://api.protocol.local"
+  jwt-audience: "protocol-api"
+  jwt-expiry: "900"
+  refresh-token-expiry: "604800"
+  
+  # Security Configuration
+  mfa-required: "true"
+  session-timeout: "86400"
+  
+  # Monitoring Configuration
+  prometheus-scrape: "true"
+  prometheus-port: "3000"
+  prometheus-path: "/metrics"

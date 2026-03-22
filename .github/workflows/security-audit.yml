@@ -1,0 +1,357 @@
+name: Security Audit
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - '**'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  schedule:
+    # Запуск каждый день в 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      audit_level:
+        description: 'Audit level (low|moderate|high|critical)'
+        required: false
+        default: 'moderate'
+        type: choice
+        options:
+          - low
+          - moderate
+          - high
+          - critical
+
+env:
+  NODE_VERSION: '18'
+  AUDIT_LEVEL: ${{ github.event.inputs.audit_level || 'moderate' }}
+
+jobs:
+  # ============================================================================
+  # Job 1: NPM Audit
+  # ============================================================================
+  npm-audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+    
+    outputs:
+      has_critical: ${{ steps.audit.outputs.has_critical }}
+      has_high: ${{ steps.audit.outputs.has_high }}
+      vulnerability_count: ${{ steps.audit.outputs.vulnerability_count }}
+      audit_json: ${{ steps.audit.outputs.audit_json }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefer-offline --no-audit || npm install --no-audit
+
+      - name: Run npm audit
+        id: audit
+        run: |
+          # Запускаем аудит и сохраняем JSON результат
+          npm audit --audit-level=${{ env.AUDIT_LEVEL }} --json > audit-results.json 2>&1 || true
+          
+          # Сохраняем JSON для последующих шагов
+          echo "audit_json=$(cat audit-results.json | base64 -w 0)" >> $GITHUB_OUTPUT
+          
+          # Парсим результаты
+          VULN_COUNT=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.total // 0')
+          CRITICAL_COUNT=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.critical // 0')
+          HIGH_COUNT=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.high // 0')
+          MODERATE_COUNT=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.moderate // 0')
+          LOW_COUNT=$(cat audit-results.json | jq -r '.metadata.vulnerabilities.low // 0')
+          
+          echo "vulnerability_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+          echo "critical_count=$CRITICAL_COUNT" >> $GITHUB_OUTPUT
+          echo "high_count=$HIGH_COUNT" >> $GITHUB_OUTPUT
+          
+          # Определяем наличие критических уязвимостей
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "has_critical=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_critical=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "has_high=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_high=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Вывод статистики
+          echo "╔═══════════════════════════════════════════════════════════╗"
+          echo "║           NPM AUDIT RESULTS                               ║"
+          echo "╠═══════════════════════════════════════════════════════════╣"
+          echo "║  Critical:  $CRITICAL_COUNT"
+          echo "║  High:      $HIGH_COUNT"
+          echo "║  Moderate:  $MODERATE_COUNT"
+          echo "║  Low:       $LOW_COUNT"
+          echo "║  ─────────────────────"
+          echo "║  TOTAL:     $VULN_COUNT"
+          echo "╚═══════════════════════════════════════════════════════════╝"
+
+      - name: Upload audit results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-results
+          path: audit-results.json
+          retention-days: 30
+
+      - name: Print detailed vulnerability report
+        if: always()
+        run: |
+          if [ -f audit-results.json ]; then
+            echo "### Detailed Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+            
+            cat audit-results.json | jq -r '
+              "## Уязвимости\n\n" +
+              (if .vulnerabilities and (.vulnerabilities | length > 0) then
+                (.vulnerabilities[] | 
+                  "### \(.module_name)@\(.version)\n" +
+                  "- **Severity:** \(.severity)\n" +
+                  "- **Title:** \(.title)\n" +
+                  "- **Vulnerable Versions:** \(.vulnerable_versions)\n" +
+                  "- **Patched Version:** \(.patched_versions)\n" +
+                  "- **Recommendation:** \(.recommendation)\n" +
+                  (if .cves and (.cves | length > 0) then "- **CVE:** \(.cves | join(", "))\n" else "" end) +
+                  "\n---\n"
+                )
+              else
+                "✅ Уязвимости не обнаружены\n"
+              end)
+            ' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Block PR on critical/high vulnerabilities
+        if: github.event_name == 'pull_request' && (steps.audit.outputs.has_critical == 'true' || steps.audit.outputs.has_high == 'true')
+        run: |
+          echo "::error::Обнаружены критические уязвимости! PR заблокирован."
+          echo "Critical: ${{ steps.audit.outputs.critical_count }}, High: ${{ steps.audit.outputs.high_count }}"
+          exit 1
+
+  # ============================================================================
+  # Job 2: Dependency Check (npm outdated)
+  # ============================================================================
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    needs: npm-audit
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefer-offline --no-audit || npm install --no-audit
+
+      - name: Check for outdated dependencies
+        id: outdated
+        run: |
+          # Запускаем проверку устаревших зависимостей
+          npm outdated --json > outdated-results.json 2>&1 || true
+          
+          # Подсчитываем количество устаревших пакетов
+          OUTDATED_COUNT=$(cat outdated-results.json 2>/dev/null | jq 'keys | length' 2>/dev/null || echo "0")
+          echo "outdated_count=$OUTDATED_COUNT" >> $GITHUB_OUTPUT
+          
+          # Вывод результатов
+          echo "### Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
+          if [ "$OUTDATED_COUNT" -gt 0 ]; then
+            echo "Найдено устаревших пакетов: $OUTDATED_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            npm outdated >> $GITHUB_STEP_SUMMARY 2>&1 || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Все зависимости актуальны" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload outdated results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-outdated-results
+          path: outdated-results.json
+          retention-days: 30
+
+  # ============================================================================
+  # Job 3: Snyk Security Scan
+  # ============================================================================
+  snyk-scan:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SNYK_TOKEN != '' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Snyk
+        run: npm install -g snyk
+
+      - name: Authenticate Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefer-offline --no-audit || npm install --no-audit
+
+      - name: Run Snyk test
+        id: snyk_test
+        run: |
+          snyk test --json > snyk-results.json 2>&1 || true
+          
+          # Парсим результаты Snyk
+          VULN_COUNT=$(cat snyk-results.json | jq -r '.totalVulns // 0' 2>/dev/null || echo "0")
+          echo "snyk_vulnerability_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Upload Snyk results artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-results
+          path: snyk-results.json
+          retention-days: 30
+
+      - name: Snyk Monitor (для отслеживания уязвимостей)
+        run: |
+          snyk monitor --json > snyk-monitor.json 2>&1 || true
+
+  # ============================================================================
+  # Job 4: Send Slack Notification
+  # ============================================================================
+  slack-notify:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [npm-audit, dependency-check]
+    if: always() && (github.event_name == 'push' || github.event_name == 'schedule')
+    continue-on-error: true
+    
+    steps:
+      - name: Download audit results
+        uses: actions/download-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-results
+          path: ./artifacts
+
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Читаем результаты аудита
+          if [ -f ./artifacts/audit-results.json ]; then
+            VULN_COUNT=$(cat ./artifacts/audit-results.json | jq -r '.metadata.vulnerabilities.total // 0')
+            CRITICAL_COUNT=$(cat ./artifacts/audit-results.json | jq -r '.metadata.vulnerabilities.critical // 0')
+            HIGH_COUNT=$(cat ./artifacts/audit-results.json | jq -r '.metadata.vulnerabilities.high // 0')
+          else
+            VULN_COUNT="N/A"
+            CRITICAL_COUNT="0"
+            HIGH_COUNT="0"
+          fi
+          
+          # Определяем статус и цвет
+          if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+            STATUS="❌ Failed"
+            COLOR="danger"
+          else
+            STATUS="✅ Passed"
+            COLOR="good"
+          fi
+          
+          # Формируем payload для Slack
+          PAYLOAD=$(cat <<EOF
+          {
+            "text": "🔒 Protocol Security Audit",
+            "attachments": [{
+              "color": "$COLOR",
+              "title": "Security Audit Report",
+              "fields": [
+                {"title": "Status", "value": "$STATUS", "short": true},
+                {"title": "Total Vulnerabilities", "value": "$VULN_COUNT", "short": true},
+                {"title": "Critical", "value": "$CRITICAL_COUNT", "short": true},
+                {"title": "High", "value": "$HIGH_COUNT", "short": true},
+                {"title": "Repository", "value": "${{ github.repository }}", "short": true},
+                {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
+                {"title": "Commit", "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>", "short": true}
+              ],
+              "footer": "Protocol Security CI/CD",
+              "ts": $(date +%s)
+            }]
+          }
+          EOF
+          )
+          
+          # Отправляем в Slack
+          curl -s -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" \
+            "$SLACK_WEBHOOK_URL" || echo "Failed to send Slack notification"
+
+  # ============================================================================
+  # Job 5: Summary and Status
+  # ============================================================================
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [npm-audit, dependency-check]
+    if: always()
+    
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "╔═══════════════════════════════════════════════════════════╗"
+          echo "║         PROTOCOL SECURITY - FINAL SUMMARY                 ║"
+          echo "╠═══════════════════════════════════════════════════════════╣"
+          echo "║  Repository: ${{ github.repository }}"
+          echo "║  Branch: ${{ github.ref_name }}"
+          echo "║  Commit: ${{ github.sha }}"
+          echo "║  Workflow: ${{ github.workflow }}"
+          echo "╠═══════════════════════════════════════════════════════════╣"
+          echo "║  NPM Audit:"
+          echo "║    - Vulnerabilities: ${{ needs.npm-audit.outputs.vulnerability_count }}"
+          echo "║    - Critical: ${{ needs.npm-audit.outputs.has_critical }}"
+          echo "║    - High: ${{ needs.npm-audit.outputs.has_high }}"
+          echo "╠═══════════════════════════════════════════════════════════╣"
+          
+          # Определяем общий статус
+          if [ "${{ needs.npm-audit.outputs.has_critical }}" = "true" ] || [ "${{ needs.npm-audit.outputs.has_high }}" = "true" ]; then
+            echo "║  STATUS: ❌ FAILED - Требуется вмешательство"
+            echo "╚═══════════════════════════════════════════════════════════╝"
+            exit 1
+          else
+            echo "║  STATUS: ✅ PASSED - Уязвимости не обнаружены"
+            echo "╚═══════════════════════════════════════════════════════════╝"
+            exit 0
+          fi

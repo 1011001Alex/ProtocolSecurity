@@ -1,0 +1,137 @@
+# GitHub Actions Workflow
+# Автоматический merge Dependabot PRs
+# Требует: passing CI/CD tests
+
+name: Auto-Merge Dependabot
+
+on:
+  pull_request_target:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-merge:
+    name: Auto-Merge Minor/Patch
+    runs-on: ubuntu-latest
+    
+    # Только для Dependabot
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+      # Проверка типа обновления
+      - name: Check update type
+        id: check-type
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title.toLowerCase();
+            const body = pr.body || '';
+            
+            // Определение типа обновления
+            let updateType = 'unknown';
+            
+            if (title.includes('major') || body.includes('major')) {
+              updateType = 'major';
+            } else if (title.includes('minor') || body.includes('minor')) {
+              updateType = 'minor';
+            } else if (title.includes('patch') || body.includes('patch')) {
+              updateType = 'patch';
+            }
+            
+            // Security updates всегда можно мержить
+            const isSecurityUpdate = body.includes('security') || 
+                                     pr.labels.some(l => l.name === 'security');
+            
+            console.log('Update type:', updateType);
+            console.log('Security update:', isSecurityUpdate);
+            
+            // Разрешаем minor и patch, а также security updates
+            const canAutoMerge = updateType === 'minor' || 
+                                updateType === 'patch' || 
+                                isSecurityUpdate;
+            
+            core.setOutput('can_auto_merge', canAutoMerge.toString());
+            core.setOutput('update_type', updateType);
+
+      # Ожидание прохождения CI/CD
+      - name: Wait for CI/CD
+        if: steps.check-type.outputs.can_auto_merge == 'true'
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          running-workflow-name: 'auto-merge'
+          allowed-conclusions: success
+          check-regexp: '.*'
+
+      # Автоматический merge
+      - name: Auto-merge
+        if: steps.check-type.outputs.can_auto_merge == 'true'
+        uses: pascalgn/automerge-action@v0.16.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_LABELS: 'dependencies,security,automated-pr'
+          MERGE_METHOD: 'squash'
+          MERGE_COMMIT_MESSAGE: 'pull-request-title'
+          MERGE_RETRIES: '5'
+          MERGE_RETRY_SLEEP: '60000'
+
+      # Уведомление в Slack если merge не состоялся
+      - name: Notify on merge failure
+        if: steps.check-type.outputs.can_auto_merge == 'false'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "🤖 Dependabot PR requires manual review",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Dependabot PR needs manual review*\nPR: ${{ github.event.pull_request.html_url }}\nType: ${{ steps.check-type.outputs.update_type }}"
+                  }
+                }
+              ]
+            }
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+
+  label-security:
+    name: Label Security Updates
+    runs-on: ubuntu-latest
+    
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+      - name: Add security label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || '';
+            
+            // Проверка на security update
+            const isSecurityUpdate = body.includes('security') || 
+                                     body.includes('vulnerability') ||
+                                     body.includes('CVE');
+            
+            if (isSecurityUpdate) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: ['security', 'priority-high']
+              });
+            }

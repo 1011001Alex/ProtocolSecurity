@@ -1,0 +1,195 @@
+{
+  "_comment": "Snyk Configuration for Protocol Security Project",
+  "_description": "Настройки для интеграции Snyk в CI/CD pipeline",
+  
+  "organization": "protocol-security",
+  
+  "project": {
+    "name": "protocol-integrity",
+    "type": "npm",
+    "targetFile": "package.json"
+  },
+  
+  "scan": {
+    "enabled": true,
+    "severityThreshold": "low",
+    "failOnSeverity": "high",
+    "includeDevDependencies": false,
+    "excludeDevDependencies": true
+  },
+  
+  "rules": {
+    "_comment": "Правила обработки уязвимостей",
+    
+    "critical": {
+      "action": "block",
+      "description": "Критические уязвимости блокируют сборку",
+      "notify": ["security-team"],
+      "autoFix": false,
+      "requireReview": true
+    },
+    
+    "high": {
+      "action": "block",
+      "description": "Высокие уязвимости блокируют сборку",
+      "notify": ["security-team"],
+      "autoFix": false,
+      "requireReview": true
+    },
+    
+    "medium": {
+      "action": "warn",
+      "description": "Средние уязвимости генерируют предупреждение",
+      "notify": ["dev-team"],
+      "autoFix": true,
+      "requireReview": false,
+      "maxAge": 7
+    },
+    
+    "low": {
+      "action": "info",
+      "description": "Низкие уязвимости только информируют",
+      "notify": [],
+      "autoFix": true,
+      "requireReview": false
+    }
+  },
+  
+  "exceptions": {
+    "_comment": "Исключения для конкретных уязвимостей (использовать с осторожностью)",
+    
+    "items": [
+      {
+        "_comment": "Пример исключения - ЗАМЕНИТЬ на реальные CVE если нужны",
+        "id": "SNYK-JS-EXAMPLE-123456",
+        "reason": "Ложное срабатывание, уязвимость не затрагивает наш use case",
+        "expires": "2026-12-31",
+        "authorizedBy": "security-team"
+      }
+    ],
+    
+    "guidelines": {
+      "maxExceptionDays": 90,
+      "requireApproval": true,
+      "approvers": ["security-lead", "tech-lead"],
+      "reviewFrequency": "monthly"
+    }
+  },
+  
+  "notifications": {
+    "slack": {
+      "enabled": true,
+      "webhook": "${SLACK_WEBHOOK_URL}",
+      "channels": {
+        "critical": "#security-alerts",
+        "high": "#security-alerts",
+        "medium": "#dev-notifications",
+        "low": "#dev-notifications"
+      }
+    },
+    
+    "email": {
+      "enabled": false,
+      "recipients": ["security@protocol.local"],
+      "onSeverity": ["critical", "high"]
+    },
+    
+    "github": {
+      "enabled": true,
+      "createIssues": true,
+      "labelIssues": true,
+      "labels": ["security", "vulnerability"]
+    }
+  },
+  
+  "ci_cd": {
+    "_comment": "Настройки для CI/CD интеграции",
+    
+    "blockOn": ["critical", "high"],
+    "warnOn": ["medium"],
+    "ignoreOn": [],
+    
+    "cache": {
+      "enabled": true,
+      "ttl": 3600
+    },
+    
+    "timeout": {
+      "test": 300,
+      "monitor": 600
+    }
+  },
+  
+  "monitoring": {
+    "enabled": true,
+    "frequency": "daily",
+    "trackDependencies": true,
+    "alertOnNewVulnerabilities": true,
+    "integrations": {
+      "github": true,
+      "gitlab": false,
+      "bitbucket": false
+    }
+  },
+  
+  "reporting": {
+    "enabled": true,
+    "format": ["json", "html", "sarif"],
+    "outputDir": "./reports/snyk",
+    "include": {
+      "remediation": true,
+      "licenseIssues": true,
+      "qualityIssues": false
+    }
+  },
+  
+  "license": {
+    "scan": true,
+    "failOn": ["copyleft", "unlicensed"],
+    "warnOn": ["weak-copyleft"],
+    "allowedLicenses": [
+      "MIT",
+      "Apache-2.0",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "ISC",
+      "CC0-1.0",
+      "Unlicense"
+    ],
+    "deniedLicenses": [
+      "GPL-3.0",
+      "AGPL-3.0",
+      "LGPL-3.0",
+      "MPL-2.0",
+      "EPL-1.0",
+      "CPL-1.0"
+    ]
+  },
+  
+  "autoFix": {
+    "enabled": true,
+    "createPullRequests": true,
+    "baseBranch": "main",
+    "prOptions": {
+      "title": "fix: Security update for {{packageName}}",
+      "branchPrefix": "snyk/fix/",
+      "assignees": ["security-team"],
+      "reviewers": ["security-lead"],
+      "labels": ["security", "auto-fix", "dependencies"]
+    },
+    "limits": {
+      "maxPRsPerDay": 5,
+      "minDaysBetweenPRs": 1
+    }
+  },
+  
+  "customPolicies": {
+    "_comment": "Пользовательские политики безопасности",
+    
+    "enforceLockfile": true,
+    "enforceIntegrity": true,
+    "requireSignedCommits": false,
+    "blockUnmaintainedPackages": true,
+    "unmaintainedThreshold": 365
+  }
+}

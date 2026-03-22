@@ -1,0 +1,66 @@
+# Docker ignore file
+
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build output
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.docker/
+
+# Kubernetes
+k8s/
+*.yaml
+*.yml
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Scripts (not needed in container)
+scripts/deploy.sh
+scripts/health-checks.sh
+
+# Test files
+tests/
+*.test.ts
+*.spec.ts
+jest.config.js
+
+# Development configs
+tsconfig.tsbuildinfo

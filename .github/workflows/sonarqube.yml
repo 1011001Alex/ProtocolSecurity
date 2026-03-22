@@ -1,0 +1,328 @@
+# ========================================
+# GitHub Actions: SonarQube Analysis
+# Protocol Security Project
+# ========================================
+# Автоматический security analysis с отправкой в SonarQube Cloud
+# Документация: https://docs.sonarqube.org/
+
+name: "SonarQube Security Analysis"
+
+on:
+  # Запуск при пуше в основные ветки
+  push:
+    branches:
+      - main
+      - master
+      - 'release/**'
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'tsconfig.json'
+      - 'sonar-project.properties'
+      - '.github/workflows/sonarqube.yml'
+  
+  # Запуск при создании pull request
+  pull_request:
+    branches:
+      - main
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'tsconfig.json'
+  
+  # Ручной запуск через GitHub UI
+  workflow_dispatch:
+    inputs:
+      sonar_log_level:
+        description: 'Уровень логирования (INFO, DEBUG, TRACE)'
+        required: false
+        default: 'INFO'
+        type: choice
+        options:
+          - INFO
+          - DEBUG
+          - TRACE
+      
+      force_analysis:
+        description: 'Принудительный анализ без кэша'
+        required: false
+        default: 'false'
+        type: boolean
+  
+  # Расписание - еженедельный анализ в воскресенье в 03:00 UTC
+  schedule:
+    - cron: '0 3 * * 0'
+
+# Отмена предыдущих запусков при новом комите
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  # Требуется для checkout репозитория
+  contents: read
+  # Требуется для PR комментариев
+  pull-requests: write
+  # Требуется для загрузки отчетов
+  checks: write
+
+env:
+  # Глобальные переменные окружения
+  NODE_VERSION: '20'
+  SONAR_HOST_URL: 'https://sonarcloud.io'
+  SONAR_ORGANIZATION: 'protocol-security'
+
+jobs:
+  # ========================================
+  # Job: SonarQube Scan
+  # ========================================
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      # ----------------------------------------
+      # Step 1: Checkout Repository
+      # ----------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Глубина fetch для анализа истории
+          fetch-depth: 0
+          # Для PR - mergе commit
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      
+      # ----------------------------------------
+      # Step 2: Setup Node.js
+      # ----------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      
+      # ----------------------------------------
+      # Step 3: Install Dependencies
+      # ----------------------------------------
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          echo "✅ Dependencies installed"
+      
+      # ----------------------------------------
+      # Step 4: Build Project
+      # ----------------------------------------
+      - name: Build project
+        run: |
+          npm run build
+          echo "✅ Build completed"
+      
+      # ----------------------------------------
+      # Step 5: Run Tests with Coverage
+      # ----------------------------------------
+      - name: Run tests with coverage
+        run: |
+          npm run test -- --coverage --coverageReporters=text --coverageReporters=lcov
+          echo "✅ Tests completed with coverage"
+        continue-on-error: true
+      
+      # ----------------------------------------
+      # Step 6: Run ESLint
+      # ----------------------------------------
+      - name: Run ESLint
+        run: |
+          npm run lint -- --format=json --output-file=eslint-report.json || true
+          echo "✅ ESLint completed"
+        continue-on-error: true
+      
+      # ----------------------------------------
+      # Step 7: Verify SonarQube Token
+      # ----------------------------------------
+      - name: Verify SonarQube Token
+        run: |
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "⚠️ WARNING: SONAR_TOKEN secret is not set!"
+            echo "Please configure SONAR_TOKEN in repository secrets."
+            echo "Analysis will be skipped."
+            echo "SKIP_ANALYSIS=true" >> $GITHUB_ENV
+          else
+            echo "✅ SONAR_TOKEN is configured"
+            echo "SKIP_ANALYSIS=false" >> $GITHUB_ENV
+          fi
+      
+      # ----------------------------------------
+      # Step 8: SonarQube Scan (SonarCloud)
+      # ----------------------------------------
+      - name: SonarQube Scan
+        if: env.SKIP_ANALYSIS == 'false'
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
+        with:
+          # Дополнительные аргументы
+          args: >
+            -Dsonar.projectKey=${{ env.SONAR_ORGANIZATION }}_protocol-security
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
+            -Dsonar.host.url=${{ env.SONAR_HOST_URL }}
+            -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.eslint.reportPaths=eslint-report.json
+            -Dsonar.verbose=${{ github.event.inputs.sonar_log_level == 'DEBUG' && 'true' || 'false' }}
+            -Dsonar.scm.revision=${{ github.sha }}
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.log.level=${{ github.event.inputs.sonar_log_level || 'INFO' }}
+      
+      # ----------------------------------------
+      # Step 9: SonarQube Quality Gate
+      # ----------------------------------------
+      - name: SonarQube Quality Gate Check
+        if: env.SKIP_ANALYSIS == 'false' && github.event_name == 'pull_request'
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        id: sonarqube-quality-gate
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          # Таймаут ожидания качества
+          timeout: 300
+          # Вывод результатов
+          verbose: true
+      
+      # ----------------------------------------
+      # Step 10: Handle Quality Gate Result
+      # ----------------------------------------
+      - name: Quality Gate Result
+        if: always() && env.SKIP_ANALYSIS == 'false'
+        run: |
+          echo "=== SonarQube Quality Gate Result ==="
+          
+          if [ "${{ steps.sonarqube-quality-gate.outputs.quality-gate-status }}" == "OK" ]; then
+            echo "✅ Quality Gate PASSED"
+            echo "📊 Project is ready for merge"
+          elif [ "${{ steps.sonarqube-quality-gate.outputs.quality-gate-status }}" == "ERROR" ]; then
+            echo "❌ Quality Gate FAILED"
+            echo "📋 Please fix the following issues:"
+            echo "   - Check SonarQube dashboard for details"
+            echo "   - Address code quality issues"
+            echo "   - Improve test coverage"
+            exit 1
+          else
+            echo "⚠️ Quality Gate status: ${{ steps.sonarqube-quality-gate.outputs.quality-gate-status }}"
+            echo "   - Analysis may still be in progress"
+          fi
+      
+      # ----------------------------------------
+      # Step 11: Upload Analysis Report
+      # ----------------------------------------
+      - name: Upload Analysis Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarqube-analysis-report
+          path: |
+            coverage/**
+            eslint-report.json
+            .scannerwork/**
+          retention-days: 30
+          if-no-files-found: warn
+      
+      # ----------------------------------------
+      # Step 12: Post PR Comment
+      # ----------------------------------------
+      - name: Post PR Comment
+        if: always() && github.event_name == 'pull_request' && env.SKIP_ANALYSIS == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const qualityGateStatus = '${{ steps.sonarqube-quality-gate.outputs.quality-gate-status }}';
+            
+            let commentBody = '## 🔍 SonarQube Analysis Results\n\n';
+            
+            if (qualityGateStatus === 'OK') {
+              commentBody += '✅ **Quality Gate: PASSED**\n\n';
+              commentBody += 'Проект соответствует стандартам качества.\n';
+            } else if (qualityGateStatus === 'ERROR') {
+              commentBody += '❌ **Quality Gate: FAILED**\n\n';
+              commentBody += 'Обнаружены проблемы с качеством кода. ';
+              commentBody += 'Пожалуйста, проверьте [SonarQube dashboard](${{ env.SONAR_HOST_URL }}/dashboard?id=${{ env.SONAR_ORGANIZATION }}_protocol-security) для деталей.\n';
+            } else {
+              commentBody += '⚠️ **Quality Gate: ' + qualityGateStatus + '**\n\n';
+              commentBody += 'Анализ еще в процессе или статус неизвестен.\n';
+            }
+            
+            commentBody += '\n---\n';
+            commentBody += `📊 [View Full Report](${{ env.SONAR_HOST_URL }}/dashboard?id=${{ env.SONAR_ORGANIZATION }}_protocol-security&pullRequest=${{ github.event.pull_request.number }})\n`;
+            commentBody += '| Analysis ID | Branch |\n';
+            commentBody += '|-------------|--------|\n';
+            commentBody += `| \`${{ github.run_id }}\` | \`${{ github.event.pull_request.head.ref }}\` |\n`;
+            
+            // Проверяем существующие комментарии
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const existingComment = comments.find(c => 
+              c.user.login === 'github-actions[bot]' && 
+              c.body.includes('SonarQube Analysis Results')
+            );
+            
+            if (existingComment) {
+              // Обновляем существующий комментарий
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+            } else {
+              // Создаем новый комментарий
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+  # ========================================
+  # Job: Summary Report
+  # ========================================
+  summary:
+    name: Analysis Summary
+    runs-on: ubuntu-latest
+    needs: sonarqube
+    if: always()
+    
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "=== SonarQube Analysis Summary ==="
+          echo ""
+          echo "📁 Repository: ${{ github.repository }}"
+          echo "🔖 Commit: ${{ github.sha }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "🔢 Run ID: ${{ github.run_id }}"
+          echo ""
+          
+          if [ "${{ needs.sonarqube.result }}" == "success" ]; then
+            echo "✅ Analysis Status: SUCCESS"
+          elif [ "${{ needs.sonarqube.result }}" == "failure" ]; then
+            echo "❌ Analysis Status: FAILED"
+          else
+            echo "⚠️ Analysis Status: ${{ needs.sonarqube.result }}"
+          fi
+          
+          echo ""
+          echo "📊 View results at: ${{ env.SONAR_HOST_URL }}/dashboard?id=${{ env.SONAR_ORGANIZATION }}_protocol-security"

@@ -1,0 +1,292 @@
+{
+  "_comment": "Snyk Policy File for Protocol Security Project",
+  "_description": "Политики безопасности для определения блокирующих и предупреждающих уязвимостей",
+  "version": "1.0.0",
+  
+  "policy": {
+    "_comment": "Основная политика обработки уязвимостей",
+    
+    "vulnerabilities": {
+      "_comment": "Правила для уязвимостей по уровням серьёзности",
+      
+      "critical": {
+        "action": "fail",
+        "description": "Критические уязвимости блокируют CI/CD pipeline",
+        "details": {
+          "blockBuild": true,
+          "blockDeploy": true,
+          "blockPR": true,
+          "requireApproval": true,
+          "approvers": ["security-lead", "tech-lead"],
+          "notifyChannels": ["#security-critical", "#devops-alerts"],
+          "createTicket": true,
+          "ticketPriority": "P0",
+          "slaHours": 4
+        }
+      },
+      
+      "high": {
+        "action": "fail",
+        "description": "Высокие уязвимости блокируют CI/CD pipeline",
+        "details": {
+          "blockBuild": true,
+          "blockDeploy": true,
+          "blockPR": true,
+          "requireApproval": true,
+          "approvers": ["security-lead"],
+          "notifyChannels": ["#security-alerts"],
+          "createTicket": true,
+          "ticketPriority": "P1",
+          "slaHours": 24
+        }
+      },
+      
+      "medium": {
+        "action": "warn",
+        "description": "Средние уязвимости генерируют предупреждение, но не блокируют",
+        "details": {
+          "blockBuild": false,
+          "blockDeploy": false,
+          "blockPR": false,
+          "requireApproval": false,
+          "notifyChannels": ["#dev-notifications"],
+          "createTicket": true,
+          "ticketPriority": "P2",
+          "slaHours": 168,
+          "maxAge": 14
+        }
+      },
+      
+      "low": {
+        "action": "info",
+        "description": "Низкие уязвимости только логируются",
+        "details": {
+          "blockBuild": false,
+          "blockDeploy": false,
+          "blockPR": false,
+          "requireApproval": false,
+          "notifyChannels": [],
+          "createTicket": false,
+          "autoFix": true
+        }
+      }
+    },
+    
+    "exploitability": {
+      "_comment": "Правила на основе эксплуатационности уязвимостей",
+      
+      "proofOfConcept": {
+        "action": "fail",
+        "description": "Уязвимости с PoC эксплойтом блокируют сборку",
+        "upgradeSeverity": "high"
+      },
+      
+      "functionalExploit": {
+        "action": "fail",
+        "description": "Уязвимости с функциональным эксплойтом блокируют сборку",
+        "upgradeSeverity": "critical"
+      },
+      
+      "activeExploitation": {
+        "action": "fail",
+        "description": "Уязвимости с активной эксплуатацией в дикой природе",
+        "upgradeSeverity": "critical",
+        "slaHours": 2
+      }
+    }
+  },
+  
+  "ignore": {
+    "_comment": "Игнорируемые уязвимости (использовать с крайней осторожностью)",
+    
+    "rules": [
+      {
+        "_comment": "Пример правила игнорирования - ЗАМЕНИТЬ на реальные ID",
+        "id": "SNYK-JS-EXAMPLE-001",
+        "reason": "Уязвимость не затрагивает наш use case - не используем уязвимую функцию",
+        "expires": "2026-06-30T23:59:59.000Z",
+        "authorizedBy": "security-lead@example.com"
+      }
+    ],
+    
+    "guidelines": {
+      "maxIgnoreDays": 90,
+      "requireJustification": true,
+      "requireApproval": true,
+      "approvers": ["security-lead"],
+      "reviewRequired": true,
+      "reviewFrequency": "monthly"
+    }
+  },
+  
+  "patch": {
+    "_comment": "Настройки для автоматического патчинга",
+    
+    "enabled": true,
+    "autoApply": false,
+    "requireReview": true,
+    
+    "rules": {
+      "critical": {
+        "autoApply": false,
+        "requireReview": true,
+        "reviewers": ["security-team"]
+      },
+      "high": {
+        "autoApply": false,
+        "requireReview": true,
+        "reviewers": ["security-team"]
+      },
+      "medium": {
+        "autoApply": true,
+        "requireReview": false
+      },
+      "low": {
+        "autoApply": true,
+        "requireReview": false
+      }
+    }
+  },
+  
+  "fix": {
+    "_comment": "Настройки для автоматического исправления",
+    
+    "enabled": true,
+    "createPullRequests": true,
+    
+    "rules": {
+      "patch": {
+        "autoFix": true,
+        "createPR": true,
+        "mergeAutomatically": true
+      },
+      "minor": {
+        "autoFix": true,
+        "createPR": true,
+        "mergeAutomatically": false,
+        "requireTests": true
+      },
+      "major": {
+        "autoFix": false,
+        "createPR": true,
+        "mergeAutomatically": false,
+        "requireTests": true,
+        "requireReview": true
+      }
+    },
+    
+    "pullRequest": {
+      "baseBranch": "main",
+      "branchPrefix": "snyk/fix/",
+      "titleTemplate": "fix(security): Update {{packageName}} to {{newVersion}}",
+      "commitMessageTemplate": "fix: Security update for {{packageName}}\n\n{{vulnerabilityIds}}",
+      "labels": ["security", "dependencies", "auto-fix"],
+      "assignees": ["security-team"],
+      "reviewers": ["security-lead"]
+    }
+  },
+  
+  "monitor": {
+    "_comment": "Настройки для непрерывного мониторинга",
+    
+    "enabled": true,
+    "frequency": "daily",
+    "alertOnNewVulnerabilities": true,
+    "alertOnExploitabilityChange": true,
+    
+    "notifications": {
+      "slack": {
+        "enabled": true,
+        "criticalChannel": "#security-critical",
+        "highChannel": "#security-alerts",
+        "mediumChannel": "#dev-notifications"
+      },
+      "email": {
+        "enabled": false,
+        "recipients": ["security@protocol.local"]
+      },
+      "github": {
+        "enabled": true,
+        "createIssues": true,
+        "labelIssues": true
+      }
+    }
+  },
+  
+  "enforcement": {
+    "_comment": "Правила принудительного применения политик",
+    
+    "ci": {
+      "blockOn": ["critical", "high"],
+      "warnOn": ["medium"],
+      "failBuild": true,
+      "outputFormat": "json"
+    },
+    
+    "pr": {
+      "blockOn": ["critical", "high"],
+      "commentOnPR": true,
+      "addLabels": true,
+      "requireStatusCheck": true
+    },
+    
+    "deploy": {
+      "blockOn": ["critical", "high"],
+      "requireCleanAudit": true,
+      "exceptions": []
+    }
+  },
+  
+  "reporting": {
+    "_comment": "Настройки отчётности",
+    
+    "enabled": true,
+    "formats": ["json", "html", "sarif", "junit"],
+    "outputDir": "./reports/snyk",
+    
+    "include": {
+      "vulnerabilities": true,
+      "licenses": true,
+      "remediation": true,
+      "exploitability": true,
+      "cvssScores": true,
+      "cveReferences": true
+    },
+    
+    "schedule": {
+      "daily": true,
+      "weekly": true,
+      "monthly": true,
+      "recipients": ["security-team@protocol.local"]
+    }
+  },
+  
+  "integrations": {
+    "_comment": "Настройки интеграций с внешними системами",
+    
+    "github": {
+      "enabled": true,
+      "organization": "protocol",
+      "repositories": ["*"],
+      "pullRequestComments": true,
+      "statusChecks": true,
+      "securityAdvisories": true
+    },
+    
+    "jira": {
+      "enabled": false,
+      "project": "SEC",
+      "issueType": "Bug",
+      "priorityMapping": {
+        "critical": "Highest",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    },
+    
+    "servicenow": {
+      "enabled": false
+    }
+  }
+}

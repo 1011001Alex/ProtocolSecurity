@@ -1,0 +1,96 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "protocol-security",
+    "title": "Protocol Security Overview",
+    "tags": ["protocol", "security"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "graph",
+        "title": "Request Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "Requests/sec"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "graph",
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+            "legendFormat": "Errors/sec"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+        "type": "singlestat",
+        "title": "Total Requests",
+        "targets": [
+          {
+            "expr": "sum(http_requests_total)",
+            "legendFormat": "Total"
+          }
+        ],
+        "format": "short"
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+        "type": "singlestat",
+        "title": "Security Events",
+        "targets": [
+          {
+            "expr": "sum(security_events_total)",
+            "legendFormat": "Events"
+          }
+        ],
+        "format": "short"
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+        "type": "singlestat",
+        "title": "Auth Failures",
+        "targets": [
+          {
+            "expr": "sum(auth_attempts_total{status=\"failed\"})",
+            "legendFormat": "Failures"
+          }
+        ],
+        "format": "short"
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "type": "table",
+        "title": "Security Events by Type",
+        "targets": [
+          {
+            "expr": "sum by (event_type) (security_events_total)",
+            "legendFormat": "{{event_type}}"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": []
+    }
+  }
+}

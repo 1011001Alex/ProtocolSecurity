@@ -1,0 +1,79 @@
+# Git ignore file for Protocol Security
+# Created by Theodor Munch
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files (IMPORTANT!)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Test coverage
+coverage/
+.nyc_output/
+test-results/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+.cache/
+
+# Docker (optional - keep configs, remove data)
+*.tar
+.docker/
+
+# Kubernetes secrets (NEVER commit real secrets!)
+k8s/secrets.yaml
+*.secret.yaml
+
+# Credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Application specific
+vault-data/
+redis-data/
+elasticsearch-data/
+prometheus-data/
+grafana-data/
