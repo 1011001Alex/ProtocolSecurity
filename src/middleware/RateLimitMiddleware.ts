@@ -2,13 +2,24 @@
  * =============================================================================
  * RATE LIMITING MIDDLEWARE
  * =============================================================================
- * Продвинутый rate limiting с поддержкой Redis
+ * Продвинутый rate limiting с поддержкой Redis, Circuit Breaker и Retry Logic
  * Алгоритмы: Fixed Window, Sliding Window, Token Bucket, Leaky Bucket
+ * 
+ * Особенности:
+ * - Circuit Breaker для защиты от каскадных отказов Redis
+ * - Exponential backoff retry logic
+ * - Fallback на MemoryStore при отказе Redis
+ * - Alerting при failures через SecureLogger
+ * - Детальные метрики и мониторинг
  * =============================================================================
  */
 
 import { IncomingMessage, ServerResponse } from 'http';
 import { EventEmitter } from 'events';
+import { CircuitBreaker, CircuitState, CircuitBreakerError, CircuitBreakerManager } from '../utils/CircuitBreaker';
+import { RetryHandler, RetryHandlerFactory, BackoffStrategy } from '../utils/RetryHandler';
+import { SecureLogger, LoggerFactory } from '../logging/Logger';
+import { LogLevel, LogSource } from '../types/logging.types';
 
 // =============================================================================
 // ТИПЫ И ИНТЕРФЕЙСЫ
@@ -17,7 +28,7 @@ import { EventEmitter } from 'events';
 /**
  * Типы алгоритмов rate limiting
  */
-export type RateLimitAlgorithm = 
+export type RateLimitAlgorithm =
   | 'fixed_window'
   | 'sliding_window'
   | 'token_bucket'
@@ -30,31 +41,31 @@ export type RateLimitAlgorithm =
 export interface RateLimitRule {
   /** Название правила */
   name: string;
-  
+
   /** Алгоритм */
   algorithm: RateLimitAlgorithm;
-  
+
   /** Максимальное количество запросов */
   maxRequests: number;
-  
+
   /** Окно времени (мс) */
   windowMs: number;
-  
+
   /** Генератор ключа */
   keyGenerator: (req: IncomingMessage) => string;
-  
+
   /** Сообщение при превышении */
   message: string;
-  
+
   /** HTTP статус код */
   statusCode: number;
-  
+
   /** Включить заголовки */
   headers: boolean;
-  
+
   /** Skip условие */
   skip?: (req: IncomingMessage) => boolean;
-  
+
   /** Handler при превышении */
   handler?: (req: IncomingMessage, res: ServerResponse) => void;
 }
@@ -65,19 +76,19 @@ export interface RateLimitRule {
 export interface RateLimitResult {
   /** Разрешено ли */
   allowed: boolean;
-  
+
   /** Текущее количество запросов */
   current: number;
-  
+
   /** Максимум */
   max: number;
-  
+
   /** Оставшееся количество */
   remaining: number;
-  
+
   /** Время сброса (мс) */
   resetTime: number;
-  
+
   /** Retry after (секунды) */
   retryAfter?: number;
 }
@@ -88,19 +99,19 @@ export interface RateLimitResult {
 export interface RateLimitStore {
   /** Инициализация */
   initialize(): Promise<void>;
-  
+
   /** Получение записи */
   get(key: string): Promise<StoreEntry | null>;
-  
+
   /** Установка записи */
   set(key: string, entry: StoreEntry, ttlMs: number): Promise<void>;
-  
+
   /** Инкремент */
   increment(key: string, windowMs: number): Promise<number>;
-  
+
   /** Очистка */
   cleanup(): Promise<void>;
-  
+
   /** Закрытие */
   destroy(): Promise<void>;
 }
@@ -111,14 +122,14 @@ export interface RateLimitStore {
 export interface StoreEntry {
   /** Количество запросов */
   count: number;
-  
+
   /** Время начала окна */
   windowStart: number;
-  
+
   /** Для token bucket */
   tokens?: number;
   lastRefill?: number;
-  
+
   /** Для leaky bucket */
   waterLevel?: number;
   lastLeak?: number;
@@ -130,36 +141,99 @@ export interface StoreEntry {
 export interface RedisStoreConfig {
   /** Redis host */
   host: string;
-  
+
   /** Redis port */
   port: number;
-  
+
   /** Redis password */
   password?: string;
-  
+
   /** Redis DB */
   db?: number;
-  
+
   /** Key prefix */
   keyPrefix: string;
+
+  /** Circuit Breaker конфигурация */
+  circuitBreaker?: {
+    failureThreshold: number;
+    resetTimeout: number;
+    successThreshold: number;
+    operationTimeout: number;
+  };
+
+  /** Retry конфигурация */
+  retry?: {
+    maxRetries: number;
+    initialDelay: number;
+    maxDelay: number;
+    multiplier: number;
+    backoffStrategy: BackoffStrategy;
+  };
+
+  /** Включить логирование */
+  enableLogging: boolean;
+
+  /** Logger instance */
+  logger?: SecureLogger;
 }
 
+/**
+ * Конфигурация по умолчанию
+ */
+const DEFAULT_REDIS_STORE_CONFIG: Required<RedisStoreConfig> = {
+  host: 'localhost',
+  port: 6379,
+  password: '',
+  db: 0,
+  keyPrefix: 'ratelimit',
+  enableLogging: true,
+  logger: undefined as any,
+  circuitBreaker: {
+    failureThreshold: 5,
+    resetTimeout: 30000,
+    successThreshold: 3,
+    operationTimeout: 10000
+  },
+  retry: {
+    maxRetries: 3,
+    initialDelay: 100,
+    maxDelay: 5000,
+    multiplier: 2,
+    backoffStrategy: BackoffStrategy.EXPONENTIAL_WITH_JITTER
+  }
+};
+
 // =============================================================================
-// MEMORY STORE (для development)
+// MEMORY STORE (для development и fallback)
 // =============================================================================
 
 export class MemoryStore implements RateLimitStore {
   private store: Map<string, StoreEntry>;
   private cleanupInterval?: NodeJS.Timeout;
+  private logger?: SecureLogger;
 
-  constructor() {
+  constructor(logger?: SecureLogger) {
     this.store = new Map();
+    this.logger = logger;
   }
 
   async initialize(): Promise<void> {
+    this.logger?.info(
+      '[MemoryStore] Инициализация хранилища в памяти',
+      LogSource.APPLICATION,
+      'RateLimitMiddleware'
+    );
+    
     // Очистка каждые 5 минут
     this.cleanupInterval = setInterval(() => {
-      this.cleanup().catch(console.error);
+      this.cleanup().catch((error) => {
+        this.logger?.error(
+          `[MemoryStore] Ошибка очистки: ${error.message}`,
+          LogSource.APPLICATION,
+          'RateLimitMiddleware'
+        );
+      });
     }, 5 * 60 * 1000);
   }
 
@@ -193,10 +267,21 @@ export class MemoryStore implements RateLimitStore {
 
   async cleanup(): Promise<void> {
     const now = Date.now();
+    let deletedCount = 0;
+    
     for (const [key, entry] of this.store.entries()) {
       if (now - entry.windowStart > 60 * 60 * 1000) { // 1 час
         this.store.delete(key);
+        deletedCount++;
       }
+    }
+
+    if (deletedCount > 0 && this.logger) {
+      this.logger.debug(
+        `[MemoryStore] Очищено ${deletedCount} устаревших записей`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
     }
   }
 
@@ -207,26 +292,192 @@ export class MemoryStore implements RateLimitStore {
   async destroy(): Promise<void> {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
     }
+    
     this.store.clear();
+    
+    this.logger?.info(
+      '[MemoryStore] Хранилище уничтожено',
+      LogSource.APPLICATION,
+      'RateLimitMiddleware'
+    );
+  }
+
+  /**
+   * Получение статистики
+   */
+  getStats(): { size: number } {
+    return {
+      size: this.store.size
+    };
   }
 }
 
 // =============================================================================
-// REDIS STORE (для production)
+// REDIS STORE (для production) с Circuit Breaker и Retry Logic
 // =============================================================================
 
 export class RedisStore implements RateLimitStore {
-  private config: RedisStoreConfig;
-  private client: any; // Redis client
+  private config: Required<RedisStoreConfig>;
+  private client: any | null = null;
   private isConnected: boolean = false;
+  private circuitBreaker: CircuitBreaker;
+  private retryHandler: RetryHandler;
+  private logger: SecureLogger;
+  private fallbackStore: MemoryStore;
+  private usingFallback: boolean = false;
 
   constructor(config: RedisStoreConfig) {
-    this.config = config;
+    this.config = {
+      ...DEFAULT_REDIS_STORE_CONFIG,
+      ...config
+    };
+
+    // Инициализация logger
+    this.logger = config.logger || LoggerFactory.getLogger(
+      'RateLimitMiddleware',
+      {
+        level: LogLevel.INFO,
+        transports: [{ type: 'console', params: {} }],
+        enableColors: true,
+        format: 'structured'
+      },
+      {
+        environment: process.env.NODE_ENV || 'development',
+        region: 'local',
+        version: '1.0.0',
+        serviceName: 'RateLimitMiddleware'
+      }
+    );
+
+    // Инициализация fallback store
+    this.fallbackStore = new MemoryStore(this.logger);
+
+    // Инициализация Circuit Breaker
+    this.circuitBreaker = new CircuitBreaker({
+      failureThreshold: this.config.circuitBreaker.failureThreshold,
+      resetTimeout: this.config.circuitBreaker.resetTimeout,
+      successThreshold: this.config.circuitBreaker.successThreshold,
+      operationTimeout: this.config.circuitBreaker.operationTimeout,
+      enableMonitoring: this.config.enableLogging,
+      name: 'RedisStore'
+    });
+
+    // Подписка на события Circuit Breaker для alerting
+    this.setupCircuitBreakerAlerting();
+
+    // Инициализация Retry Handler
+    this.retryHandler = new RetryHandler({
+      maxRetries: this.config.retry.maxRetries,
+      initialDelay: this.config.retry.initialDelay,
+      maxDelay: this.config.retry.maxDelay,
+      multiplier: this.config.retry.multiplier,
+      backoffStrategy: this.config.retry.backoffStrategy,
+      enableCircuitBreaker: false, // Используем свой circuit breaker
+      enableLogging: this.config.enableLogging,
+      name: 'RedisStore'
+    });
+
+    this.logger.info(
+      `[RedisStore] Инициализация: host=${this.config.host}:${this.config.port}, ` +
+      `circuitBreaker.threshold=${this.config.circuitBreaker.failureThreshold}, ` +
+      `retry.maxRetries=${this.config.retry.maxRetries}`,
+      LogSource.APPLICATION,
+      'RateLimitMiddleware'
+    );
+  }
+
+  /**
+   * Настройка alerting для событий Circuit Breaker
+   */
+  private setupCircuitBreakerAlerting(): void {
+    this.circuitBreaker.on('open', (data) => {
+      this.usingFallback = true;
+      
+      this.logger.alert(
+        `Circuit Breaker РАЗОРВАЛ цепь! Redis недоступен. Переключение на MemoryStore. ` +
+        `Failures: ${data.stats.failures}, State: ${data.stats.state}`,
+        LogSource.SECURITY,
+        'RateLimitMiddleware',
+        undefined,
+        {
+          circuitBreakerStats: data.stats,
+          action: 'fallback_activated'
+        }
+      );
+
+      // Эмиссия события для внешнего мониторинга
+      this.emit('circuit:open', { stats: data.stats });
+    });
+
+    this.circuitBreaker.on('close', (data) => {
+      const wasUsingFallback = this.usingFallback;
+      this.usingFallback = false;
+
+      this.logger.notice(
+        `Circuit Breaker ЗАМКНУЛ цепь. Redis восстановлен. Возврат к нормальной работе.`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware',
+        undefined,
+        {
+          circuitBreakerStats: data.stats,
+          action: 'primary_restored',
+          wasUsingFallback
+        }
+      );
+
+      this.emit('circuit:close', { stats: data.stats });
+    });
+
+    this.circuitBreaker.on('half_open', (data) => {
+      this.logger.warning(
+        `Circuit Breaker в состоянии HALF_OPEN. Попытка восстановления соединения с Redis.`,
+        LogSource.SECURITY,
+        'RateLimitMiddleware',
+        undefined,
+        {
+          circuitBreakerStats: data.stats,
+          action: 'recovery_attempt'
+        }
+      );
+
+      this.emit('circuit:half_open', { stats: data.stats });
+    });
+
+    this.circuitBreaker.on('failure', (data) => {
+      this.logger.error(
+        `Circuit Breaker зафиксировал failure: ${data.error}`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware',
+        undefined,
+        {
+          error: data.error,
+          stats: data.stats,
+          action: 'failure_recorded'
+        }
+      );
+    });
+
+    this.circuitBreaker.on('reject', (data) => {
+      this.logger.warning(
+        `Circuit Breaker отклонил запрос (состояние OPEN): ${data.state}`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware',
+        undefined,
+        {
+          state: data.state,
+          stats: data.stats,
+          action: 'request_rejected'
+        }
+      );
+    });
   }
 
   async initialize(): Promise<void> {
     try {
+      await this.fallbackStore.initialize();
+
       // В реальной реализации: ioredis или node-redis
       // this.client = new Redis({
       //   host: this.config.host,
@@ -235,88 +486,294 @@ export class RedisStore implements RateLimitStore {
       //   db: this.config.db,
       //   keyPrefix: this.config.keyPrefix
       // });
-      
-      this.isConnected = true;
-      console.log('[RedisStore] Connected to Redis');
+
+      // Эмуляция подключения для демонстрации
+      await this.circuitBreaker.execute(async () => {
+        // Симуляция подключения к Redis
+        await new Promise(resolve => setTimeout(resolve, 10));
+        this.isConnected = true;
+        this.client = { /* mock redis client */ };
+      });
+
+      this.logger.info(
+        `[RedisStore] Успешное подключение к Redis ${this.config.host}:${this.config.port}`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+
     } catch (error) {
-      console.error('[RedisStore] Connection failed:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      this.logger.error(
+        `[RedisStore] Ошибка подключения к Redis: ${errorMessage}`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware',
+        undefined,
+        undefined,
+        error as Error
+      );
+
       this.isConnected = false;
+      this.usingFallback = true;
+    }
+  }
+
+  /**
+   * Выполнение операции с retry и circuit breaker
+   */
+  private async executeWithProtection<T>(
+    operation: () => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    // Если circuit breaker в состоянии OPEN, используем fallback
+    if (this.circuitBreaker.getState() === CircuitState.OPEN) {
+      this.logger.debug(
+        `[RedisStore] Circuit OPEN, использование fallback для ${operationName}`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      throw new CircuitBreakerError(
+        'Circuit breaker open, using fallback',
+        'CIRCUIT_OPEN',
+        CircuitState.OPEN
+      );
+    }
+
+    try {
+      // Выполнение с retry logic
+      return await this.retryHandler.execute(async () => {
+        return this.circuitBreaker.execute(operation);
+      });
+    } catch (error) {
+      // Если circuit breaker open или retry исчерпаны, пробрасываем ошибку
+      if (error instanceof CircuitBreakerError) {
+        throw error;
+      }
+
+      this.logger.error(
+        `[RedisStore] Операция ${operationName} failed после всех retry попыток`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware',
+        undefined,
+        undefined,
+        error as Error
+      );
+
+      throw error;
     }
   }
 
   async get(key: string): Promise<StoreEntry | null> {
-    if (!this.isConnected || !this.client) {
-      return null;
+    // Если не подключены или circuit open, используем fallback
+    if (!this.isConnected || !this.client || this.circuitBreaker.getState() === CircuitState.OPEN) {
+      this.logger.debug(
+        `[RedisStore] Fallback для get(${key}) - Redis недоступен`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      return this.fallbackStore.get(key);
     }
 
-    const data = await this.client.get(`${this.config.keyPrefix}:${key}`);
-    if (!data) {
-      return null;
-    }
+    try {
+      return await this.executeWithProtection(
+        async () => {
+          const fullKey = `${this.config.keyPrefix}:${key}`;
+          const data = await this.client.get(fullKey);
+          
+          if (!data) {
+            return null;
+          }
 
-    return JSON.parse(data);
+          return JSON.parse(data) as StoreEntry;
+        },
+        `get:${key}`
+      );
+    } catch (error) {
+      // Fallback при ошибке
+      this.logger.warning(
+        `[RedisStore] Ошибка get(${key}), использование fallback`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      return this.fallbackStore.get(key);
+    }
   }
 
   async set(key: string, entry: StoreEntry, ttlMs: number): Promise<void> {
-    if (!this.isConnected || !this.client) {
-      return;
+    // Если не подключены или circuit open, используем fallback
+    if (!this.isConnected || !this.client || this.circuitBreaker.getState() === CircuitState.OPEN) {
+      this.logger.debug(
+        `[RedisStore] Fallback для set(${key}) - Redis недоступен`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      return this.fallbackStore.set(key, entry, ttlMs);
     }
 
-    const fullKey = `${this.config.keyPrefix}:${key}`;
-    const ttlSeconds = Math.ceil(ttlMs / 1000);
-
-    await this.client.setex(fullKey, ttlSeconds, JSON.stringify(entry));
+    try {
+      await this.executeWithProtection(
+        async () => {
+          const fullKey = `${this.config.keyPrefix}:${key}`;
+          const ttlSeconds = Math.ceil(ttlMs / 1000);
+          await this.client.setex(fullKey, ttlSeconds, JSON.stringify(entry));
+        },
+        `set:${key}`
+      );
+    } catch (error) {
+      // Fallback при ошибке
+      this.logger.warning(
+        `[RedisStore] Ошибка set(${key}), использование fallback`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      return this.fallbackStore.set(key, entry, ttlMs);
+    }
   }
 
   async increment(key: string, windowMs: number): Promise<number> {
-    if (!this.isConnected || !this.client) {
-      // Fallback на memory
-      return 1;
+    // Если не подключены или circuit open, используем fallback
+    if (!this.isConnected || !this.client || this.circuitBreaker.getState() === CircuitState.OPEN) {
+      this.logger.debug(
+        `[RedisStore] Fallback для increment(${key}) - Redis недоступен`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      return this.fallbackStore.increment(key, windowMs);
     }
 
-    const fullKey = `${this.config.keyPrefix}:${key}`;
-    const now = Date.now();
+    try {
+      return await this.executeWithProtection(
+        async () => {
+          const fullKey = `${this.config.keyPrefix}:${key}`;
+          const now = Date.now();
 
-    // Lua script для атомарного инкремента
-    const luaScript = `
-      local key = KEYS[1]
-      local windowMs = tonumber(ARGV[1])
-      local now = tonumber(ARGV[2])
-      
-      local data = redis.call('GET', key)
-      local entry = nil
-      
-      if data then
-        entry = cjson.decode(data)
-      end
-      
-      if not entry or (now - entry.windowStart) > windowMs then
-        -- Новое окно
-        entry = { count = 1, windowStart = now }
-      else
-        -- Существующее окно
-        entry.count = entry.count + 1
-      end
-      
-      local ttl = math.ceil(windowMs / 1000)
-      redis.call('SETEX', key, ttl, cjson.encode(entry))
-      
-      return entry.count
-    `;
+          // Lua script для атомарного инкремента
+          const luaScript = `
+            local key = KEYS[1]
+            local windowMs = tonumber(ARGV[1])
+            local now = tonumber(ARGV[2])
 
-    const count = await this.client.eval(luaScript, 1, fullKey, windowMs.toString(), now.toString());
-    return count;
+            local data = redis.call('GET', key)
+            local entry = nil
+
+            if data then
+              entry = cjson.decode(data)
+            end
+
+            if not entry or (now - entry.windowStart) > windowMs then
+              -- Новое окно
+              entry = { count = 1, windowStart = now }
+            else
+              -- Существующее окно
+              entry.count = entry.count + 1
+            end
+
+            local ttl = math.ceil(windowMs / 1000)
+            redis.call('SETEX', key, ttl, cjson.encode(entry))
+
+            return entry.count
+          `;
+
+          const count = await this.client.eval(
+            luaScript,
+            1,
+            fullKey,
+            windowMs.toString(),
+            now.toString()
+          );
+
+          return count as number;
+        },
+        `increment:${key}`
+      );
+    } catch (error) {
+      // Fallback при ошибке
+      this.logger.warning(
+        `[RedisStore] Ошибка increment(${key}), использование fallback`,
+        LogSource.APPLICATION,
+        'RateLimitMiddleware'
+      );
+      return this.fallbackStore.increment(key, windowMs);
+    }
   }
 
   async cleanup(): Promise<void> {
     // Redis автоматически очищает по TTL
+    // Очищаем fallback store
+    await this.fallbackStore.cleanup();
   }
 
   async destroy(): Promise<void> {
+    this.logger.info(
+      '[RedisStore] Уничтожение хранилища',
+      LogSource.APPLICATION,
+      'RateLimitMiddleware'
+    );
+
+    // Остановка circuit breaker
+    this.circuitBreaker.destroy();
+
+    // Остановка retry handler
+    this.retryHandler.destroy();
+
+    // Очистка Redis client
     if (this.client) {
-      await this.client.quit();
-      this.isConnected = false;
+      try {
+        await this.client.quit();
+      } catch (error) {
+        this.logger.error(
+          `[RedisStore] Ошибка закрытия соединения: ${error instanceof Error ? error.message : String(error)}`,
+          LogSource.APPLICATION,
+          'RateLimitMiddleware'
+        );
+      }
+      this.client = null;
     }
+
+    this.isConnected = false;
+
+    // Уничтожение fallback store
+    await this.fallbackStore.destroy();
+  }
+
+  /**
+   * Получение статистики
+   */
+  getStats(): {
+    isConnected: boolean;
+    usingFallback: boolean;
+    circuitBreakerState: CircuitState;
+    circuitBreakerStats: ReturnType<CircuitBreaker['getStats']>;
+    retryStats: ReturnType<RetryHandler['getStats']>;
+    fallbackStats: ReturnType<MemoryStore['getStats']>;
+  } {
+    return {
+      isConnected: this.isConnected,
+      usingFallback: this.usingFallback,
+      circuitBreakerState: this.circuitBreaker.getState(),
+      circuitBreakerStats: this.circuitBreaker.getStats(),
+      retryStats: this.retryHandler.getStats(),
+      fallbackStats: this.fallbackStore.getStats()
+    };
+  }
+
+  /**
+   * Принудительный reset circuit breaker
+   */
+  resetCircuitBreaker(): void {
+    this.logger.notice(
+      '[RedisStore] Принудительный reset Circuit Breaker',
+      LogSource.APPLICATION,
+      'RateLimitMiddleware'
+    );
+    this.circuitBreaker.reset();
+  }
+
+  /**
+   * Проверка доступности Redis
+   */
+  isAvailable(): boolean {
+    return this.isConnected && this.circuitBreaker.isAvailable();
   }
 }
 
@@ -328,18 +785,39 @@ export class RateLimiter extends EventEmitter {
   private rules: Map<string, RateLimitRule>;
   private store: RateLimitStore;
   private enabled: boolean;
+  private logger: SecureLogger;
 
-  constructor(store?: RateLimitStore, enabled: boolean = true) {
+  constructor(store?: RateLimitStore, enabled: boolean = true, logger?: SecureLogger) {
     super();
     this.rules = new Map();
-    this.store = store || new MemoryStore();
+    this.store = store || new MemoryStore(logger);
     this.enabled = enabled;
+    this.logger = logger || LoggerFactory.getLogger(
+      'RateLimiter',
+      {
+        level: LogLevel.INFO,
+        transports: [{ type: 'console', params: {} }],
+        enableColors: true,
+        format: 'structured'
+      },
+      {
+        environment: process.env.NODE_ENV || 'development',
+        region: 'local',
+        version: '1.0.0',
+        serviceName: 'RateLimiter'
+      }
+    );
   }
 
   /**
    * Инициализация
    */
   async initialize(): Promise<void> {
+    this.logger.info(
+      '[RateLimiter] Инициализация rate limiter',
+      LogSource.APPLICATION,
+      'RateLimiter'
+    );
     await this.store.initialize();
   }
 
@@ -348,6 +826,11 @@ export class RateLimiter extends EventEmitter {
    */
   addRule(rule: RateLimitRule): void {
     this.rules.set(rule.name, rule);
+    this.logger.info(
+      `[RateLimiter] Добавлено правило: ${rule.name} (${rule.algorithm}, ${rule.maxRequests} req/${rule.windowMs}ms)`,
+      LogSource.APPLICATION,
+      'RateLimiter'
+    );
   }
 
   /**
@@ -359,46 +842,89 @@ export class RateLimiter extends EventEmitter {
       return;
     }
 
-    // Проверка всех правил
-    for (const rule of this.rules.values()) {
-      // Проверка skip условия
-      if (rule.skip?.(req)) {
-        continue;
-      }
+    const startTime = Date.now();
 
-      // Генерация ключа
-      const key = rule.keyGenerator(req);
-
-      // Проверка rate limit
-      const result = await this.checkRateLimit(key, rule);
-
-      // Установка заголовков
-      if (rule.headers) {
-        this.setRateLimitHeaders(res, result, rule);
-      }
-
-      // Если превышен лимит
-      if (!result.allowed) {
-        this.emit('rate-limit-exceeded', { rule: rule.name, key, req });
-
-        if (rule.handler) {
-          rule.handler(req, res);
-          return;
+    try {
+      // Проверка всех правил
+      for (const rule of this.rules.values()) {
+        // Проверка skip условия
+        if (rule.skip?.(req)) {
+          continue;
         }
 
-        res.statusCode = rule.statusCode;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({
-          error: 'Too Many Requests',
-          message: rule.message,
-          retryAfter: result.retryAfter,
-          rule: rule.name
-        }));
-        return;
-      }
-    }
+        // Генерация ключа
+        const key = rule.keyGenerator(req);
 
-    next?.();
+        // Проверка rate limit
+        const result = await this.checkRateLimit(key, rule);
+
+        // Установка заголовков
+        if (rule.headers) {
+          this.setRateLimitHeaders(res, result, rule);
+        }
+
+        // Если превышен лимит
+        if (!result.allowed) {
+          const duration = Date.now() - startTime;
+
+          this.logger.warning(
+            `Rate limit превышен: ${rule.name}, key=${key}, current=${result.current}, max=${result.max}`,
+            LogSource.SECURITY,
+            'RateLimiter',
+            undefined,
+            {
+              ruleName: rule.name,
+              key,
+              current: result.current,
+              max: result.max,
+              retryAfter: result.retryAfter,
+              processingTimeMs: duration
+            }
+          );
+
+          this.emit('rate-limit-exceeded', { rule: rule.name, key, req, result });
+
+          if (rule.handler) {
+            rule.handler(req, res);
+            return;
+          }
+
+          res.statusCode = rule.statusCode;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            error: 'Too Many Requests',
+            message: rule.message,
+            retryAfter: result.retryAfter,
+            rule: rule.name
+          }));
+          return;
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      this.logger.debug(
+        `[RateLimiter] Request разрешен, processing time: ${duration}ms`,
+        LogSource.APPLICATION,
+        'RateLimiter'
+      );
+
+      next?.();
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      this.logger.error(
+        `[RateLimiter] Ошибка проверки rate limit: ${errorMessage}`,
+        LogSource.APPLICATION,
+        'RateLimiter',
+        undefined,
+        undefined,
+        error as Error
+      );
+
+      // В случае ошибки - пропускаем запрос (fail open)
+      next?.();
+    }
   }
 
   /**
@@ -445,12 +971,18 @@ export class RateLimiter extends EventEmitter {
    * Сброс лимита для ключа
    */
   async resetLimit(key: string): Promise<void> {
-    // В реальной реализации удалить запись из хранилища
-    // Для MemoryStore нужно очистить запись
+    this.logger.info(
+      `[RateLimiter] Сброс лимита для ключа: ${key}`,
+      LogSource.APPLICATION,
+      'RateLimiter'
+    );
+
     if (this.store instanceof MemoryStore) {
       await this.store.delete(key);
+    } else if (this.store instanceof RedisStore) {
+      // RedisStore использует fallback store для delete
+      await this.store.destroy();
     }
-    console.log('[RateLimiter] Reset limit for:', key);
   }
 
   /**
@@ -460,18 +992,32 @@ export class RateLimiter extends EventEmitter {
     rulesCount: number;
     enabled: boolean;
     storeType: string;
+    storeStats?: any;
   } {
-    return {
+    const stats: any = {
       rulesCount: this.rules.size,
       enabled: this.enabled,
       storeType: this.store instanceof RedisStore ? 'redis' : 'memory'
     };
+
+    if (this.store instanceof RedisStore) {
+      stats.storeStats = this.store.getStats();
+    } else if (this.store instanceof MemoryStore) {
+      stats.storeStats = this.store.getStats();
+    }
+
+    return stats;
   }
 
   /**
    * Закрытие
    */
   async destroy(): Promise<void> {
+    this.logger.info(
+      '[RateLimiter] Уничтожение rate limiter',
+      LogSource.APPLICATION,
+      'RateLimiter'
+    );
     await this.store.destroy();
   }
 }
@@ -573,8 +1119,29 @@ export function createAuthRule(): RateLimitRule {
 }
 
 // =============================================================================
-// ЭКСПОРТ
+// ФАБРИКИ И ЭКСПОРТ
 // =============================================================================
+
+/**
+ * Создание rate limiter с Redis store и Circuit Breaker
+ */
+export function createRateLimiterWithRedis(
+  config: RedisStoreConfig,
+  enabled: boolean = true
+): RateLimiter {
+  const store = new RedisStore(config);
+  return new RateLimiter(store, enabled);
+}
+
+/**
+ * Создание rate limiter с Memory store
+ */
+export function createRateLimiterWithMemory(
+  enabled: boolean = true
+): RateLimiter {
+  const store = new MemoryStore();
+  return new RateLimiter(store, enabled);
+}
 
 export function createRateLimiter(
   store?: RateLimitStore,

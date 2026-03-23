@@ -6,6 +6,7 @@
  * Поддерживает: RS256, RS384, RS512, ES256, ES384, ES512, EdDSA
  * Реализует: Access tokens, Refresh tokens, ID tokens (OIDC)
  * Соответствует: RFC 7519, RFC 8414, OpenID Connect Core 1.0
+ * Интеграция: JWT Blacklist для отзыва токенов
  * =============================================================================
  */
 
@@ -49,6 +50,13 @@ import {
   AuthErrorCode,
   AuthenticationMethod,
 } from '../types/auth.types';
+import {
+  JWTBlacklist,
+  JWTBlacklistConfig,
+  RevokedTokenInfo,
+  RevocationCheckResult,
+  createJWTBlacklist,
+} from './JWTBlacklist';
 
 /**
  * Конфигурация JWT сервиса
@@ -56,27 +64,33 @@ import {
 export interface JwtServiceConfig {
   /** Issuer (издатель токенов) */
   issuer: string;
-  
+
   /** Audience (получатель токенов) */
   audience: string | string[];
-  
+
   /** Время жизни access токена (секунды) */
   accessTokenLifetime: number;
-  
+
   /** Время жизни refresh токена (секунды) */
   refreshTokenLifetime: number;
-  
+
   /** Время жизни ID токена (секунды) */
   idTokenLifetime: number;
-  
+
   /** Алгоритм подписи по умолчанию */
   defaultAlgorithm: JwtAlgorithm;
-  
+
   /** Минимальная длина ключа для RSA (биты) */
   minRsaKeySize: number;
-  
+
   /** Кривая для EC ключей */
   ecCurve: 'P-256' | 'P-384' | 'P-521' | 'Ed25519' | 'Ed448';
+
+  /** Конфигурация JWT blacklist */
+  blacklist?: Partial<JWTBlacklistConfig>;
+
+  /** Включить ли проверку blacklist */
+  enableBlacklistCheck?: boolean;
 }
 
 /**
@@ -91,6 +105,7 @@ const DEFAULT_CONFIG: JwtServiceConfig = {
   defaultAlgorithm: 'RS256',
   minRsaKeySize: 2048,
   ecCurve: 'P-256',
+  enableBlacklistCheck: true,
 };
 
 /**
@@ -114,6 +129,7 @@ export class JwtService {
   private keyPairs: Map<string, KeyPair> = new Map();
   private activeSigningKeyId: string | null = null;
   private keyRotationInterval: NodeJS.Timeout | null = null;
+  private blacklist: JWTBlacklist | null = null;
 
   /**
    * Создает новый экземпляр JwtService
@@ -121,6 +137,32 @@ export class JwtService {
    */
   constructor(config: JwtServiceConfig = DEFAULT_CONFIG) {
     this.config = config;
+  }
+
+  /**
+   * =============================================================================
+   * ИНИЦИАЛИЗАЦИЯ BLACKLIST
+   * =============================================================================
+   */
+
+  /**
+   * Инициализирует JWT blacklist
+   */
+  public async initializeBlacklist(): Promise<void> {
+    if (!this.config.enableBlacklistCheck) {
+      console.log('[JwtService] Blacklist проверка отключена');
+      return;
+    }
+
+    try {
+      this.blacklist = createJWTBlacklist(this.config.blacklist || {});
+      await this.blacklist.initialize();
+      console.log('[JwtService] Blacklist инициализирован');
+    } catch (error) {
+      console.error('[JwtService] Ошибка инициализации blacklist:', error);
+      // Не блокируем работу сервиса при ошибке инициализации blacklist
+      this.blacklist = null;
+    }
   }
 
   /**
@@ -608,6 +650,22 @@ export class JwtService {
         audience: this.config.audience,
       }) as T;
 
+      // Проверка blacklist (если включена)
+      const shouldCheckBlacklist = options?.checkRevocation ?? this.config.enableBlacklistCheck ?? true;
+      if (shouldCheckBlacklist && this.blacklist) {
+        const jti = (payload as any).jti;
+        if (jti) {
+          const revocationCheck = await this.blacklist.isRevoked(jti);
+          if (revocationCheck.isRevoked) {
+            throw new AuthError(
+              `Токен отозван: ${revocationCheck.reason || 'Причина не указана'}`,
+              AuthErrorCode.TOKEN_REVOKED,
+              401
+            );
+          }
+        }
+      }
+
       // Дополнительные проверки
       if (options?.tokenType === 'refresh') {
         const refreshPayload = payload as RefreshTokenPayload;
@@ -791,6 +849,26 @@ export class JwtService {
       );
     }
 
+    // Отзываем старый токен (добавляем в blacklist)
+    // Это предотвращает повторное использование старого refresh токена
+    if (this.blacklist) {
+      const oldTokenJti = payload.jti;
+      const remainingTtl = (payload.exp || 0) - Math.floor(Date.now() / 1000);
+      
+      if (remainingTtl > 0) {
+        try {
+          await this.blacklist.revokeToken(oldTokenJti, remainingTtl, {
+            sessionId: session.id,
+            userId: payload.sub,
+            reason: 'Refresh token rotation',
+          });
+        } catch (error) {
+          console.error('[JwtService] Ошибка добавления токена в blacklist при rotation:', error);
+          // Не блокируем rotation при ошибке blacklist
+        }
+      }
+    }
+
     // Создаем новый токен с новым jti
     return this.createRefreshToken(
       { id: payload.sub },
@@ -891,6 +969,153 @@ export class JwtService {
 
   /**
    * =============================================================================
+   * УПРАВЛЕНИЕ BLACKLIST
+   * =============================================================================
+   */
+
+  /**
+   * Отзывает токен по его идентификатору
+   * @param tokenId - Уникальный идентификатор токена (jti)
+   * @param ttl - Время жизни записи в blacklist (секунды)
+   * @param options - Дополнительные опции
+   * @returns Информация об отозванном токене
+   */
+  public async revokeToken(
+    tokenId: string,
+    ttl: number,
+    options?: {
+      userId?: string;
+      deviceId?: string;
+      sessionId?: string;
+      reason?: string;
+    }
+  ): Promise<RevokedTokenInfo> {
+    if (!this.blacklist) {
+      throw new AuthError(
+        'Blacklist не инициализирован',
+        AuthErrorCode.INTERNAL_ERROR,
+        503
+      );
+    }
+
+    return this.blacklist.revokeToken(tokenId, ttl, options);
+  }
+
+  /**
+   * Проверяет, отозван ли токен
+   * @param tokenId - Уникальный идентификатор токена (jti)
+   * @returns Результат проверки
+   */
+  public async isTokenRevoked(tokenId: string): Promise<RevocationCheckResult> {
+    if (!this.blacklist) {
+      return { isRevoked: false };
+    }
+
+    return this.blacklist.isRevoked(tokenId);
+  }
+
+  /**
+   * Отзывает все токены пользователя
+   * @param userId - ID пользователя
+   * @param ttl - Время жизни записей в blacklist (секунды)
+   * @param reason - Причина отзыва
+   * @param sessionId - ID сессии (опционально)
+   * @returns Количество отозванных токенов
+   */
+  public async revokeUserTokens(
+    userId: string,
+    ttl: number,
+    reason?: string,
+    sessionId?: string
+  ): Promise<number> {
+    if (!this.blacklist) {
+      throw new AuthError(
+        'Blacklist не инициализирован',
+        AuthErrorCode.INTERNAL_ERROR,
+        503
+      );
+    }
+
+    return this.blacklist.revokeUserTokens(userId, ttl, reason, sessionId);
+  }
+
+  /**
+   * Отзывает все токены устройства
+   * @param deviceId - ID устройства
+   * @param ttl - Время жизни записей в blacklist (секунды)
+   * @param reason - Причина отзыва
+   * @returns Количество отозванных токенов
+   */
+  public async revokeDeviceTokens(
+    deviceId: string,
+    ttl: number,
+    reason?: string
+  ): Promise<number> {
+    if (!this.blacklist) {
+      throw new AuthError(
+        'Blacklist не инициализирован',
+        AuthErrorCode.INTERNAL_ERROR,
+        503
+      );
+    }
+
+    return this.blacklist.revokeDeviceTokens(deviceId, ttl, reason);
+  }
+
+  /**
+   * Отзывает все токены сессии
+   * @param sessionId - ID сессии
+   * @param ttl - Время жизни записей в blacklist (секунды)
+   * @param reason - Причина отзыва
+   * @returns Количество отозванных токенов
+   */
+  public async revokeSessionTokens(
+    sessionId: string,
+    ttl: number,
+    reason?: string
+  ): Promise<number> {
+    if (!this.blacklist) {
+      throw new AuthError(
+        'Blacklist не инициализирован',
+        AuthErrorCode.INTERNAL_ERROR,
+        503
+      );
+    }
+
+    return this.blacklist.revokeSessionTokens(sessionId, ttl, reason);
+  }
+
+  /**
+   * Получает метрики blacklist
+   * @returns Метрики blacklist
+   */
+  public async getBlacklistMetrics() {
+    if (!this.blacklist) {
+      return null;
+    }
+
+    return this.blacklist.getMetrics();
+  }
+
+  /**
+   * Получает статус blacklist
+   * @returns Статус blacklist
+   */
+  public getBlacklistStatus() {
+    if (!this.blacklist) {
+      return {
+        initialized: false,
+        enabled: false,
+        redisConnected: false,
+        cleanupRunning: false,
+      };
+    }
+
+    return this.blacklist.getStatus();
+  }
+
+  /**
+   * =============================================================================
    * ОЧИСТКА
    * =============================================================================
    */
@@ -900,6 +1125,10 @@ export class JwtService {
    */
   public destroy(): void {
     this.stopKeyRotation();
+    if (this.blacklist) {
+      // Асинхронная очистка blacklist
+      this.blacklist.destroy().catch(console.error);
+    }
     this.keyPairs.clear();
     this.activeSigningKeyId = null;
   }

@@ -10,6 +10,7 @@
  * - Rate limiting
  * - Error handling
  * - Health checks
+ * - Environment validation
  *
  * @author Theodor Munch
  * @license MIT
@@ -21,10 +22,58 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import { createCORS, CORSPresets, validateCORSConfig, CORSConfig } from './middleware/CORSMiddleware';
 import { createSecurityHeadersMiddleware, SecurityHeadersMiddleware } from './middleware/SecurityHeadersMiddleware';
 import { RateLimiter, createRateLimiter, createMemoryStore, createPerIPRule, createAPIRule } from './middleware/RateLimitMiddleware';
+import { createInputValidationMiddleware, ValidationPresets, ValidationType } from './middleware/InputValidationMiddleware';
+import { EnvironmentValidator, validateEnvironmentQuick } from './utils/EnvironmentValidator';
 
 // =============================================================================
 // ENVIRONMENT CONFIGURATION
 // =============================================================================
+
+/**
+ * Выполняет валидацию окружения при старте приложения
+ * В production блокирует запуск при критических ошибках
+ */
+function validateEnvironmentOnStartup(): void {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const isProduction = nodeEnv === 'production';
+
+  console.log(`\n🔐 VALIDATION ENVIRONNEMENT (${nodeEnv})...`);
+
+  const validator = new EnvironmentValidator({
+    nodeEnv,
+    blockOnCritical: isProduction,
+    logWarnings: true,
+    minPasswordLength: isProduction ? 32 : 8
+  });
+
+  const result = validator.validateEnvironment();
+
+  if (result.isProductionReady) {
+    console.log('✅ Environment validation passed\n');
+  } else {
+    if (isProduction) {
+      console.error('\n❌ CRITICAL: Environment NOT ready for production!');
+      console.error('Fix the following issues before deploying:\n');
+      result.errors.forEach(err => console.error(`  • ${err}`));
+      console.error('\n🛑 Application startup aborted. Please fix security issues.\n');
+      throw new Error('Production environment validation failed. See logs for details.');
+    } else {
+      console.warn('\n⚠️  Development mode: Some security warnings ignored');
+      console.warn('⚠️  WARNING: This configuration is NOT safe for production!\n');
+    }
+  }
+}
+
+// Вызываем валидацию при импорте модуля (только логи, без блокировки)
+// Блокировка будет в startServer для production
+try {
+  validateEnvironmentOnStartup();
+} catch (err) {
+  // Игнорируем ошибки в development, логируем в production
+  if (process.env.NODE_ENV === 'production') {
+    throw err;
+  }
+}
 
 /**
  * Получает переменную окружения с значением по умолчанию
@@ -161,6 +210,10 @@ export interface AppConfig {
   enableRateLimit: boolean;
   enableSecurityHeaders: boolean;
   enableHealthCheck: boolean;
+  enableInputValidation: boolean;
+  inputValidationStrictMode: boolean;
+  inputValidationMaxBodySize: number;
+  inputValidationSanitizeHTML: boolean;
 }
 
 /**
@@ -174,7 +227,11 @@ export function createAppConfigFromEnv(): AppConfig {
     corsMode: getEnv('CORS_MODE', 'dev'),
     enableRateLimit: getEnvBoolean('ENABLE_RATE_LIMIT', true),
     enableSecurityHeaders: getEnvBoolean('ENABLE_SECURITY_HEADERS', true),
-    enableHealthCheck: getEnvBoolean('ENABLE_HEALTH_CHECK', true)
+    enableHealthCheck: getEnvBoolean('ENABLE_HEALTH_CHECK', true),
+    enableInputValidation: getEnvBoolean('ENABLE_INPUT_VALIDATION', true),
+    inputValidationStrictMode: getEnvBoolean('INPUT_VALIDATION_STRICT_MODE', false),
+    inputValidationMaxBodySize: getEnvNumber('INPUT_VALIDATION_MAX_BODY_SIZE', 10 * 1024 * 1024),
+    inputValidationSanitizeHTML: getEnvBoolean('INPUT_VALIDATION_SANITIZE_HTML', true)
   };
 }
 
@@ -248,6 +305,27 @@ export function createApp(config?: Partial<AppConfig>): Application {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // =============================================================================
+  // INPUT VALIDATION MIDDLEWARE
+  // =============================================================================
+  if (appConfig.enableInputValidation) {
+    // Глобальная валидация для всех POST/PUT/PATCH запросов
+    const inputValidationMiddleware = createInputValidationMiddleware({
+      strictMode: appConfig.inputValidationStrictMode,
+      maxBodySize: appConfig.inputValidationMaxBodySize,
+      sanitizeHTML: appConfig.inputValidationSanitizeHTML,
+      logErrors: true,
+      enableRateLimit: false, // Rate limiting уже есть в RateLimitMiddleware
+      skipMethods: ['GET', 'HEAD', 'OPTIONS'], // GET запросы не требуют валидации body
+      schema: {
+        // Базовая схема для всех запросов может быть расширена в роутах
+      }
+    });
+
+    app.use(inputValidationMiddleware);
+    console.log(`[InputValidation] Middleware активирован (strict: ${appConfig.inputValidationStrictMode}, maxBody: ${appConfig.inputValidationMaxBodySize / 1024 / 1024}MB)`);
+  }
+
+  // =============================================================================
   // HEALTH CHECK ENDPOINTS
   // =============================================================================
   if (appConfig.enableHealthCheck) {
@@ -308,7 +386,73 @@ export function createApp(config?: Partial<AppConfig>): Application {
       });
     });
 
+    // =============================================================================
+    // EXAMPLE: Protected endpoint with input validation
+    // =============================================================================
+    /**
+     * Пример POST endpoint с валидацией данных пользователя
+     * Демонстрирует использование ValidationPresets.userRegistration
+     */
+    app.post('/api/example/register', 
+      createInputValidationMiddleware({
+        strictMode: true,
+        schema: ValidationPresets.userRegistration
+      }),
+      (req: Request, res: Response) => {
+        // Валидированные данные доступны через (req as any).validationResult
+        const validationResult = (req as any).validationResult;
+        
+        res.status(200).json({
+          success: true,
+          message: 'Данные успешно валидированы',
+          validatedData: validationResult?.sanitized?.body,
+          timestamp: new Date().toISOString()
+        });
+      }
+    );
+
+    /**
+     * Пример endpoint с валидацией search параметров
+     * Демонстрирует использование ValidationPresets.search
+     */
+    app.get('/api/example/search',
+      createInputValidationMiddleware({
+        schema: ValidationPresets.search
+      }),
+      (req: Request, res: Response) => {
+        const validationResult = (req as any).validationResult;
+        
+        res.status(200).json({
+          success: true,
+          message: 'Search параметры валидированы',
+          validatedQuery: validationResult?.sanitized?.query,
+          timestamp: new Date().toISOString()
+        });
+      }
+    );
+
+    /**
+     * Пример endpoint с валидацией UUID параметра
+     * Демонстрирует использование ValidationPresets.uuidParams
+     */
+    app.get('/api/example/resource/:id',
+      createInputValidationMiddleware({
+        schema: ValidationPresets.uuidParams
+      }),
+      (req: Request, res: Response) => {
+        const validationResult = (req as any).validationResult;
+        
+        res.status(200).json({
+          success: true,
+          message: 'UUID параметр валидирован',
+          validatedParams: validationResult?.sanitized?.params,
+          timestamp: new Date().toISOString()
+        });
+      }
+    );
+
     console.log('[HealthCheck] Endpoints активированы: /health, /health/detailed, /ready, /live');
+    console.log('[Example] Demo endpoints с валидацией: /api/example/register, /api/example/search, /api/example/resource/:id');
   }
 
   // =============================================================================
@@ -365,6 +509,40 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
     ...createAppConfigFromEnv(),
     ...config
   };
+
+  // Финальная валидация перед запуском в production
+  if (appConfig.nodeEnv === 'production') {
+    console.log('\n🔒 PRODUCTION MODE: Performing final security validation...\n');
+    
+    const validator = new EnvironmentValidator({
+      nodeEnv: 'production',
+      blockOnCritical: true,
+      logWarnings: true,
+      minPasswordLength: 32
+    });
+
+    const result = validator.validateEnvironment();
+
+    if (!result.isProductionReady) {
+      console.error('\n❌ PRODUCTION STARTUP ABORTED\n');
+      console.error('The following security issues must be resolved:\n');
+      
+      result.issues
+        .filter(issue => issue.severity === 'critical' || issue.severity === 'high')
+        .forEach(issue => {
+          console.error(`  [${issue.severity.toUpperCase()}] ${issue.variable}: ${issue.message}`);
+          console.error(`    → ${issue.recommendation}\n`);
+        });
+
+      throw new Error(
+        `Production environment validation failed. ` +
+        `Critical issues: ${result.errors.length}. ` +
+        `Please fix before deploying.`
+      );
+    }
+
+    console.log('✅ Production security validation passed\n');
+  }
 
   const app = createApp(appConfig);
 

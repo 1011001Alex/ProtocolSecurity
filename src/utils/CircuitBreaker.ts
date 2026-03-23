@@ -159,13 +159,10 @@ export class CircuitBreaker extends EventEmitter {
   
   /** Таймер для reset timeout */
   private resetTimer: NodeJS.Timeout | null = null;
-  
+
   /** Статистика */
   private stats: CircuitBreakerStats;
-  
-  /** Текущее выполнение */
-  private currentExecution: Promise<unknown> | null = null;
-  
+
   /**
    * Создает circuit breaker
    */
@@ -197,36 +194,33 @@ export class CircuitBreaker extends EventEmitter {
    */
   async execute<T>(operation: () => Promise<T>): Promise<T> {
     this.stats.totalRequests++;
-    
+
     // Проверка состояния
     if (!this.canExecute()) {
       this.stats.totalRejections++;
       this.emit('reject', { state: this.state, stats: this.getStats() });
-      
+
       throw new CircuitBreakerError(
         `Circuit breaker ${this.config.name} в состоянии ${this.state}`,
         'CIRCUIT_OPEN',
         this.state
       );
     }
-    
+
     const startTime = Date.now();
-    this.currentExecution = operation();
-    
+
     try {
       // Выполнение с timeout
       const result = await this.withTimeout(operation, startTime);
-      
+
       // Успех
       await this.onSuccess(startTime);
-      
+
       return result;
     } catch (error) {
       // Failure
       await this.onFailure(error as Error, startTime);
       throw error;
-    } finally {
-      this.currentExecution = null;
     }
   }
   

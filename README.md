@@ -452,6 +452,9 @@ MFA_REQUIRED=true
 # Secrets Manager
 SECRETS_BACKEND=vault
 VAULT_URL=https://vault.local:8200
+# ВНИМАНИЕ: Никогда не коммитьте реальные токены в git!
+# Используйте secrets manager для получения токена в production:
+# export VAULT_TOKEN=$(vault token create -policy="your-policy" -ttl=720h -format=json | jq -r .auth.client_token)
 VAULT_TOKEN=hvs.xxxxx
 
 # Logging
@@ -461,6 +464,83 @@ ELASTICSEARCH_HOST=https://es.local:9200
 # Alerting
 SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 PAGERDUTY_ROUTING_KEY=xxxxx
+```
+
+### 🔐 Security Configuration
+
+#### Passwords & Secrets Management
+
+**Минимальные требования к паролям:**
+
+| Среда | Мин. длина | Специальные символы | Ротация |
+|-------|------------|---------------------|---------|
+| Development | 8 символов | Рекомендуется | По необходимости |
+| Production | 32 символа | Обязательно | Каждые 30 дней |
+
+**Генерация безопасного пароля Redis:**
+
+```bash
+# OpenSSL
+openssl rand -base64 32
+
+# Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# pwgen (Linux)
+pwgen -s 32 1
+```
+
+**Получение секретов из Secrets Manager:**
+
+```bash
+# AWS Secrets Manager
+export REDIS_PASSWORD=$(aws secretsmanager get-secret-value \
+  --secret-id prod/redis/password \
+  --region us-east-1 \
+  --query SecretString \
+  --output text)
+
+# HashiCorp Vault
+export REDIS_PASSWORD=$(vault kv get -field=password secret/redis)
+
+# GCP Secret Manager
+export REDIS_PASSWORD=$(gcloud secrets versions access latest \
+  --secret=redis-password)
+```
+
+**Запрещённые пароли (автоматическая блокировка в production):**
+
+- `change_this_password*`
+- `changeme`
+- `password`
+- `admin`
+- `devpassword`
+- `example*`
+- `your_*_here`
+- Все пароли короче 20 символов
+
+#### Environment Validation
+
+При старте приложения в **production** режиме автоматически выполняется валидация:
+
+```typescript
+// src/app.ts автоматически проверяет:
+// - REDIS_PASSWORD на дефолтные значения
+// - VAULT_TOKEN формат (hvs.xxxxx)
+// - Длину всех паролей (мин. 32 символа)
+// - Наличие TLS для Redis
+// - Плейсхолдеры вместо реальных секретов
+```
+
+**Пример ошибки валидации:**
+
+```
+❌ ОШИБКИ ВАЛИДАЦИИ ОКРУЖЕНИЯ:
+   [REDIS_PASSWORD] Обнаружен дефолтный/слабый пароль
+   [VAULT_TOKEN] Токен содержит плейсхолдер
+   [ELASTICSEARCH_PASSWORD] Пароль слишком короткий (8 < 32)
+
+🛑 Application startup aborted. Please fix security issues.
 ```
 
 ### Конфигурационный файл

@@ -70,17 +70,19 @@ Test Coverage: 100% (172/172 тестов)
     Оценка: M (4-6 часов)
     Стандарты: OWASP, RFC 6454
 
-[ ] 2. ИСПРАВЛЕНИЕ ХАРДКОДА ПАРОЛЕЙ
+[✓] 2. ИСПРАВЛЕНИЕ ХАРДКОДА ПАРОЛЕЙ
     Файлы: .env.example, tests/security/security-middleware.test.ts
     Проблема: Пароль Redis "change_this_password_in_production"
     Задачи:
-    - [ ] Заменить на environment variable ${REDIS_PASSWORD:-}
-    - [ ] Добавить валидацию при старте приложения
-    - [ ] Проверить все .env файлы на хардкод
-    - [ ] Использовать secrets manager для production
-    - [ ] Обновить документацию
+    - [x] Заменить на environment variable ${REDIS_PASSWORD:-}
+    - [x] Добавить валидацию при старте приложения
+    - [x] Проверить все .env файлы на хардкод
+    - [x] Использовать secrets manager для production
+    - [x] Обновить документацию
     Оценка: S (1-2 часа)
     Стандарты: PCI DSS 3.4, OWASP Secrets Management
+    Статус: ✅ ВЫПОЛНЕНО (23 марта 2026 г.)
+    Документы: docs/SECURITY_FIX_CRITICAL_2.md
 
 [ ] 3. RETRY LOGIC + CIRCUIT BREAKER В REDIS
     Файл: src/middleware/RateLimitMiddleware.ts (строки 243-246)

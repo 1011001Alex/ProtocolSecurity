@@ -5,6 +5,7 @@
  * Менеджер сессий с поддержкой Redis, secure cookies, rotation
  * Соответствует: OWASP Session Management Cheat Sheet
  * Реализует: Secure cookie flags, session fixation protection, concurrent session limits
+ * Интеграция: JWT Blacklist для отзыва токенов
  * =============================================================================
  */
 
@@ -20,6 +21,8 @@ import {
   AuthError,
   AuthErrorCode,
 } from '../types/auth.types';
+import { JwtService } from './JWTService';
+import { JWTBlacklist } from './JWTBlacklist';
 
 /**
  * Конфигурация Session Manager
@@ -159,6 +162,8 @@ export class SessionManager {
   private config: SessionManagerConfig;
   private redis: Redis | null = null;
   private readonly sessionIndexKey = 'protocol:sessions:index:';
+  private jwtService: JwtService | null = null;
+  private blacklist: JWTBlacklist | null = null;
 
   /**
    * Создает новый экземпляр SessionManager
@@ -170,8 +175,12 @@ export class SessionManager {
 
   /**
    * Инициализирует соединение с Redis
+   * @param dependencies - Зависимости (опционально)
    */
-  public async initialize(): Promise<void> {
+  public async initialize(dependencies?: {
+    jwtService?: JwtService;
+    blacklist?: JWTBlacklist;
+  }): Promise<void> {
     try {
       this.redis = new Redis({
         host: this.config.redis.host,
@@ -197,6 +206,15 @@ export class SessionManager {
 
       // Тестовое подключение
       await this.redis.ping();
+
+      // Инициализация зависимостей
+      if (dependencies?.jwtService) {
+        this.jwtService = dependencies.jwtService;
+      }
+
+      if (dependencies?.blacklist) {
+        this.blacklist = dependencies.blacklist;
+      }
     } catch (error) {
       console.warn('[SessionManager] Failed to connect to Redis, using in-memory storage');
       this.redis = null;
@@ -570,17 +588,50 @@ export class SessionManager {
   /**
    * Завершает сессию (logout)
    * @param sessionId - ID сессии
+   * @param options - Опции завершения
    */
-  public async terminateSession(sessionId: string): Promise<void> {
-    await this.updateSessionStatus(sessionId, 'terminated');
+  public async terminateSession(
+    sessionId: string,
+    options?: {
+      /** Добавить токены в blacklist */
+      addToBlacklist?: boolean;
+      /** Причина отзыва */
+      reason?: string;
+    }
+  ): Promise<void> {
+    const session = await this.getSession(sessionId);
     
+    // Добавляем в blacklist перед завершением сессии
+    if (options?.addToBlacklist !== false && this.blacklist && session) {
+      try {
+        // Вычисляем TTL до истечения сессии
+        const ttl = Math.max(
+          Math.floor((session.expiresAt.getTime() - Date.now()) / 1000),
+          60
+        );
+
+        await this.blacklist.revokeToken(sessionId, ttl, {
+          sessionId,
+          userId: session.userId,
+          deviceId: session.deviceId,
+          reason: options?.reason || 'User logout',
+        });
+
+        console.log(`[SessionManager] Токен сессии ${sessionId} добавлен в blacklist`);
+      } catch (error) {
+        console.error('[SessionManager] Ошибка добавления в blacklist:', error);
+        // Не блокируем logout при ошибке blacklist
+      }
+    }
+
+    await this.updateSessionStatus(sessionId, 'terminated');
+
     const key = `${this.config.keyPrefix}${sessionId}`;
     if (this.redis) {
       await this.redis.del(key);
     }
 
     // Удаление из индекса
-    const session = await this.getSession(sessionId);
     if (session) {
       await this.removeFromUserSessionIndex(session.userId, sessionId);
     }
@@ -589,12 +640,32 @@ export class SessionManager {
   /**
    * Завершает все сессии пользователя
    * @param userId - ID пользователя
+   * @param options - Опции завершения
    */
-  public async terminateAllUserSessions(userId: string): Promise<void> {
+  public async terminateAllUserSessions(
+    userId: string,
+    options?: {
+      /** Добавить токены в blacklist */
+      addToBlacklist?: boolean;
+      /** Причина отзыва */
+      reason?: string;
+    }
+  ): Promise<void> {
     const sessionIds = await this.getUserSessionIds(userId);
-    
+
+    // Если нужно добавить в blacklist, делаем это массово
+    if (options?.addToBlacklist !== false && this.blacklist) {
+      try {
+        const ttl = this.config.sessionLifetime;
+        await this.blacklist.revokeUserTokens(userId, ttl, options.reason);
+        console.log(`[SessionManager] Все токены пользователя ${userId} добавлены в blacklist`);
+      } catch (error) {
+        console.error('[SessionManager] Ошибка добавления в blacklist:', error);
+      }
+    }
+
     for (const sessionId of sessionIds) {
-      await this.terminateSession(sessionId);
+      await this.terminateSession(sessionId, { addToBlacklist: false });
     }
   }
 
@@ -602,13 +673,40 @@ export class SessionManager {
    * Принудительно завершает сессию (например, при смене пароля)
    * @param sessionId - ID сессии
    * @param reason - Причина
+   * @param addToBlacklist - Добавить ли токены в blacklist
    */
-  public async revokeSession(sessionId: string, reason?: string): Promise<void> {
+  public async revokeSession(
+    sessionId: string,
+    reason?: string,
+    addToBlacklist: boolean = true
+  ): Promise<void> {
     const session = await this.getSession(sessionId);
+    
     if (session) {
+      // Добавляем в blacklist
+      if (addToBlacklist && this.blacklist) {
+        try {
+          const ttl = Math.max(
+            Math.floor((session.expiresAt.getTime() - Date.now()) / 1000),
+            60
+          );
+
+          await this.blacklist.revokeToken(sessionId, ttl, {
+            sessionId,
+            userId: session.userId,
+            deviceId: session.deviceId,
+            reason: reason || 'Session revoked',
+          });
+
+          console.log(`[SessionManager] Токен сессии ${sessionId} добавлен в blacklist: ${reason}`);
+        } catch (error) {
+          console.error('[SessionManager] Ошибка добавления в blacklist:', error);
+        }
+      }
+
       session.status = 'revoked';
       await this.saveSession(session);
-      
+
       // Логирование причины
       console.log(`[SessionManager] Session ${sessionId} revoked: ${reason || 'No reason provided'}`);
     }
@@ -629,7 +727,7 @@ export class SessionManager {
     oldRefreshToken: string
   ): Promise<{ success: boolean; newRefreshToken?: string; error?: string }> {
     const validation = await this.validateRefreshToken(sessionId, oldRefreshToken);
-    
+
     if (!validation.valid || !validation.session) {
       return {
         success: false,
@@ -647,7 +745,21 @@ export class SessionManager {
     await this.saveSession(session);
 
     // Отзыв старой семьи токенов (защита от replay attacks)
-    await this.revokeRefreshTokenFamily(session.refreshTokenFamily);
+    // Используем blacklist если доступен
+    if (this.blacklist) {
+      try {
+        await this.blacklist.revokeToken(sessionId, this.config.refreshTokenLifetime, {
+          sessionId,
+          userId: session.userId,
+          reason: 'Refresh token rotation - old token revoked',
+        });
+      } catch (error) {
+        console.error('[SessionManager] Ошибка добавления в blacklist при rotation:', error);
+      }
+    } else {
+      // Fallback: старая реализация
+      await this.revokeRefreshTokenFamily(session.refreshTokenFamily);
+    }
 
     return {
       success: true,
@@ -962,6 +1074,34 @@ export class SessionManager {
       await this.redis.quit();
       this.redis = null;
     }
+    this.jwtService = null;
+    this.blacklist = null;
+  }
+
+  /**
+   * Устанавливает JWT blacklist для интеграции
+   * @param blacklist - Экземпляр JWTBlacklist
+   */
+  public setBlacklist(blacklist: JWTBlacklist): void {
+    this.blacklist = blacklist;
+    console.log('[SessionManager] Blacklist установлен');
+  }
+
+  /**
+   * Устанавливает JWT сервис для интеграции
+   * @param jwtService - Экземпляр JwtService
+   */
+  public setJwtService(jwtService: JwtService): void {
+    this.jwtService = jwtService;
+    console.log('[SessionManager] JWT Service установлен');
+  }
+
+  /**
+   * Получает текущий blacklist
+   * @returns JWTBlacklist или null
+   */
+  public getBlacklist(): JWTBlacklist | null {
+    return this.blacklist;
   }
 }
 

@@ -237,20 +237,202 @@ MFA_REQUIRED=true
 # Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=secret
+# ВНИМАНИЕ: Используйте secrets manager для получения пароля в production
+# НЕ используйте хардкод паролей в .env файлах!
+REDIS_PASSWORD=${REDIS_PASSWORD}
+REDIS_TLS_ENABLED=true
 
 # Vault
 VAULT_URL=https://vault.local:8200
-VAULT_TOKEN=hvs.xxxxx
+# ВНИМАНИЕ: Используйте secrets manager или IAM role для получения токена
+# Генерация: vault token create -policy="production-policy" -ttl=720h
+VAULT_TOKEN=${VAULT_TOKEN}
+VAULT_NAMESPACE=production
 
 # Elasticsearch
 ELASTICSEARCH_HOST=https://es.local:9200
 ELASTICSEARCH_USER=elastic
-ELASTICSEARCH_PASSWORD=secret
+# ВНИМАНИЕ: Используйте secrets manager для получения пароля
+ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
 
 # Alerting
-SLACK_WEBHOOK_URL=https://hooks.slack.com/...
-PAGERDUTY_ROUTING_KEY=xxxxx
+SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY}
+```
+
+### 🔐 Password & Secrets Management
+
+#### Требования к паролям production
+
+| Переменная | Мин. длина | Требования | Хранение |
+|------------|------------|------------|----------|
+| `REDIS_PASSWORD` | 32 символа | A-Z, a-z, 0-9, !@#$%^&* | AWS Secrets Manager / Vault |
+| `VAULT_TOKEN` | 24+ символа | Формат hvs.xxxxx | IAM Role / Vault Agent |
+| `ELASTICSEARCH_PASSWORD` | 32 символа | A-Z, a-z, 0-9, !@#$%^&* | AWS Secrets Manager / Vault |
+| `JIRA_API_TOKEN` | 24+ символа | Уникальный токен | Vault / AWS Secrets Manager |
+
+#### Генерация паролей
+
+```bash
+# Генерация пароля Redis (32 символа)
+openssl rand -base64 32 | tr -d '\n'
+
+# Пример вывода: xK9#mP2$vL5@nQ8!wR3&jT6*hY0^cF4%
+
+# Сохранение в AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name prod/redis/password \
+  --secret-string "$(openssl rand -base64 32)"
+
+# Сохранение в HashiCorp Vault
+vault kv put secret/redis \
+  password="$(openssl rand -base64 32)"
+```
+
+#### Получение секретов при запуске
+
+**Docker Compose:**
+
+```yaml
+# docker-compose.yml
+services:
+  protocol-security:
+    image: protocol-security:latest
+    environment:
+      # Получение из secrets manager при старте
+      REDIS_PASSWORD:
+        ${REDIS_PASSWORD:-}
+      VAULT_TOKEN:
+        ${VAULT_TOKEN:-}
+    # Или использование Docker secrets
+    secrets:
+      - redis_password
+      - vault_token
+
+secrets:
+  redis_password:
+    external: true
+  vault_token:
+    external: true
+```
+
+**Kubernetes:**
+
+```yaml
+# k8s/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: protocol-secrets
+type: Opaque
+stringData:
+  # Получение из внешнего secrets manager
+  redis-password: ${REDIS_PASSWORD}
+  vault-token: ${VAULT_TOKEN}
+  elasticsearch-password: ${ELASTICSEARCH_PASSWORD}
+```
+
+```yaml
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protocol-security
+spec:
+  template:
+    spec:
+      containers:
+        - name: protocol-security
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: protocol-secrets
+                  key: redis-password
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: protocol-secrets
+                  key: vault-token
+```
+
+**HashiCorp Vault Agent (рекомендуемый способ):**
+
+```yaml
+# vault-agent-config.hcl
+auto_auth {
+  method "kubernetes" {
+    config = {
+      role = "protocol-security"
+      mount_path = "auth/kubernetes"
+    }
+  }
+
+  sink "file" {
+    config = {
+      path = "/vault/secrets/vault-token"
+    }
+  }
+}
+
+template {
+  source = "/vault/templates/redis-password.hcl"
+  destination = "/vault/secrets/redis-password"
+}
+```
+
+#### Environment Validation при старте
+
+При запуске в **production** режиме приложение автоматически выполняет валидацию:
+
+```bash
+# Production startup
+NODE_ENV=production npm start
+
+# Вывод валидации:
+🔐 VALIDATION ENVIRONNEMENT (production)...
+✅ Environment validation passed
+```
+
+**Ошибки валидации (блокируют запуск):**
+
+```bash
+# Пример с дефолтным паролем
+NODE_ENV=production npm start
+
+# Вывод:
+🔐 VALIDATION ENVIRONNEMENT (production)...
+❌ ОШИБКИ ВАЛИДАЦИИ ОКРУЖЕНИЯ:
+   [REDIS_PASSWORD] Обнаружен дефолтный/слабый пароль
+   [VAULT_TOKEN] Токен содержит плейсхолдер
+
+❌ PRODUCTION MODE: Performing final security validation...
+
+❌ PRODUCTION STARTUP ABORTED
+
+The following security issues must be resolved:
+
+  [CRITICAL] REDIS_PASSWORD: Обнаружен дефолтный/слабый пароль
+    → Сгенерируйте криптографически стойкий пароль (мин. 32 символа)
+
+  [CRITICAL] VAULT_TOKEN: Токен содержит плейсхолдер
+    → Сгенерируйте реальный Vault токен: vault token create -policy="your-policy"
+
+🛑 Application startup aborted. Please fix security issues.
+```
+
+**Development режим (предупреждения не блокируют):**
+
+```bash
+# Development startup
+NODE_ENV=development npm start
+
+# Вывод:
+🔐 VALIDATION ENVIRONNEMENT (development)...
+⚠️  Development mode: Some security warnings ignored
+⚠️  WARNING: This configuration is NOT safe for production!
+
+✅ Environment validation passed
 ```
 
 ### ConfigMap (Kubernetes)
@@ -264,6 +446,7 @@ data:
   redis-host: "redis.protocol-security.svc"
   elasticsearch-host: "elasticsearch.protocol-security.svc"
   log-level: "info"
+  node-env: "production"
 ```
 
 ### Secrets (Kubernetes)
@@ -275,8 +458,10 @@ metadata:
   name: protocol-secrets
 type: Opaque
 stringData:
-  redis-password: "secret"
-  vault-token: "hvs.xxxxx"
+  # ВАЖНО: Никогда не коммитьте реальные секреты в git!
+  # Используйте external secrets operator или vault injector
+  redis-password: "change-me-before-deploy"
+  vault-token: "change-me-before-deploy"
 ```
 
 ---

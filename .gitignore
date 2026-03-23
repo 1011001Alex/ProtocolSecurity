@@ -1,7 +1,25 @@
 # Git ignore file for Protocol Security
 # Created by Theodor Munch
 
+# =============================================================================
+# SECURITY: Environment Files (NEVER COMMIT SECRETS!)
+# =============================================================================
+# .env files may contain passwords, tokens, and other sensitive data
+# Always use secrets manager in production (AWS Secrets Manager, HashiCorp Vault)
+# Development .env files are excluded but must not contain real credentials
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+*.env
+
+# Exceptions: .env.example is safe to commit (contains only placeholders)
+!.env.example
+
+# =============================================================================
 # Dependencies
+# =============================================================================
 node_modules/
 package-lock.json
 yarn.lock
