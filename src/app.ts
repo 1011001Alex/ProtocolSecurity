@@ -24,6 +24,14 @@ import { createSecurityHeadersMiddleware, SecurityHeadersMiddleware } from './mi
 import { RateLimiter, createRateLimiter, createMemoryStore, createPerIPRule, createAPIRule } from './middleware/RateLimitMiddleware';
 import { createInputValidationMiddleware, ValidationPresets, ValidationType } from './middleware/InputValidationMiddleware';
 import { EnvironmentValidator, validateEnvironmentQuick } from './utils/EnvironmentValidator';
+import {
+  HealthCheckService,
+  getHealthCheckService
+} from './health/HealthCheckService';
+import { HealthCheckConfig, HealthStatus } from './health/HealthCheckTypes';
+import { CircuitBreakerManager } from './utils/CircuitBreaker';
+import { PerformanceMonitor, getPerformanceMonitor } from './utils/PerformanceMonitor';
+import { securityLogger, LogLevel } from './logging';
 
 // =============================================================================
 // ENVIRONMENT CONFIGURATION
@@ -37,7 +45,7 @@ function validateEnvironmentOnStartup(): void {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isProduction = nodeEnv === 'production';
 
-  console.log(`\n🔐 VALIDATION ENVIRONNEMENT (${nodeEnv})...`);
+  securityLogger.info(`Validation environnement (${nodeEnv})...`, { nodeEnv, phase: 'startup' });
 
   const validator = new EnvironmentValidator({
     nodeEnv,
@@ -49,17 +57,25 @@ function validateEnvironmentOnStartup(): void {
   const result = validator.validateEnvironment();
 
   if (result.isProductionReady) {
-    console.log('✅ Environment validation passed\n');
+    securityLogger.info('Environment validation passed', { isProductionReady: true });
   } else {
     if (isProduction) {
-      console.error('\n❌ CRITICAL: Environment NOT ready for production!');
-      console.error('Fix the following issues before deploying:\n');
-      result.errors.forEach(err => console.error(`  • ${err}`));
-      console.error('\n🛑 Application startup aborted. Please fix security issues.\n');
+      securityLogger.critical('Environment NOT ready for production!', {
+        errorsCount: result.errors.length,
+        phase: 'startup_validation'
+      });
+      result.errors.forEach(err => {
+        securityLogger.error(`Validation error: ${err}`, { category: 'validation_error' });
+      });
       throw new Error('Production environment validation failed. See logs for details.');
     } else {
-      console.warn('\n⚠️  Development mode: Some security warnings ignored');
-      console.warn('⚠️  WARNING: This configuration is NOT safe for production!\n');
+      securityLogger.warning('Development mode: Some security warnings ignored', {
+        nodeEnv,
+        isProductionReady: false
+      });
+      securityLogger.warning('WARNING: This configuration is NOT safe for production!', {
+        phase: 'startup'
+      });
     }
   }
 }
@@ -165,8 +181,10 @@ function createCORSConfigFromEnv(): CORSConfig {
   // Валидируем конфигурацию
   const errors = validateCORSConfig(config);
   if (errors.length > 0) {
-    console.warn('[CORS] Предупреждения валидации конфигурации:');
-    errors.forEach(err => console.warn(`  - ${err.message}`));
+    securityLogger.warning('CORS configuration validation warnings', {
+      warningsCount: errors.length,
+      errors: errors.map(e => e.message)
+    });
   }
 
   return config;
@@ -214,6 +232,15 @@ export interface AppConfig {
   inputValidationStrictMode: boolean;
   inputValidationMaxBodySize: number;
   inputValidationSanitizeHTML: boolean;
+  // Health Check конфигурация
+  healthCheckEnabled: boolean;
+  healthCheckInterval: number;
+  healthCheckRedisTimeout: number;
+  healthCheckDatabaseTimeout: number;
+  healthCheckVaultTimeout: number;
+  healthCheckElasticsearchTimeout: number;
+  healthCheckEnablePrometheus: boolean;
+  healthCheckPrometheusPort: number;
 }
 
 /**
@@ -231,7 +258,16 @@ export function createAppConfigFromEnv(): AppConfig {
     enableInputValidation: getEnvBoolean('ENABLE_INPUT_VALIDATION', true),
     inputValidationStrictMode: getEnvBoolean('INPUT_VALIDATION_STRICT_MODE', false),
     inputValidationMaxBodySize: getEnvNumber('INPUT_VALIDATION_MAX_BODY_SIZE', 10 * 1024 * 1024),
-    inputValidationSanitizeHTML: getEnvBoolean('INPUT_VALIDATION_SANITIZE_HTML', true)
+    inputValidationSanitizeHTML: getEnvBoolean('INPUT_VALIDATION_SANITIZE_HTML', true),
+    // Health Check конфигурация
+    healthCheckEnabled: getEnvBoolean('HEALTH_CHECK_ENABLED', true),
+    healthCheckInterval: getEnvNumber('HEALTH_CHECK_INTERVAL', 10000),
+    healthCheckRedisTimeout: getEnvNumber('HEALTH_CHECK_REDIS_TIMEOUT', 5000),
+    healthCheckDatabaseTimeout: getEnvNumber('HEALTH_CHECK_DATABASE_TIMEOUT', 5000),
+    healthCheckVaultTimeout: getEnvNumber('HEALTH_CHECK_VAULT_TIMEOUT', 5000),
+    healthCheckElasticsearchTimeout: getEnvNumber('HEALTH_CHECK_ELASTICSEARCH_TIMEOUT', 5000),
+    healthCheckEnablePrometheus: getEnvBoolean('HEALTH_CHECK_ENABLE_PROMETHEUS', true),
+    healthCheckPrometheusPort: getEnvNumber('HEALTH_CHECK_PROMETHEUS_PORT', 9090)
   };
 }
 
@@ -258,7 +294,7 @@ export function createApp(config?: Partial<AppConfig>): Application {
   const corsMode = appConfig.corsMode;
   const corsMiddleware = getCORSByMode(corsMode);
   app.use(corsMiddleware);
-  console.log(`[CORS] Middleware активирован в режиме: ${corsMode}`);
+  securityLogger.info('CORS middleware activated', { mode: corsMode, component: 'cors' });
 
   // =============================================================================
   // SECURITY HEADERS MIDDLEWARE
@@ -269,7 +305,7 @@ export function createApp(config?: Partial<AppConfig>): Application {
       securityHeadersMiddleware.handle(req, res);
       next();
     });
-    console.log('[SecurityHeaders] Middleware активирован');
+    securityLogger.info('Security headers middleware activated', { component: 'security_headers' });
   }
 
   // =============================================================================
@@ -290,11 +326,11 @@ export function createApp(config?: Partial<AppConfig>): Application {
         rateLimiter.handle(req, res, next);
       });
 
-      console.log('[RateLimit] Middleware активирован (MemoryStore)');
+      securityLogger.info('Rate limit middleware activated', { store: 'MemoryStore', component: 'rate_limit' });
     };
 
     initRateLimiter().catch(err => {
-      console.error('[RateLimit] Ошибка инициализации:', err);
+      securityLogger.error('Rate limit initialization error', err, { component: 'rate_limit' });
     });
   }
 
@@ -322,7 +358,78 @@ export function createApp(config?: Partial<AppConfig>): Application {
     });
 
     app.use(inputValidationMiddleware);
-    console.log(`[InputValidation] Middleware активирован (strict: ${appConfig.inputValidationStrictMode}, maxBody: ${appConfig.inputValidationMaxBodySize / 1024 / 1024}MB)`);
+    securityLogger.info('Input validation middleware activated', {
+      strictMode: appConfig.inputValidationStrictMode,
+      maxBodySizeMB: appConfig.inputValidationMaxBodySize / 1024 / 1024,
+      component: 'input_validation'
+    });
+  }
+
+  // =============================================================================
+  // HEALTH CHECK SERVICE INITIALIZATION
+  // =============================================================================
+  let healthCheckService: HealthCheckService | null = null;
+  let circuitBreakerManager: CircuitBreakerManager | null = null;
+  let performanceMonitor: PerformanceMonitor | null = null;
+
+  if (appConfig.enableHealthCheck && appConfig.healthCheckEnabled) {
+    // Инициализация Circuit Breaker Manager
+    circuitBreakerManager = new CircuitBreakerManager();
+    
+    // Инициализация Performance Monitor
+    performanceMonitor = getPerformanceMonitor({
+      instanceName: 'protocol-api',
+      collectionInterval: appConfig.healthCheckInterval,
+      cpuWarningThreshold: appConfig.healthCheckInterval > 0 ? 70 : 70,
+      memoryWarningThreshold: 80
+    });
+    performanceMonitor.start();
+    
+    // Инициализация Health Check Service
+    healthCheckService = getHealthCheckService({
+      enabled: appConfig.healthCheckEnabled,
+      checkInterval: appConfig.healthCheckInterval,
+      redisTimeout: appConfig.healthCheckRedisTimeout,
+      databaseTimeout: appConfig.healthCheckDatabaseTimeout,
+      vaultTimeout: appConfig.healthCheckVaultTimeout,
+      elasticsearchTimeout: appConfig.healthCheckElasticsearchTimeout,
+      enablePrometheus: appConfig.healthCheckEnablePrometheus,
+      prometheusPort: appConfig.healthCheckPrometheusPort
+    });
+    
+    // Интеграция с Circuit Breaker Manager
+    healthCheckService.setCircuitBreakerManager(circuitBreakerManager);
+    healthCheckService.setPerformanceMonitor(performanceMonitor);
+    
+    // Подписка на события
+    healthCheckService.on('check:completed', (result) => {
+      if (result.status !== HealthStatus.HEALTHY) {
+        securityLogger.warning('Health check completed with non-healthy status', {
+          status: result.status,
+          healthy: result.summary.healthy,
+          total: result.summary.total,
+          component: 'health_check'
+        });
+      }
+    });
+
+    healthCheckService.on('issue:detected', (component, status) => {
+      securityLogger.error(`Health check issue detected: ${component}`, {
+        componentStatus: status.status,
+        error: status.error || 'unknown error',
+        affectedComponent: component,
+        component: 'health_check'
+      });
+    });
+
+    // Запуск периодических проверок
+    healthCheckService.start();
+
+    securityLogger.info('Health check service initialized', {
+      interval: appConfig.healthCheckInterval,
+      endpoints: ['/health', '/health/detailed', '/ready', '/live', '/health/prometheus', '/health/cached'],
+      component: 'health_check'
+    });
   }
 
   // =============================================================================
@@ -330,60 +437,153 @@ export function createApp(config?: Partial<AppConfig>): Application {
   // =============================================================================
   if (appConfig.enableHealthCheck) {
     /**
-     * Basic health check
+     * Basic health check - быстрая проверка доступности приложения
+     * Используется для Kubernetes liveness probe
      */
     app.get('/health', (req: Request, res: Response) => {
+      const result = healthCheckService?.getLastCheckResult();
+      
       res.status(200).json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        environment: appConfig.nodeEnv
-      });
-    });
-
-    /**
-     * Detailed health check with service status
-     */
-    app.get('/health/detailed', (req: Request, res: Response) => {
-      const memoryUsage = process.memoryUsage();
-      res.status(200).json({
-        status: 'healthy',
+        status: result?.status || 'healthy',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: appConfig.nodeEnv,
         version: process.version,
-        memory: {
-          heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + ' MB',
-          heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + ' MB',
-          rss: Math.round(memoryUsage.rss / 1024 / 1024) + ' MB',
-          external: Math.round(memoryUsage.external / 1024 / 1024) + ' MB'
-        },
-        cors: {
-          mode: corsMode,
-          enabled: true
-        }
+        pid: process.pid
       });
     });
 
     /**
-     * Readiness check (for Kubernetes)
+     * Detailed health check - полная проверка всех компонентов
+     * Возвращает детальную информацию о статусе каждого компонента
      */
-    app.get('/ready', (req: Request, res: Response) => {
-      // Здесь можно проверить подключение к БД, Redis и т.д.
-      res.status(200).json({
-        ready: true,
-        timestamp: new Date().toISOString()
-      });
+    app.get('/health/detailed', async (req: Request, res: Response) => {
+      try {
+        const result = await healthCheckService?.performHealthCheck();
+        
+        res.status(200).json({
+          status: result?.status || 'healthy',
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          environment: appConfig.nodeEnv,
+          version: process.version,
+          components: result?.components,
+          summary: result?.summary,
+          cors: {
+            mode: corsMode,
+            enabled: true
+          }
+        });
+      } catch (error) {
+        res.status(503).json({
+          status: 'unhealthy',
+          error: (error as Error).message,
+          timestamp: new Date().toISOString()
+        });
+      }
     });
 
     /**
-     * Liveness check (for Kubernetes)
+     * Readiness check - проверка готовности принимать трафик
+     * Проверяет все зависимости: Redis, Database, Vault, Elasticsearch
+     * Используется для Kubernetes readiness probe
      */
-    app.get('/live', (req: Request, res: Response) => {
-      res.status(200).json({
-        live: true,
-        timestamp: new Date().toISOString()
-      });
+    app.get('/ready', async (req: Request, res: Response) => {
+      try {
+        const result = await healthCheckService?.performReadinessCheck();
+        const isReady = result?.status === HealthStatus.HEALTHY;
+        
+        const statusCode = isReady ? 200 : 503;
+        res.status(statusCode).json({
+          ready: isReady,
+          status: result?.status || 'unknown',
+          timestamp: new Date().toISOString(),
+          summary: result?.summary,
+          components: {
+            redis: result?.components.redis?.status,
+            database: result?.components.database?.status,
+            vault: result?.components.vault?.status,
+            elasticsearch: result?.components.elasticsearch?.status,
+            circuitBreakers: result?.components.circuit_breakers?.status,
+            memory: result?.components.memory?.status,
+            cpu: result?.components.cpu?.status
+          }
+        });
+      } catch (error) {
+        res.status(503).json({
+          ready: false,
+          status: 'unhealthy',
+          error: (error as Error).message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    /**
+     * Liveness check - проверка что приложение живо
+     * Быстрая проверка без проверки зависимостей
+     * Используется для Kubernetes liveness probe
+     */
+    app.get('/live', async (req: Request, res: Response) => {
+      try {
+        const result = await healthCheckService?.performLivenessCheck();
+        const isLive = result?.status !== HealthStatus.UNHEALTHY;
+        
+        const statusCode = isLive ? 200 : 503;
+        res.status(statusCode).json({
+          live: isLive,
+          status: result?.status || 'unknown',
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          pid: process.pid
+        });
+      } catch (error) {
+        res.status(503).json({
+          live: false,
+          status: 'unhealthy',
+          error: (error as Error).message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    /**
+     * Prometheus metrics endpoint
+     * Возвращает метрики в формате Prometheus text format
+     * Используется для сбора метрик Prometheus
+     */
+    app.get('/health/prometheus', (req: Request, res: Response) => {
+      const metrics = healthCheckService?.getPrometheusMetrics();
+      
+      if (!metrics || !metrics.metrics) {
+        res.status(503).json({
+          error: 'Prometheus metrics not available',
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
+      
+      res.set('Content-Type', metrics.contentType);
+      res.status(200).send(metrics.metrics);
+    });
+
+    /**
+     * Health check с кэшированным результатом
+     * Возвращает последний результат проверки без выполнения новой
+     */
+    app.get('/health/cached', (req: Request, res: Response) => {
+      const result = healthCheckService?.getLastCheckResult();
+      
+      if (!result) {
+        res.status(503).json({
+          status: 'unknown',
+          error: 'No health check result available yet',
+          timestamp: new Date().toISOString()
+        });
+        return;
+      }
+      
+      res.status(200).json(result);
     });
 
     // =============================================================================
@@ -451,8 +651,11 @@ export function createApp(config?: Partial<AppConfig>): Application {
       }
     );
 
-    console.log('[HealthCheck] Endpoints активированы: /health, /health/detailed, /ready, /live');
-    console.log('[Example] Demo endpoints с валидацией: /api/example/register, /api/example/search, /api/example/resource/:id');
+    securityLogger.info('Health check endpoints activated', {
+      endpoints: ['/health', '/health/detailed', '/ready', '/live'],
+      demoEndpoints: ['/api/example/register', '/api/example/search', '/api/example/resource/:id'],
+      component: 'endpoints'
+    });
   }
 
   // =============================================================================
@@ -483,7 +686,11 @@ export function createApp(config?: Partial<AppConfig>): Application {
   // GLOBAL ERROR HANDLER
   // =============================================================================
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error('[GlobalErrorHandler]', err);
+    securityLogger.error('Global error handler', err, {
+      path: req.path,
+      method: req.method,
+      component: 'error_handler'
+    });
 
     res.status(err instanceof Error && 'status' in err ? (err as any).status : 500).json({
       error: 'Internal Server Error',
@@ -492,7 +699,10 @@ export function createApp(config?: Partial<AppConfig>): Application {
     });
   });
 
-  console.log(`[Express] Приложение создано (env: ${appConfig.nodeEnv})`);
+  securityLogger.info('Express application created', {
+    env: appConfig.nodeEnv,
+    component: 'express'
+  });
 
   return app;
 }
@@ -512,8 +722,11 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
 
   // Финальная валидация перед запуском в production
   if (appConfig.nodeEnv === 'production') {
-    console.log('\n🔒 PRODUCTION MODE: Performing final security validation...\n');
-    
+    securityLogger.info('Production mode: Performing final security validation', {
+      nodeEnv: appConfig.nodeEnv,
+      phase: 'startup'
+    });
+
     const validator = new EnvironmentValidator({
       nodeEnv: 'production',
       blockOnCritical: true,
@@ -524,14 +737,20 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
     const result = validator.validateEnvironment();
 
     if (!result.isProductionReady) {
-      console.error('\n❌ PRODUCTION STARTUP ABORTED\n');
-      console.error('The following security issues must be resolved:\n');
-      
+      securityLogger.critical('Production startup aborted', {
+        errorsCount: result.errors.length,
+        phase: 'production_validation'
+      });
+
       result.issues
         .filter(issue => issue.severity === 'critical' || issue.severity === 'high')
         .forEach(issue => {
-          console.error(`  [${issue.severity.toUpperCase()}] ${issue.variable}: ${issue.message}`);
-          console.error(`    → ${issue.recommendation}\n`);
+          securityLogger.error(`Production validation issue: ${issue.variable}`, {
+            severity: issue.severity,
+            message: issue.message,
+            recommendation: issue.recommendation,
+            component: 'validation'
+          });
         });
 
       throw new Error(
@@ -541,51 +760,108 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
       );
     }
 
-    console.log('✅ Production security validation passed\n');
+    securityLogger.info('Production security validation passed', {
+      isProductionReady: true,
+      phase: 'startup'
+    });
   }
 
   const app = createApp(appConfig);
 
   return new Promise((resolve, reject) => {
     const server = app.listen(appConfig.port, appConfig.host, () => {
-      console.log('');
-      console.log('='.repeat(60));
-      console.log('  PROTOCOL SECURITY API SERVER');
-      console.log('='.repeat(60));
-      console.log(`  Environment:    ${appConfig.nodeEnv}`);
-      console.log(`  Host:           ${appConfig.host}`);
-      console.log(`  Port:           ${appConfig.port}`);
-      console.log(`  CORS Mode:      ${appConfig.corsMode}`);
-      console.log(`  Security:       ${appConfig.enableSecurityHeaders ? 'Enabled' : 'Disabled'}`);
-      console.log(`  Rate Limit:     ${appConfig.enableRateLimit ? 'Enabled' : 'Disabled'}`);
-      console.log('='.repeat(60));
-      console.log(`  Health Check:   http://${appConfig.host}:${appConfig.port}/health`);
-      console.log(`  API Root:       http://${appConfig.host}:${appConfig.port}/`);
-      console.log('='.repeat(60));
-      console.log('');
+      const startupMessage = {
+        message: 'PROTOCOL SECURITY API SERVER started',
+        environment: appConfig.nodeEnv,
+        host: appConfig.host,
+        port: appConfig.port,
+        corsMode: appConfig.corsMode,
+        security: appConfig.enableSecurityHeaders ? 'Enabled' : 'Disabled',
+        rateLimit: appConfig.enableRateLimit ? 'Enabled' : 'Disabled',
+        endpoints: {
+          healthCheck: `http://${appConfig.host}:${appConfig.port}/health`,
+          readiness: `http://${appConfig.host}:${appConfig.port}/ready`,
+          liveness: `http://${appConfig.host}:${appConfig.port}/live`,
+          prometheus: `http://${appConfig.host}:${appConfig.port}/health/prometheus`,
+          apiRoot: `http://${appConfig.host}:${appConfig.port}/`
+        }
+      };
+
+      // Красивый вывод в консоль для человека
+      process.stdout.write('\n');
+      process.stdout.write('='.repeat(60) + '\n');
+      process.stdout.write('  PROTOCOL SECURITY API SERVER\n');
+      process.stdout.write('='.repeat(60) + '\n');
+      process.stdout.write(`  Environment:    ${appConfig.nodeEnv}\n`);
+      process.stdout.write(`  Host:           ${appConfig.host}\n`);
+      process.stdout.write(`  Port:           ${appConfig.port}\n`);
+      process.stdout.write(`  CORS Mode:      ${appConfig.corsMode}\n`);
+      process.stdout.write(`  Security:       ${startupMessage.security}\n`);
+      process.stdout.write(`  Rate Limit:     ${startupMessage.rateLimit}\n`);
+      process.stdout.write('='.repeat(60) + '\n');
+      process.stdout.write(`  Health Check:   ${startupMessage.endpoints.healthCheck}\n`);
+      process.stdout.write(`  Readiness:      ${startupMessage.endpoints.readiness}\n`);
+      process.stdout.write(`  Liveness:       ${startupMessage.endpoints.liveness}\n`);
+      process.stdout.write(`  Prometheus:     ${startupMessage.endpoints.prometheus}\n`);
+      process.stdout.write(`  API Root:       ${startupMessage.endpoints.apiRoot}\n`);
+      process.stdout.write('='.repeat(60) + '\n');
+      process.stdout.write('\n');
+
+      // Логирование для системы
+      securityLogger.info(startupMessage.message, startupMessage, { component: 'server' });
+
       resolve();
     });
 
     server.on('error', (err: any) => {
       if (err.code === 'EADDRINUSE') {
-        console.error(`[Server] Port ${appConfig.port} already in use`);
+        securityLogger.error(`Port ${appConfig.port} already in use`, {
+          port: appConfig.port,
+          host: appConfig.host,
+          component: 'server'
+        });
       } else {
-        console.error('[Server] Error:', err);
+        securityLogger.error('Server error', err, { component: 'server' });
       }
       reject(err);
     });
 
     // Graceful shutdown
     const gracefulShutdown = (signal: string) => {
-      console.log(`\n[Server] Получен сигнал ${signal}. Завершение работы...`);
+      securityLogger.info(`Server received signal ${signal}, shutting down`, {
+        signal,
+        component: 'server'
+      });
+
+      // Остановка Health Check Service
+      if (healthCheckService) {
+        securityLogger.info('HealthCheckService stopping', { component: 'health_check' });
+        healthCheckService.stop();
+      }
+
+      // Остановка Performance Monitor
+      if (performanceMonitor) {
+        securityLogger.info('PerformanceMonitor stopping', { component: 'performance' });
+        performanceMonitor.stop();
+      }
+
+      // Остановка Circuit Breaker Manager
+      if (circuitBreakerManager) {
+        securityLogger.info('CircuitBreakerManager stopping', { component: 'circuit_breaker' });
+        circuitBreakerManager.destroyAll();
+      }
+
       server.close(() => {
-        console.log('[Server] HTTP сервер закрыт');
+        securityLogger.info('HTTP server closed', { component: 'server' });
         process.exit(0);
       });
 
       // Force shutdown after timeout
       setTimeout(() => {
-        console.error('[Server] Принудительное завершение работы');
+        securityLogger.critical('Forced server shutdown', {
+          timeout: 10000,
+          component: 'server'
+        });
         process.exit(1);
       }, 10000);
     };
@@ -602,7 +878,10 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
 // Запускаем сервер только если этот файл является точкой входа
 if (require.main === module) {
   startServer().catch(err => {
-    console.error('[Startup] Критическая ошибка:', err);
+    securityLogger.critical('Startup critical error', err, {
+      phase: 'startup',
+      component: 'main'
+    });
     process.exit(1);
   });
 }

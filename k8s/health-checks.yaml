@@ -1,0 +1,617 @@
+# =============================================================================
+# Protocol Security - Kubernetes Health Check Probes Configuration
+# Created by Theodor Munch
+# Copyright (c) 2026 Theodor Munch. All rights reserved.
+# =============================================================================
+# 
+# Этот файл содержит примеры конфигурации health check probes для Kubernetes
+# с использованием новых endpoints:
+# - /health - базовая проверка
+# - /ready - проверка готовности (readiness)
+# - /live - проверка жизнеспособности (liveness)
+# - /health/prometheus - метрики для Prometheus
+#
+# =============================================================================
+
+# =============================================================================
+# ВАРИАНТ 1: БАЗОВАЯ КОНФИГУРАЦИЯ (MINIMAL)
+# =============================================================================
+# Минимальная конфигурация для небольших приложений
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protocol-security-basic
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: protocol-security-basic
+  template:
+    metadata:
+      labels:
+        app: protocol-security-basic
+    spec:
+      containers:
+      - name: protocol-security
+        image: protocol-security:latest
+        ports:
+        - containerPort: 3000
+          name: http
+        # Liveness probe - проверка что приложение живо
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        # Readiness probe - проверка готовности принимать трафик
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+
+# =============================================================================
+# ВАРИАНТ 2: PRODUCTION КОНФИГУРАЦИЯ (RECOMMENDED)
+# =============================================================================
+# Рекомендуемая конфигурация для production среды
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protocol-security-production
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+    tier: backend
+    environment: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: protocol-security-production
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: protocol-security-production
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/health/prometheus"
+    spec:
+      serviceAccountName: protocol-security
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: protocol-security
+        image: protocol-security:v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: HEALTH_CHECK_ENABLED
+          value: "true"
+        - name: HEALTH_CHECK_INTERVAL
+          value: "10000"
+        - name: HEALTH_CHECK_REDIS_TIMEOUT
+          value: "5000"
+        - name: HEALTH_CHECK_DATABASE_TIMEOUT
+          value: "5000"
+        - name: HEALTH_CHECK_ENABLE_PROMETHEUS
+          value: "true"
+        # Liveness probe - проверка жизнеспособности
+        # Перезапускает контейнер если приложение "зависло"
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 3000
+            scheme: HTTP
+            httpHeaders:
+            - name: Accept
+              value: application/json
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        # Readiness probe - проверка готовности
+        # Убирает pod из load balancer если зависимости недоступны
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+            scheme: HTTP
+            httpHeaders:
+            - name: Accept
+              value: application/json
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        # Startup probe - проверка запуска
+        # Для приложений с долгим запуском (до 60 секунд)
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12  # 12 * 5s = 60s на запуск
+          successThreshold: 1
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: protocol-config
+---
+
+# =============================================================================
+# ВАРИАНТ 3: HIGH AVAILABILITY КОНФИГУРАЦИЯ
+# =============================================================================
+# Конфигурация для критически важных приложений с высокими требованиями к доступности
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protocol-security-ha
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+    tier: backend
+    availability: high
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: protocol-security-ha
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  minReadySeconds: 30  # Ждем 30s перед следующим обновлением
+  progressDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app: protocol-security-ha
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/health/prometheus"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - protocol-security-ha
+            topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: protocol-security-ha
+      containers:
+      - name: protocol-security
+        image: protocol-security:v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+        # Агрессивная liveness probe для быстрого восстановления
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 5  # Частая проверка
+          timeoutSeconds: 3
+          failureThreshold: 2  # Быстрый restart при проблемах
+          successThreshold: 1
+        # Консервативная readiness probe для стабильности
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 2  # Требуется 2 успешных проверки
+        # Startup probe для защиты при запуске
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          failureThreshold: 18  # 90s на запуск
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+---
+
+# =============================================================================
+# ВАРИАНТ 4: MULTI-PORT CONFIGURATION
+# =============================================================================
+# Конфигурация с несколькими портами (основной + metrics)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protocol-security-multiport
+  namespace: protocol-security
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: protocol-security-multiport
+  template:
+    metadata:
+      labels:
+        app: protocol-security-multiport
+    spec:
+      containers:
+      - name: protocol-security
+        image: protocol-security:latest
+        ports:
+        - containerPort: 3000
+          name: http
+        - containerPort: 9090
+          name: metrics
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+
+# =============================================================================
+# SERVICE с health check annotations
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: protocol-security
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+  annotations:
+    # Annotations для service mesh (Istio, Linkerd)
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+    prometheus.io/path: "/health/prometheus"
+    # Annotations для cloud providers
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/health"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "3000"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "30"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "5"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold: "3"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold: "2"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: protocol-security
+---
+
+# =============================================================================
+# ISTIO SIDECAR CONFIGURATION
+# =============================================================================
+# Конфигурация для Istio service mesh
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: protocol-security-destination
+  namespace: protocol-security
+spec:
+  host: protocol-security
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+---
+
+# =============================================================================
+# ISTIO VIRTUAL SERVICE с health check routing
+# =============================================================================
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: protocol-security-vs
+  namespace: protocol-security
+spec:
+  hosts:
+  - protocol-security
+  http:
+  - name: health-routes
+    match:
+    - uri:
+        prefix: /health
+    - uri:
+        prefix: /ready
+    - uri:
+        prefix: /live
+    - uri:
+        prefix: /health/prometheus
+    route:
+    - destination:
+        host: protocol-security
+        port:
+          number: 3000
+    timeout: 5s
+    retries:
+      attempts: 1
+      perTryTimeout: 2s
+  - name: main-routes
+    route:
+    - destination:
+        host: protocol-security
+        port:
+          number: 3000
+---
+
+# =============================================================================
+# POD MONITOR для Prometheus Operator
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: protocol-security-monitor
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: protocol-security
+  namespaceSelector:
+    matchNames:
+    - protocol-security
+  podMetricsEndpoints:
+  - port: http
+    path: /health/prometheus
+    interval: 15s
+    scrapeTimeout: 10s
+    scheme: http
+---
+
+# =============================================================================
+# PROMETHEUS RULES для health check alerting
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: protocol-security-rules
+  namespace: protocol-security
+  labels:
+    app: protocol-security
+    release: prometheus
+spec:
+  groups:
+  - name: protocol-security.health
+    interval: 30s
+    rules:
+    # Alert: Pod unhealthy
+    - alert: ProtocolSecurityPodUnhealthy
+      expr: |
+        probe_success{job="protocol-security"} == 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pod {{ $labels.pod }} is unhealthy"
+        description: "Pod {{ $labels.pod }} has been unhealthy for more than 2 minutes"
+    
+    # Alert: High failure rate
+    - alert: ProtocolSecurityHighFailureRate
+      expr: |
+        sum(rate(protocol_health_component_status{status="unhealthy"}[5m])) 
+        / sum(rate(protocol_health_component_status[5m])) > 0.1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High failure rate in Protocol Security"
+        description: "More than 10% of health checks are failing"
+    
+    # Alert: Circuit breaker open
+    - alert: ProtocolSecurityCircuitBreakerOpen
+      expr: |
+        protocol_circuit_breaker_state{state="1"} == 1
+      for: 1m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Circuit breaker {{ $labels.name }} is OPEN"
+        description: "Circuit breaker {{ $labels.name }} has been open for more than 1 minute"
+    
+    # Alert: High memory usage
+    - alert: ProtocolSecurityHighMemory
+      expr: |
+        protocol_memory_heap_used / protocol_memory_heap_total > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage in Protocol Security"
+        description: "Memory usage is above 90%"
+    
+    # Alert: Service unavailable
+    - alert: ProtocolSecurityServiceUnavailable
+      expr: |
+        sum(protocol_health_component_status{component="application"}) == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Protocol Security service is unavailable"
+        description: "All pods are unhealthy"
+---
+
+# =============================================================================
+# GRAFANA DASHBOARD CONFIGMAP
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: protocol-security-grafana-dashboard
+  namespace: protocol-security
+  labels:
+    grafana_dashboard: "1"
+data:
+  protocol-security-health.json: |
+    {
+      "dashboard": {
+        "title": "Protocol Security - Health Dashboard",
+        "panels": [
+          {
+            "title": "Health Status Overview",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(protocol_health_component_status{status=\"healthy\"})",
+                "legendFormat": "Healthy"
+              },
+              {
+                "expr": "sum(protocol_health_component_status{status=\"unhealthy\"})",
+                "legendFormat": "Unhealthy"
+              },
+              {
+                "expr": "sum(protocol_health_component_status{status=\"warning\"})",
+                "legendFormat": "Warning"
+              }
+            ]
+          },
+          {
+            "title": "Circuit Breaker States",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "sum(protocol_circuit_breaker_state)",
+                "legendFormat": "Circuit Breakers"
+              }
+            ]
+          },
+          {
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "protocol_memory_heap_used",
+                "legendFormat": "Heap Used"
+              },
+              {
+                "expr": "protocol_memory_heap_total",
+                "legendFormat": "Heap Total"
+              }
+            ]
+          },
+          {
+            "title": "Response Times",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(protocol_health_component_response_time_bucket[5m]))",
+                "legendFormat": "P95 Response Time"
+              }
+            ]
+          }
+        ]
+      }
+    }
