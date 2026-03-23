@@ -362,28 +362,52 @@ export class SLSAVerifier extends EventEmitter {
    * Требования:
    * - Исходный код должен быть в системе контроля версий
    * - Сборка должна использовать версионированный исходный код
+   *
+   * БЕЗОПАСНОСТЬ: Используем URL API для правильной проверки URI
    */
   private async verifyLevel2(provenance: SLSAProvenance): Promise<SLSALevelCheck[]> {
     const checks: SLSALevelCheck[] = [];
-    
+
     // Проверка 2.1: Исходный код из VCS
-    const hasVCSSource = provenance.build.resolvedDependencies?.some(
-      dep => dep.uri.startsWith('git+') || 
-             dep.uri.includes('github.com') ||
-             dep.uri.includes('gitlab.com') ||
-             dep.uri.includes('bitbucket.org')
-    ) || false;
-    
+    // ИСПОЛЬЗУЕМ БЕЗОПАСНУЮ ПРОВЕРКУ URI через URL API вместо строковых сравнений
+    const hasVCSSource = provenance.build.resolvedDependencies?.some(dep => {
+      try {
+        // Проверяем git+ схему
+        if (dep.uri.startsWith('git+')) {
+          return true;
+        }
+        
+        // Парсим URI и проверяем домен
+        const url = new URL(dep.uri.replace(/^git\+/, ''));
+        const hostname = url.hostname.toLowerCase();
+        
+        return hostname === 'github.com' || 
+               hostname === 'gitlab.com' || 
+               hostname === 'bitbucket.org' ||
+               hostname.endsWith('.github.com') ||
+               hostname.endsWith('.gitlab.com');
+      } catch {
+        // Неверный URI - не считаем VCS источником
+        return false;
+      }
+    }) || false;
+
     checks.push({
       level: 2,
       check: 'version_controlled_source',
       requirement: 'Исходный код должен храниться в системе контроля версий',
       passed: hasVCSSource,
       evidence: provenance.build.resolvedDependencies
-        ?.filter(d => d.uri.startsWith('git+') || d.uri.includes('github.com'))
+        ?.filter(d => {
+          try {
+            return d.uri.startsWith('git+') || new URL(d.uri.replace(/^git\+/, '')).hostname === 'github.com';
+          } catch {
+            return false;
+          }
+        })
         .map(d => d.uri) || []
     });
-    
+
     // Проверка 2.2: Builder использует версионированный исходный код
     checks.push({
       level: 2,
@@ -396,7 +420,7 @@ export class SLSAVerifier extends EventEmitter {
         ?.filter(d => d.digest)
         .map(d => `${d.uri}@${JSON.stringify(d.digest)}`) || []
     });
-    
+
     // Проверка 2.3: Builder идентифицирован
     checks.push({
       level: 2,
@@ -405,7 +429,7 @@ export class SLSAVerifier extends EventEmitter {
       passed: this.config.trustedBuilderIds.includes(provenance.builder.id),
       evidence: [provenance.builder.id]
     });
-    
+
     return checks;
   }
 

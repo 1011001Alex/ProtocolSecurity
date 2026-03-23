@@ -192,12 +192,23 @@ export class SecretRotator extends EventEmitter {
       generatePassword: (length = 32): string => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
         let password = '';
-        const randomBytes = require('crypto').randomBytes(length);
+        const charArray = new Uint8Array(length);
         
+        // ИСПОЛЬЗУЕМ REJECTION SAMPLING для устранения bias
+        // Modulo оператор создает неравномерное распределение
         for (let i = 0; i < length; i++) {
-          password += chars[randomBytes[i] % chars.length];
+          let randomValue: number;
+          const maxValidValue = Math.floor(256 / chars.length) * chars.length;
+          
+          do {
+            crypto.randomBytes(1).forEach(byte => {
+              randomValue = byte;
+            });
+          } while (randomValue! >= maxValidValue);
+          
+          password += chars[randomValue! % chars.length];
         }
-        
+
         return password;
       },
       

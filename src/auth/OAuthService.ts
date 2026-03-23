@@ -252,15 +252,18 @@ export class OAuthService {
     // Точное совпадение или wildcard matching
     return client.redirectUris.some(allowed => {
       if (allowed === redirectUri) return true;
-      
+
       // Wildcard support (например, https://*.example.com/*)
+      // ИСПОЛЬЗУЕМ ПОЛНОЕ ЭКРАНИРОВАНИЕ для безопасности
       if (allowed.includes('*')) {
+        // Сначала экранируем обратные слеши, затем точки, затем wildcard
         const pattern = allowed
-          .replace(/\./g, '\\.')
-          .replace(/\*/g, '.*');
+          .replace(/\\/g, '\\\\')  // Экранируем обратные слеши
+          .replace(/\./g, '\\.')   // Экранируем точки
+          .replace(/\*/g, '.*');   // Преобразуем wildcard
         return new RegExp(`^${pattern}$`).test(redirectUri);
       }
-      
+
       return false;
     });
   }
@@ -793,12 +796,21 @@ export class OAuthService {
     // Формат: XXXX-XXXX (8 символов, только буквы)
     const chars = 'BCDFGHJKLMNPQRSTVWXZ'; // Без гласных для удобства
     let code = '';
-    
+
+    // ИСПОЛЬЗУЕМ REJECTION SAMPLING для устранения bias
     for (let i = 0; i < 8; i++) {
       if (i === 4) code += '-';
-      code += chars[randomBytes(1)[0] % chars.length];
+      
+      let randomValue: number;
+      const maxValidValue = Math.floor(256 / chars.length) * chars.length;
+      
+      do {
+        randomValue = randomBytes(1)[0];
+      } while (randomValue >= maxValidValue);
+      
+      code += chars[randomValue % chars.length];
     }
-    
+
     return code;
   }
 

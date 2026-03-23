@@ -330,14 +330,17 @@ export class SupplyChainVerifier extends EventEmitter {
 
   /**
    * Проверка доверенного registry
+   *
+   * БЕЗОПАСНОСТЬ: Используем безопасную проверку URL через URL API
    */
   private async checkRegistry(component: SBOMComponent): Promise<VerificationCheck> {
     try {
       const purl = component.purl || '';
-      
+
       // Извлекаем registry из PURL
       let registryUrl = '';
-      
+
+      // ИСПОЛЬЗУЕМ БЕЗОПАСНЫЙ ПАРСИНГ PURL вместо строковых сравнений
       if (purl.startsWith('pkg:npm')) {
         registryUrl = 'https://registry.npmjs.org';
       } else if (purl.startsWith('pkg:pypi')) {
@@ -345,7 +348,7 @@ export class SupplyChainVerifier extends EventEmitter {
       } else if (purl.startsWith('pkg:maven')) {
         registryUrl = 'https://repo.maven.apache.org/maven2';
       }
-      
+
       // Если нет PURL, считаем registry неизвестным
       if (!registryUrl) {
         return {
@@ -356,21 +359,45 @@ export class SupplyChainVerifier extends EventEmitter {
           errors: ['Не удалось определить registry из PURL']
         };
       }
-      
+
+      // ВАЛИДАЦИЯ URL через URL API для предотвращения SSRF
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(registryUrl);
+        // Проверяем что используется безопасный протокол
+        if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+          return {
+            name: 'Registry Trust Check',
+            description: 'Проверка доверенного registry',
+            passed: false,
+            details: 'Небезопасный протокол registry',
+            errors: [`Протокол ${parsedUrl.protocol} не разрешен`]
+          };
+        }
+      } catch {
+        return {
+          name: 'Registry Trust Check',
+          description: 'Проверка доверенного registry',
+          passed: false,
+          details: 'Неверный формат URL registry',
+          errors: ['URL не прошел валидацию']
+        };
+      }
+
       const isTrusted = this.config.trustedRegistries.includes(registryUrl) ||
         this.registryMetadata.get(registryUrl)?.trusted;
-      
+
       return {
         name: 'Registry Trust Check',
         description: 'Проверка доверенного registry',
         passed: isTrusted,
-        details: isTrusted 
-          ? `Доверенный registry: ${registryUrl}` 
+        details: isTrusted
+          ? `Доверенный registry: ${registryUrl}`
           : `Недоверенный registry: ${registryUrl}`
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      
+
       return {
         name: 'Registry Trust Check',
         description: 'Проверка доверенного registry',

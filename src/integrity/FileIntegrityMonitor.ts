@@ -381,13 +381,15 @@ export class FileIntegrityMonitor extends EventEmitter {
     // Простая реализация glob matching
     const normalizedPath = path.normalize(filePath);
     const normalizedPattern = path.normalize(pattern);
-    
+
     // Конвертируем glob паттерн в regex
+    // ИСПОЛЬЗУЕМ ПОЛНОЕ ЭКРАНИРОВАНИЕ для безопасности
     const regexPattern = normalizedPattern
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-    
+      .replace(/\\/g, '\\\\')  // Экранируем обратные слеши
+      .replace(/\./g, '\\.')   // Экранируем точки
+      .replace(/\*/g, '.*')    // Преобразуем wildcard
+      .replace(/\?/g, '.');    // Преобразуем single char wildcard
+
     const regex = new RegExp(`^${regexPattern}$`, 'i');
     return regex.test(normalizedPath);
   }

@@ -157,26 +157,33 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
    */
   private setupAgent(): void {
     const isHttps = this.config.vaultUrl.startsWith('https');
-    
+
     const options: https.AgentOptions = {
       keepAlive: true,
       maxSockets: 50,
-      timeout: this.config.timeout
+      timeout: this.config.timeout,
+      // БЕЗОПАСНОСТЬ: Всегда включаем проверку сертификатов для production
+      // rejectUnauthorized должен быть true по умолчанию
+      rejectUnauthorized: true
     };
-    
+
     if (this.config.caCert) {
       options.ca = this.config.caCert;
     }
-    
+
     if (this.config.clientCert && this.config.clientKey) {
       options.cert = this.config.clientCert;
       options.key = this.config.clientKey;
     }
-    
+
+    // ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify должен использоваться ТОЛЬКО для разработки
+    // В production это создает уязвимость для MITM атак
     if (this.config.skipTLSVerify) {
+      console.warn('[VaultBackend] ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify включен! Это небезопасно для production.');
+      console.warn('[VaultBackend] Используйте только в тестовых средах с самоподписанными сертификатами.');
       options.rejectUnauthorized = false;
     }
-    
+
     this.agent = isHttps ? new https.Agent(options) : new http.Agent(options);
   }
 

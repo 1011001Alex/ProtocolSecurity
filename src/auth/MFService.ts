@@ -506,9 +506,17 @@ export class MFService {
       ? this.backupCodeConfig.codeLength - (this.backupCodeConfig.prefix?.length || 0)
       : this.backupCodeConfig.codeLength;
 
+    // ИСПОЛЬЗУЕМ REJECTION SAMPLING для устранения bias
     const randomBytes = cryptoRandomBytes(codeLength);
     for (let i = 0; i < codeLength; i++) {
-      code += charset[randomBytes[i] % charset.length];
+      let randomValue: number;
+      const maxValidValue = Math.floor(256 / charset.length) * charset.length;
+      
+      do {
+        randomValue = randomBytes[i];
+      } while (randomValue >= maxValidValue);
+      
+      code += charset[randomValue % charset.length];
     }
 
     // Форматирование для удобства чтения (группы по 4 символа)

@@ -646,10 +646,14 @@ export class ModificationDetector extends EventEmitter {
    */
   private isCriticalFile(filePath: string): boolean {
     return this.config.criticalFilePatterns.some(pattern => {
-      const regex = new RegExp(
-        pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/]*'),
-        'i'
-      );
+      // ИСПОЛЬЗУЕМ ПОЛНОЕ ЭКРАНИРОВАНИЕ для безопасности
+      // Экранируем все специальные regex символы перед заменой wildcard
+      const escapedPattern = pattern
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')  // Экранируем специальные regex символы
+        .replace(/\*\*/g, '.*')                 // Заменяем ** на .*
+        .replace(/\*/g, '[^/]*');               // Заменяем * на [^/]*
+      
+      const regex = new RegExp(`^${escapedPattern}$`, 'i');
       return regex.test(filePath);
     });
   }

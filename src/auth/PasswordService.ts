@@ -551,19 +551,35 @@ export class PasswordService {
     const allChars = lowercase + uppercase + digits + special;
 
     // Гарантируем наличие хотя бы одного символа каждого типа
+    // ИСПОЛЬЗУЕМ REJECTION SAMPLING для устранения bias
     let password = '';
-    password += lowercase[randomBytes(1)[0] % lowercase.length];
-    password += uppercase[randomBytes(1)[0] % uppercase.length];
-    password += digits[randomBytes(1)[0] % digits.length];
-    password += special[randomBytes(1)[0] % special.length];
+    password += this.getRandomChar(lowercase);
+    password += this.getRandomChar(uppercase);
+    password += this.getRandomChar(digits);
+    password += this.getRandomChar(special);
 
     // Заполняем оставшуюся длину случайными символами
     for (let i = password.length; i < length; i++) {
-      password += allChars[randomBytes(1)[0] % allChars.length];
+      password += this.getRandomChar(allChars);
     }
 
     // Перемешиваем пароль
     return this.shuffleString(password);
+  }
+
+  /**
+   * Получение случайного символа из набора с использованием rejection sampling
+   * @private
+   */
+  private getRandomChar(charset: string): string {
+    const maxValidValue = Math.floor(256 / charset.length) * charset.length;
+    let randomValue: number;
+    
+    do {
+      randomValue = randomBytes(1)[0];
+    } while (randomValue >= maxValidValue);
+    
+    return charset[randomValue % charset.length];
   }
 
   /**
@@ -573,7 +589,15 @@ export class PasswordService {
   private shuffleString(str: string): string {
     const arr = str.split('');
     for (let i = arr.length - 1; i > 0; i--) {
-      const j = randomBytes(1)[0] % (i + 1);
+      // ИСПОЛЬЗУЕМ REJECTION SAMPLING для устранения bias
+      const maxValidValue = Math.floor(256 / (i + 1)) * (i + 1);
+      let j: number;
+      
+      do {
+        j = randomBytes(1)[0];
+      } while (j >= maxValidValue);
+      
+      j = j % (i + 1);
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr.join('');

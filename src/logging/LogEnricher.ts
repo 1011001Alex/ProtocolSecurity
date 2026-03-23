@@ -432,29 +432,32 @@ class GeoIPService {
   
   /**
    * Fetch geo данных
+   *
+   * БЕЗОПАСНОСТЬ: Правильная санитизация URL для предотвращения SSRF
    */
   private async fetchGeoData(ip: string, baseUrl: string): Promise<unknown> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-    
+
     try {
-      const url = baseUrl.includes('ip-api.com') 
-        ? `${baseUrl}${ip}`
-        : `${baseUrl}${ip}`;
-      
-      const response = await fetch(url, {
+      // ИСПОЛЬЗУЕМ URL API для правильного построения URL вместо конкатенации
+      // Это предотвращает SSRF атаки через манипуляцию с путем
+      const url = new URL(baseUrl);
+      url.pathname = `${url.pathname}${url.pathname.endsWith('/') ? '' : '/'}${encodeURIComponent(ip)}`;
+
+      const response = await fetch(url.toString(), {
         signal: controller.signal,
         headers: {
           'Accept': 'application/json'
         }
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         return null;
       }
-      
+
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
@@ -1162,6 +1165,9 @@ export class LogEnricher extends EventEmitter {
   
   /**
    * Получение ключа для кэша
+   *
+   * БЕЗОПАСНОСТЬ: Используем SHA-256 вместо MD5
+   * MD5 считается криптографически небезопасным (CWE-328)
    */
   private getCacheKey(log: LogEntry): string {
     const parts = [
@@ -1169,8 +1175,9 @@ export class LogEnricher extends EventEmitter {
       log.context.userAgent || '',
       log.context.userId || ''
     ];
-    
-    return crypto.createHash('md5').update(parts.join('|')).digest('hex');
+
+    // ИСПОЛЬЗУЕМ SHA-256 вместо MD5 для соответствия современным стандартам безопасности
+    return crypto.createHash('sha256').update(parts.join('|')).digest('hex');
   }
   
   /**
