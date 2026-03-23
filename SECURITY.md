@@ -24,8 +24,7 @@ If you discover a security vulnerability, please report it responsibly:
 ### How to Report
 
 1. **DO NOT** create a public GitHub issue
-2. Email: security@protocol.local
-3. Include:
+2. Include:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact

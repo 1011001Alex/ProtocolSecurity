@@ -31,6 +31,7 @@ import { RateLimiterService, createRateLimiterService } from './RateLimiter';
 import { DeviceFingerprintService, createDeviceFingerprintService } from './DeviceFingerprint';
 import { RBACService, createRBACService } from './RBACService';
 import { ABACService, createABACService } from './ABACService';
+import { SecureLogger, LogSource } from '../logging/Logger';
 
 /**
  * Конфигурация AuthService
@@ -135,6 +136,7 @@ export interface MfaSetupInput {
  */
 export class AuthService {
   private config: AuthServiceConfig;
+  private logger: SecureLogger;
   private passwordService: PasswordService;
   private jwtService: JwtService;
   private mfService: MFService;
