@@ -6,6 +6,54 @@
  */
 
 // ============================================================================
+// EXPRESS APPLICATION
+// ============================================================================
+export {
+  createApp,
+  startServer,
+  createAppConfigFromEnv,
+  createCORSConfigFromEnv,
+  getCORSByMode
+} from './app';
+export type { AppConfig } from './app';
+
+// ============================================================================
+// MIDDLEWARE
+// ============================================================================
+export {
+  createCORS,
+  CORSPresets,
+  validateCORSConfig
+} from './middleware/CORSMiddleware';
+export type { CORSConfig } from './middleware/CORSMiddleware';
+
+export {
+  createSecurityHeadersMiddleware,
+  SecurityHeadersMiddleware,
+  expressSecurityHeaders,
+  CSP_STRICT,
+  CSP_DEVELOPMENT,
+  DEFAULT_SECURITY_CONFIG
+} from './middleware/SecurityHeadersMiddleware';
+
+export {
+  RateLimiter,
+  createRateLimiter,
+  createMemoryStore,
+  createRedisStore,
+  createGlobalRule,
+  createPerIPRule,
+  createPerUserRule,
+  createAPIRule,
+  createAuthRule
+} from './middleware/RateLimitMiddleware';
+export type {
+  RateLimitRule,
+  MemoryStore,
+  RateLimitResult
+} from './middleware/RateLimitMiddleware';
+
+// ============================================================================
 // ТИПЫ
 // ============================================================================
 export * from './types/integrity.types';

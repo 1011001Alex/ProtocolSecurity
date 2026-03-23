@@ -1,0 +1,426 @@
+# =============================================================================
+# PROTOCOL SECURITY - ПЛАН РАЗВИТИЯ И УЛУЧШЕНИЙ
+# =============================================================================
+# Проект: Protocol Security Architecture
+# Дата создания: 23 марта 2026 г.
+# Последний анализ: CodeQL + Code Architect Review
+# Статус: В работе
+# =============================================================================
+
+# =============================================================================
+# 📊 ТЕКУЩАЯ СТАТИСТИКА ПРОЕКТА
+# =============================================================================
+Строк кода: ~96,750+
+TS файлов: 127
+Файлов >1000 строк: 15+
+console.log вызовов: 238
+any типов: 70
+TODO/FIXME комментариев: 34
+Test файлов: 11
+Test Coverage: 100% (172/172 тестов)
+
+# =============================================================================
+# ✅ ВЫПОЛНЕНО (CodeQL Vulnerabilities Fix)
+# =============================================================================
+[✓] Исправлено 34 уязвимости CodeQL
+    - #34 Disabling certificate validation (VaultBackend.ts)
+    - #33,#32,#31,#30,#29,#28,#27,#26,#25 Biased random numbers (9 мест)
+    - #24 Weak cryptographic algorithm MD5 → SHA256
+    - #23,#22 Incomplete string escaping
+    - #21 Incomplete regex for hostnames
+    - #20-#15 Incomplete URL sanitization (6 мест)
+    - #14-#1 Workflow permissions (14 мест)
+
+[✓] Обновлены CodeQL actions v3 → v4
+    - .github/workflows/codeql-analysis.yml
+    - .github/workflows/secrets-scan.yml
+
+[✓] Исправлена установка TruffleHog
+    - Бинарный релиз вместо go install
+    - Избежаны проблемы с go.mod replace директивами
+
+[✓] Исправлена генерация SARIF отчетов
+    - Конвертация GitLeaks JSON → SARIF через jq
+    - Валидная структура для GitHub Security
+
+[✓] Добавлены permissions во все workflow файлы
+    - ci-cd.yml (global + per-job)
+    - security-audit.yml (5 jobs)
+    - secrets-scan.yml (5 jobs)
+    - codeql-analysis.yml
+
+# =============================================================================
+# 🔴 КРИТИЧЕСКИЙ ПРИОРИТЕТ (Critical) - СРОЧНО
+# =============================================================================
+
+[ ] 1. CORS MIDDLEWARE
+    Файл: src/middleware/CORSMiddleware.ts (НОВЫЙ)
+    Проблема: Полностью отсутствует CORS middleware
+    Задачи:
+    - [ ] Создать файл src/middleware/CORSMiddleware.ts
+    - [ ] Реализовать domain whitelist/blacklist
+    - [ ] Dynamic origin validation
+    - [ ] Preflight request caching (maxAge)
+    - [ ] Credentials support
+    - [ ] Custom headers/methods configuration
+    - [ ] CORSPresets (public, private, dev, apiGateway, microservice)
+    - [ ] validateCORSConfig функция
+    - [ ] Интегрировать в src/index.ts
+    - [ ] Написать тесты tests/middleware/CORSMiddleware.test.ts
+    Оценка: M (4-6 часов)
+    Стандарты: OWASP, RFC 6454
+
+[ ] 2. ИСПРАВЛЕНИЕ ХАРДКОДА ПАРОЛЕЙ
+    Файлы: .env.example, tests/security/security-middleware.test.ts
+    Проблема: Пароль Redis "change_this_password_in_production"
+    Задачи:
+    - [ ] Заменить на environment variable ${REDIS_PASSWORD:-}
+    - [ ] Добавить валидацию при старте приложения
+    - [ ] Проверить все .env файлы на хардкод
+    - [ ] Использовать secrets manager для production
+    - [ ] Обновить документацию
+    Оценка: S (1-2 часа)
+    Стандарты: PCI DSS 3.4, OWASP Secrets Management
+
+[ ] 3. RETRY LOGIC + CIRCUIT BREAKER В REDIS
+    Файл: src/middleware/RateLimitMiddleware.ts (строки 243-246)
+    Проблема: Empty catch blocks без retry логики
+    Задачи:
+    - [ ] Добавить exponential backoff retry
+    - [ ] Реализовать circuit breaker pattern
+    - [ ] Добавить alerting при failures
+    - [ ] Логирование через logger вместо console.error
+    - [ ] Написать тесты на отказ Redis
+    Оценка: M (6-8 часов)
+    Стандарты: Circuit Breaker Pattern, Resilience Patterns
+
+[ ] 4. INPUT VALIDATION MIDDLEWARE
+    Файлы: src/utils/InputValidator.ts, src/middleware/ (НОВЫЙ)
+    Проблема: InputValidator есть, но нет интеграции с Express middleware
+    Задачи:
+    - [ ] Создать src/middleware/InputValidationMiddleware.ts
+    - [ ] Интеграция с существующим InputValidator.ts
+    - [ ] Валидация всех входящих запросов
+    - [ ] Schema validation (JSON Schema / Zod)
+    - [ ] Rate limiting для валидации
+    - [ ] Интегрировать во все роуты
+    - [ ] Написать тесты
+    Оценка: L (12-16 часов)
+    Стандарты: OWASP Input Validation, JSON Schema
+
+[ ] 5. JWT BLACKLIST
+    Файл: src/auth/JWTService.ts (строки 851-880)
+    Проблема: JWT rotation без invalidation старых токенов
+    Задачи:
+    - [ ] Реализовать JWT blacklist в Redis
+    - [ ] TTL для blacklist записей
+    - [ ] Функция revokeToken(tokenId, ttl)
+    - [ ] Проверка blacklist при верификации
+    - [ ] Интеграция с refresh token rotation
+    - [ ] Написать тесты
+    Оценка: M (6-8 часов)
+    Стандарты: RFC 7519, OAuth 2.0 Token Revocation
+
+# =============================================================================
+# 🟠 ВЫСОКИЙ ПРИОРИТЕТ (High) - ВАЖНО
+# =============================================================================
+
+[ ] 6. ЗАМЕНА console.log НА LOGGER
+    Файлы: 30+ файлов (auth, secrets, threat, logging, zerotrust)
+    Проблема: 238 console.log вызовов (log injection уязвимость)
+    Задачи:
+    - [ ] Аудит всех console.log вызовов (grep -r "console\.log" src/)
+    - [ ] Заменить на logger.debug/info/warn/error
+    - [ ] Контекстное логирование (request ID, user ID)
+    - [ ] Структурированный формат (JSON)
+    - [ ] Защита от log forging
+    - [ ] Тесты на логирование
+    Оценка: XL (20-24 часа)
+    Стандарты: OWASP Logging, PCI DSS 10.2
+
+[ ] 7. ИСПРАВЛЕНИЕ any ТИПОВ
+    Файлы: 25 файлов с any типами
+    Проблема: 70 any типов нарушают type safety
+    Задачи:
+    - [ ] Найти все any (grep -r ": any" src/)
+    - [ ] Заменить на конкретные интерфейсы
+    - [ ] Создать недостающие типы
+    - [ ] Включить strict режим в tsconfig.json
+    - [ ] Настроить ESLint no-explicit-any
+    Оценка: XL (16-20 часов)
+    Стандарты: TypeScript Best Practices
+
+[ ] 8. HEALTH CHECK ENDPOINTS
+    Файл: src/index.ts (строка 311)
+    Проблема: Нет endpoints для Kubernetes liveness/readiness
+    Задачи:
+    - [ ] Добавить GET /health (базовая проверка)
+    - [ ] Добавить GET /ready (проверка зависимостей)
+    - [ ] Добавить GET /live (liveness probe)
+    - [ ] Проверка Redis, Database, External APIs
+    - [ ] Формат ответа: JSON со статусом компонентов
+    - [ ] Интеграция с Prometheus metrics
+    Оценка: S (2-3 часа)
+    Стандарты: Kubernetes Health Checks, RFC 7231
+
+[ ] 9. RATE LIMITING ДЛЯ INTERNAL SERVICES
+    Файл: src/middleware/RateLimitMiddleware.ts
+    Проблема: Нет защиты service-to-service calls
+    Задачи:
+    - [ ] Добавить rate limiting для mTLS calls
+    - [ ] Internal API key rate limiting
+    - [ ] Separate limits для internal/external
+    - [ ] Service identity verification
+    - [ ] Monitoring и alerting
+    Оценка: M (6-8 часов)
+    Стандарты: Zero Trust, Service Mesh Patterns
+
+[ ] 10. DATABASE CONNECTION POOLING
+    Файл: src/logging/ElasticsearchClient.ts (строка 493)
+    Проблема: Закомментирован Elasticsearch клиент
+    Задачи:
+    - [ ] Реализовать connection pooling
+    - [ ] Retry logic с exponential backoff
+    - [ ] Health check соединений
+    - [ ] Monitoring pool metrics
+    - [ ] Graceful shutdown
+    Оценка: M (6-8 часов)
+    Стандарты: Database Connection Pooling Best Practices
+
+# =============================================================================
+# 🟡 СРЕДНИЙ ПРИОРИТЕТ (Medium) - ПЛАНИРОВАНИЕ
+# =============================================================================
+
+[ ] 11. РЕФАКТОРИНГ БОЛЬШИХ ФАЙЛОВ (>1000 строк)
+    Файлы:
+    - src/logging/Logger.ts (1371 строк)
+    - src/threat/ThreatIntelligence.ts (1150 строк)
+    - src/auth/OAuthService.ts (1042 строки)
+    - src/utils/PerformanceMonitor.ts (868 строк)
+    - src/secrets/SecretsManager.ts (1147+ строк)
+    Задачи:
+    - [ ] Выделить отдельные модули
+    - [ ] Применить Single Responsibility
+    - [ ] Уменьшить coupling
+    - [ ] Улучшить тестируемость
+    Оценка: XL (40-50 часов)
+
+[ ] 12. API DOCUMENTATION (OpenAPI/Swagger)
+    Файлы: openapi.yaml (НОВЫЙ), docs/API.md
+    Проблема: Нет документации для 40+ endpoints
+    Задачи:
+    - [ ] Создать openapi.yaml спецификацию
+    - [ ] Документировать все endpoints
+    - [ ] Добавить примеры запросов/ответов
+    - [ ] Интегрировать swagger-ui
+    - [ ] Auto-generation из TypeScript типов
+    Оценка: L (16-20 часов)
+    Стандарты: OpenAPI 3.0
+
+[ ] 13. РАСШИРЕНИЕ ПОКРЫТИЯ ТЕСТАМИ
+    Файлы: tests/ (20+ новых файлов)
+    Проблема: 172 теста на 127 TS файлов — недостаточно
+    Задачи:
+    - [ ] Edge cases в валидации
+    - [ ] Integration tests для всех сервисов
+    - [ ] Load/stress tests
+    - [ ] Security tests (penetration)
+    - [ ] Chaos engineering tests
+    Оценка: XL (30-40 часов)
+
+[ ] 14. MEMORY LEAK DETECTION
+    Файл: src/utils/PerformanceMonitor.ts (строка 845)
+    Проблема: Только рекомендация в логе
+    Задачи:
+    - [ ] Heap snapshot analysis
+    - [ ] Automatic leak detection
+    - [ ] Alerts при threshold
+    - [ ] Integration с APM (Elastic APM)
+    Оценка: L (12-16 часов)
+
+[ ] 15. TODO/FIXME MIGRATION TO GITHUB ISSUES
+    Файлы: 34 TODO/FIXME комментария
+    Задачи:
+    - [ ] Найти все TODO/FIXME (grep -r "TODO\|FIXME" src/)
+    - [ ] Создать GitHub Issues
+    - [ ] Приоритизировать
+    - [ ] Связать с кодом
+    Оценка: S (2-3 часа)
+
+# =============================================================================
+# 🔐 SECURITY COMPLIANCE GAP ANALYSIS
+# =============================================================================
+
+OWASP Top 10:
+[✓] A01 Broken Access Control — RBAC + ABAC реализованы
+[✓] A02 Cryptographic Failures — PQC, AES-256, RS256
+[✓] A03 Injection — Input validation есть
+[ ] A04 Insecure Design — Требуется threat modeling
+[ ] A05 Security Misconfiguration — CORS отсутствует
+[✓] A06 Vulnerable Components — Snyk integration
+[ ] A07 Auth Failures — JWT blacklist нужен
+[✓] A08 Software Integrity Failures — SLSA, SBOM
+[✓] A09 Logging Failures — Winston + Elastic
+[ ] A10 SSRF — URL sanitization исправлен
+
+NIST 800-207 (Zero Trust):
+[✓] ZTA Core Principles
+[✓] Identity Management
+[✓] Device Trust
+[✓] Network Segmentation
+[ ] Continuous Monitoring — требует доработки
+
+PCI DSS:
+[✓] Encryption at rest/transit
+[ ] Token Management — JWT blacklist нужен
+[ ] Access Control — полный audit trail
+[ ] Monitoring — расширить
+
+HIPAA:
+[✓] Encryption
+[ ] Audit Controls — расширить
+[ ] Integrity Controls
+[ ] Transmission Security
+
+# =============================================================================
+# 📅 ДОРОЖНАЯ КАРТА (ROADMAP)
+# =============================================================================
+
+## Фаза 1: Critical Fixes (Недели 1-2)
+- [ ] CORS Middleware
+- [ ] Health Check Endpoints
+- [ ] JWT Blacklist
+- [ ] Input Validation Middleware
+- [ ] Fix hardcoded passwords
+
+## Фаза 2: High Priority (Недели 3-4)
+- [ ] Replace console.log → logger
+- [ ] Fix any types
+- [ ] Redis connection pooling + circuit breaker
+- [ ] Internal rate limiting
+- [ ] Database connection pooling
+
+## Фаза 3: Medium Priority (Недели 5-8)
+- [ ] Refactor large files
+- [ ] API Documentation (OpenAPI)
+- [ ] Extend test coverage
+- [ ] Memory leak detection
+- [ ] TODO/FIXME migration
+
+## Фаза 4: Optimization (Недели 9-12)
+- [ ] Performance optimization
+- [ ] Scalability improvements
+- [ ] Advanced monitoring
+- [ ] Chaos engineering
+
+# =============================================================================
+# 📈 METRICS & KPIs
+# =============================================================================
+
+## Code Quality Metrics
+- Target: Files < 500 lines (сейчас 15 файлов >1000)
+- Target: Functions < 50 lines
+- Target: 0 any types (сейчас 70)
+- Target: 0 console.log (сейчас 238)
+- Target: Test coverage > 95% (сейчас 100% ✅)
+
+## Security Metrics
+- Target: 0 Critical/High CodeQL alerts (сейчас 0 ✅)
+- Target: 0 secrets in code
+- Target: 100% input validation
+- Target: < 24h vulnerability response time
+
+## Performance Metrics
+- Target: API response < 100ms (p95)
+- Target: Memory usage < 512MB
+- Target: CPU usage < 70%
+- Target: Zero memory leaks
+
+# =============================================================================
+# 🛠️ ИНСТРУМЕНТЫ И ТЕХНОЛОГИИ
+# =============================================================================
+
+## Code Quality
+- ESLint (no-explicit-any, no-console)
+- Prettier (formatting)
+- TypeScript strict mode
+- SonarQube
+
+## Security
+- CodeQL (SAST)
+- Snyk (dependencies)
+- GitLeaks (secrets)
+- TruffleHog (secrets)
+- OWASP ZAP (DAST)
+
+## Testing
+- Jest (unit/integration)
+- Supertest (API)
+- Artillery (load)
+- Chaos Mesh (chaos)
+
+## Monitoring
+- Elastic APM
+- Prometheus + Grafana
+- Winston (logging)
+- Sentry (errors)
+
+# =============================================================================
+# 📚 ДОКУМЕНТАЦИЯ ДЛЯ ОБНОВЛЕНИЯ
+# =============================================================================
+
+- [ ] README.md — добавить секцию Security Features
+- [ ] DEPLOYMENT.md — health checks, monitoring
+- [ ] SECURITY.md — security policy, reporting
+- [ ] CONTRIBUTING.md — code quality requirements
+- [ ] CHANGELOG.md — все изменения
+- [ ] API.md — документация endpoints
+
+# =============================================================================
+# 🎯 СЛЕДУЮЩИЕ ШАГИ
+# =============================================================================
+
+1. Начать с Critical #1 — CORS Middleware
+2. Последовательно выполнять по приоритетам
+3. После каждой фазы — CodeQL scan
+4. Вести CHANGELOG всех изменений
+5. Обновлять этот todo.txt
+
+# =============================================================================
+# 📝 ЗАМЕТКИ
+# =============================================================================
+
+- Все изменения коммитить с префиксом:
+  - "security: " для security fixes
+  - "feat: " для новых функций
+  - "refactor: " для рефакторинга
+  - "test: " для тестов
+  - "docs: " для документации
+
+- После каждого коммита:
+  - git push
+  - Проверить GitHub Actions
+  - Убедиться что все тесты зелёные
+
+- Использовать feature branches:
+  - feature/cors-middleware
+  - security/jwt-blacklist
+  - refactor/logger-replacement
+
+# =============================================================================
+# КОНТАКТЫ
+# =============================================================================
+
+Автор проекта: Theodor Munch
+Email: theodor.munch@protocol.local
+GitHub: https://github.com/theodor-munch/protocol-security
+
+# =============================================================================
+# ЛИЦЕНЗИЯ
+# =============================================================================
+
+MIT License — см. LICENSE файл
+
+# =============================================================================
+# END OF TODO.TXT
+# =============================================================================
