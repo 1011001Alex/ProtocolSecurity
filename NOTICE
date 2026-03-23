@@ -1,0 +1,262 @@
+================================================================================
+PROTOCOL SECURITY ARCHITECTURE - NOTICE FILE
+================================================================================
+
+This file contains attribution notices for Protocol Security Architecture
+as required by the Apache License 2.0, Section 4(d).
+
+================================================================================
+PRIMARY AUTHORS
+================================================================================
+
+Protocol Security Architecture
+Copyright 2026 Theodor Munch
+
+Lead Architect & Creator: Theodor Munch
+Contributors: See https://github.com/1011001Alex/ProtocolSecurity/graphs/contributors
+
+================================================================================
+PROJECT INFORMATION
+================================================================================
+
+Project: Protocol Security Architecture
+Version: 3.0.0-alpha
+Website: https://github.com/1011001Alex/ProtocolSecurity
+License: Apache License 2.0 / MIT Dual License
+
+================================================================================
+SPECIALIZED BRANCHES
+================================================================================
+
+This project includes three major specialized security branches:
+
+1. Finance Security Branch
+   - PCI DSS 4.0 Level 1 Compliant
+   - AML/Sanctions Screening
+   - Fraud Detection (ML-based)
+   - HSM Integration
+
+2. Healthcare Security Branch
+   - HIPAA Compliant (Privacy, Security, Breach Notification)
+   - FHIR R4 / HL7v2 Integration
+   - PHI Protection
+   - Medical Device Security
+
+3. E-commerce Security Branch
+   - Bot Protection & ATO Prevention
+   - Payment Fraud Detection
+   - Review Fraud Detection (NLP)
+   - Marketplace Security
+
+================================================================================
+KEY TECHNOLOGIES
+================================================================================
+
+This project utilizes:
+
+- TypeScript 5.1+ (Microsoft)
+- Node.js 18+ (OpenJS Foundation)
+- TensorFlow.js (Google) - Apache 2.0
+- Jest Testing Framework (Meta) - MIT
+- Winston Logger - MIT
+- Chokidar (File Watching) - MIT
+
+================================================================================
+COMPLIANCE STANDARDS
+================================================================================
+
+This project implements controls for:
+
+- PCI DSS 4.0 (Payment Card Industry)
+- HIPAA (Health Insurance Portability and Accountability Act)
+- SOC 2 Type II (Service Organization Control)
+- GDPR (General Data Protection Regulation)
+- NIST 800-207 (Zero Trust Architecture)
+- OWASP Top 10 (Web Application Security)
+- MITRE ATT&CK (Adversarial Tactics, Techniques, and Procedures)
+
+================================================================================
+PATENT NOTICE
+================================================================================
+
+This software includes implementations of:
+
+- CRYSTALS-Kyber (NIST Post-Quantum Cryptography Standard)
+- CRYSTALS-Dilithium (NIST Post-Quantum Digital Signature Standard)
+- FALCON (NIST Post-Quantum Compact Signature)
+- SPHINCS+ (NIST Post-Quantum Stateless Hash-Based Signature)
+
+These implementations are provided for research and educational purposes.
+Patent rights are granted under the Apache License 2.0, Section 3.
+
+================================================================================
+CRYPTOGRAPHIC STANDARDS
+================================================================================
+
+This project implements cryptographic algorithms from:
+
+- NIST (National Institute of Standards and Technology)
+  * FIPS 197 (AES)
+  * FIPS 180-4 (SHA-2)
+  * FIPS 202 (SHA-3)
+  * FIPS 186-5 (Digital Signatures)
+
+- IETF (Internet Engineering Task Force)
+  * RFC 8446 (TLS 1.3)
+  * RFC 7519 (JWT)
+  * RFC 6749 (OAuth 2.0)
+
+================================================================================
+TRADEMARK NOTICES
+================================================================================
+
+The following are registered trademarks of their respective owners:
+
+- "Protocol Security Architecture" - Theodor Munch
+- "Node.js" - OpenJS Foundation
+- "TypeScript" - Microsoft Corporation
+- "TensorFlow" - Google LLC
+- "AWS" - Amazon Web Services, Inc.
+- "Azure" - Microsoft Corporation
+- "GCP" - Google LLC
+- "HashiCorp Vault" - HashiCorp, Inc.
+- "Elasticsearch" - Elasticsearch B.V.
+- "Kubernetes" - The Linux Foundation
+- "Docker" - Docker, Inc.
+
+This License does not grant permission to use these trade names, trademarks,
+service marks, or product names, except as required for reasonable and
+customary use in describing the origin of the Work.
+
+================================================================================
+EXPORT CONTROL NOTICE
+================================================================================
+
+This software includes cryptographic functionality and may be subject to
+export control regulations in your jurisdiction.
+
+United States Export Administration Regulations (EAR):
+- This software may require an export license
+- Contact: Bureau of Industry and Security (BIS)
+- Website: https://www.bis.doc.gov/
+
+European Union Dual-Use Regulation:
+- This software may be subject to export controls
+- Contact: Your national export control authority
+
+================================================================================
+SECURITY ADVISORIES
+================================================================================
+
+For security vulnerabilities, please contact:
+- Email: security@protocol.local
+- PGP Key: Available at https://github.com/protocol/security/security/advisories
+
+We follow a responsible disclosure policy and typically respond within:
+- Critical: 24 hours
+- High: 48 hours
+- Medium: 7 days
+- Low: 14 days
+
+================================================================================
+CONTRIBUTION GUIDELINES
+================================================================================
+
+To contribute to this project:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Ensure all tests pass (npm test)
+5. Submit a pull request
+
+By contributing, you agree that your contributions are licensed under the
+Dual License (Apache 2.0 / MIT).
+
+================================================================================
+BUILD AND USAGE
+================================================================================
+
+Installation:
+  npm install
+
+Build:
+  npm run build
+
+Test:
+  npm test
+
+Test with Coverage:
+  npm test -- --coverage
+
+Run:
+  npm start
+
+Docker:
+  docker-compose up -d
+
+================================================================================
+DOCUMENTATION
+================================================================================
+
+Full documentation is available at:
+- README: https://github.com/1011001Alex/ProtocolSecurity/blob/main/README.md
+- Architecture: https://github.com/1011001Alex/ProtocolSecurity/blob/main/docs/ARCHITECTURE.md
+- Deployment: https://github.com/1011001Alex/ProtocolSecurity/blob/main/docs/DEPLOYMENT.md
+- API Reference: https://github.com/1011001Alex/ProtocolSecurity/blob/main/docs/API.md
+
+================================================================================
+VERSION HISTORY
+================================================================================
+
+Version 3.0.0-alpha (March 2026)
+- Added Finance Security Branch
+- Added Healthcare Security Branch
+- Added E-commerce Security Branch
+- Implemented AI-powered threat detection
+- Implemented hybrid classical+PQC cryptography
+- Implemented blockchain-backed integrity
+
+Version 2.0.0 (Q1 2026)
+- Core Security Architecture
+- 8 main security modules
+- 100% test coverage
+- Production ready
+
+Version 1.0.0 (Q4 2025)
+- Initial release
+- Basic security modules
+
+================================================================================
+CONTACT INFORMATION
+================================================================================
+
+Project Lead: Theodor Munch
+Email: theodor.munch@protocol.local
+GitHub: https://github.com/theodor-munch
+
+Security Team: security@protocol.local
+Support: support@protocol.local
+
+================================================================================
+COPYRIGHT NOTICE
+================================================================================
+
+Copyright (c) 2026 Theodor Munch. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 and the MIT License.
+
+You may obtain a copy of the Licenses at:
+- Apache License 2.0: http://www.apache.org/licenses/LICENSE-2.0
+- MIT License: http://opensource.org/licenses/MIT
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the Licenses is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+See the Licenses for the specific language governing permissions and
+limitations under the Licenses.
+
+================================================================================
+END OF NOTICE FILE
+================================================================================

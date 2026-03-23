@@ -1,14 +1,14 @@
 {
   "name": "protocol-security",
-  "version": "1.0.0",
-  "description": "Protocol Security Architecture - Created by Theodor Munch. Comprehensive enterprise-grade security system with 100% test coverage.",
-  "author": "grigo",
-  "license": "MIT",
+  "version": "3.0.0-alpha",
+  "description": "Protocol Security Architecture 3.0 - Enterprise-Grade Multi-Branch Security System with AI-Powered Threat Detection, Quantum-Resistant Cryptography, and 100% Test Coverage. Dual-Licensed under Apache-2.0/MIT.",
+  "author": "Theodor Munch",
+  "license": "Apache-2.0 OR MIT",
   "contributors": [
     {
       "name": "Theodor Munch",
       "email": "theodor.munch@protocol.local",
-      "url": "https://github.com/theodor-munch"
+      "url": "https://github.com/1011001Alex"
     }
   ],
   "keywords": [
