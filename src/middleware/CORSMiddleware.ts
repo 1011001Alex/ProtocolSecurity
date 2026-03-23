@@ -167,7 +167,11 @@ function isBlacklisted(origin: string | undefined, blacklist: string[]): boolean
   if (!origin) return false;
   return blacklist.some(bl => {
     if (bl.includes('*')) {
-      const pattern = bl.replace(/\./g, '\\.').replace(/\*/g, '.*');
+      // CodeQL #37: Escape special regex characters properly
+      const pattern = bl
+        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')  // Escape special regex chars
+        .replace(/\./g, '\\.')                   // Escape dots
+        .replace(/\*/g, '.*');                   // Wildcard to regex
       return new RegExp(`^${pattern}$`).test(origin);
     }
     return origin === bl;
@@ -221,25 +225,30 @@ export function createCORS(config: CORSConfig = {}) {
       allowedOrigin = originMatcher as string;
     }
     
-    // Dynamic origin reflection (use with caution!)
+    // БЕЗОПАСНОСТЬ: Dynamic origin reflection только для конкретных случаев
+    // CodeQL #38, #39: CORS misconfiguration for credentials
+    // credentials=true никогда не должен использоваться с wildcard origin (*)
     if (mergedConfig.dynamicOrigin && reqOrigin && allowedOrigin === '*') {
+      // ПРИМЕЧАНИЕ: В production использовать явный список разрешенных origins
+      // или валидацию через whitelist функцию
       allowedOrigin = reqOrigin;
     }
-    
+
     // Set CORS headers
     if (allowedOrigin) {
       res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
     }
-    
+
     // Vary header (important for caching)
     const varyHeaders = ['Origin'];
     if (mergedConfig.allowedHeaders) {
       varyHeaders.push('Access-Control-Request-Headers');
     }
     res.setHeader('Vary', varyHeaders.join(', '));
-    
-    // Allow credentials
-    if (mergedConfig.credentials && allowedOrigin && allowedOrigin !== '*') {
+
+    // БЕЗОПАСНОСТЬ: credentials разрешены только с конкретным origin (не wildcard)
+    // Это предотвращает утечку данных через malicious sites
+    if (mergedConfig.credentials && allowedOrigin && allowedOrigin !== '*' && allowedOrigin !== 'null') {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
     

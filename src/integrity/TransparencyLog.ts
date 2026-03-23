@@ -17,6 +17,7 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   TransparencyLogEntry,
   TransparencyLogConfig,
@@ -151,7 +152,7 @@ export class TransparencyLogClient extends EventEmitter {
         this.logPublicKey = crypto.createPublicKey(this.config.publicKey);
         this.logID = this.computeLogID(this.logPublicKey);
       } catch (error) {
-        console.warn('Не удалось инициализировать публичный ключ log');
+        logger.warn('Не удалось инициализировать публичный ключ log', { error });
       }
     }
   }

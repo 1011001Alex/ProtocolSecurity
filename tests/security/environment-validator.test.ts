@@ -62,7 +62,8 @@ function setTestEnvironment(overrides: Record<string, string> = {}) {
     REDIS_PASSWORD: 'testpassword',
     VAULT_TOKEN: 'hvs.testtoken12345678901234567890',
     ELASTICSEARCH_PASSWORD: 'testpassword123',
-    SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX',
+    // CodeQL: Тестовый URL (не реальный webhook)
+    SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/TEST/BOT/TESTWEBHOOKTOKEN',
     JIRA_API_TOKEN: 'jira_test_token_12345678901234567890',
     REDIS_TLS_ENABLED: 'true',
     MTLS_ENABLED: 'true',

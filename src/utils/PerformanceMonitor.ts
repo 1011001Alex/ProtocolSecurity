@@ -16,6 +16,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from './Logger';
 import { performance } from 'perf_hooks';
 
 /**
@@ -666,7 +667,7 @@ export class PerformanceMonitor extends EventEmitter {
   private setupGCMonitoring(): void {
     // Требуется флаг --expose-gc
     if (!(global as any).gc) {
-      console.warn('[PerformanceMonitor] GC monitoring requires --expose-gc flag');
+      logger.warn('[PerformanceMonitor] GC monitoring requires --expose-gc flag');
       return;
     }
     
@@ -865,7 +866,7 @@ export class PerformanceMonitor extends EventEmitter {
    */
   private log(action: string, message: string): void {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [PerformanceMonitor:${this.config.instanceName}] [${action}] ${message}`);
+    logger.debug(`[PerformanceMonitor:${this.config.instanceName}] [${action}] ${message}`);
   }
 }
 

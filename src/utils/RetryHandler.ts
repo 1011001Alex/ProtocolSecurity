@@ -14,6 +14,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from './Logger';
 import { CircuitBreaker, CircuitBreakerError } from './CircuitBreaker';
 
 /**
@@ -534,9 +535,9 @@ export class RetryHandler<T = unknown> extends EventEmitter {
     if (!this.config.enableLogging) {
       return;
     }
-    
+
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [RetryHandler:${this.config.name}] [${action}] ${message}`);
+    logger.debug(`[RetryHandler:${this.config.name}] [${action}] ${message}`);
   }
   
   /**

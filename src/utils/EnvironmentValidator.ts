@@ -272,15 +272,15 @@ export class EnvironmentValidator {
       }
     }
 
-    // Логирование
+    // Логирование через logger (не console)
     if (this.config.logWarnings && warnings.length > 0) {
-      console.warn('\n⚠️  ПРЕДУПРЕЖДЕНИЯ ВАЛИДАЦИИ ОКРУЖЕНИЯ:');
-      warnings.forEach(w => console.warn(`   ${w}`));
+      logger.warn('\n⚠️  ПРЕДУПРЕЖДЕНИЯ ВАЛИДАЦИИ ОКРУЖЕНИЯ:');
+      warnings.forEach(w => logger.warn(`   ${w}`));
     }
 
     if (errors.length > 0 && this.config.logWarnings) {
-      console.error('\n❌ ОШИБКИ ВАЛИДАЦИИ ОКРУЖЕНИЯ:');
-      errors.forEach(e => console.error(`   ${e}`));
+      logger.error('\n❌ ОШИБКИ ВАЛИДАЦИИ ОКРУЖЕНИЯ:');
+      errors.forEach(e => logger.error(`   ${e}`));
     }
 
     const isProduction = this.config.nodeEnv === 'production';

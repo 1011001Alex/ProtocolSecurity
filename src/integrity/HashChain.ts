@@ -17,6 +17,7 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '../logging/Logger';
 import {
   HashChain,
   HashChainEntry,
@@ -132,7 +133,7 @@ export class HashChain {
         crypto.createHash('blake3');
         return 'blake3';
       } catch {
-        console.warn('BLAKE3 недоступен, используем SHA-256');
+        logger.warn('BLAKE3 недоступен, используем SHA-256');
         return 'sha256';
       }
     }
@@ -211,7 +212,7 @@ export class HashChain {
     // Автосохранение если включено
     if (this.config.autoSave && this.config.storagePath) {
       this.save().catch(err => {
-        console.error(`Ошибка сохранения цепи ${this.config.id}:`, err);
+        logger.error(`Ошибка сохранения цепи ${this.config.id}`, { error: err });
       });
     }
     

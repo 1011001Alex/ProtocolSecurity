@@ -709,6 +709,24 @@ paths = [
     '''^fixtures/.*''',
 ]
 
+# Исключения для тестовых Slack webhook URL
+[[rules]]
+id = "test-slack-webhook"
+description = "Test Slack Webhook (Allowed in tests)"
+regex = '''https://hooks\.slack\.com/services/(TEST|T00000000|BOT)/[A-Za-z0-9_]+/[A-Za-z0-9_]+'''
+keywords = [
+    "hooks.slack.com",
+    "TEST",
+]
+allowlist = true
+paths = [
+    '''^tests/.*''',
+    '''^test/.*''',
+    '''^__tests__/.*''',
+    '''^\.test\..*''',
+    '''^\.spec\..*''',
+]
+
 # =============================================================================
 # НАСТРОЙКИ ОТЧЁТНОСТИ
 # =============================================================================

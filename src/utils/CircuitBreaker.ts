@@ -18,6 +18,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from './Logger';
 
 /**
  * Состояния circuit breaker
@@ -434,9 +435,9 @@ export class CircuitBreaker extends EventEmitter {
     if (!this.config.enableMonitoring) {
       return;
     }
-    
+
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [CircuitBreaker:${this.config.name}] [${action}] ${message}`);
+    logger.debug(`[CircuitBreaker:${this.config.name}] [${action}] ${message}`);
   }
 }
 

@@ -13,6 +13,7 @@
  */
 
 import * as crypto from 'crypto';
+import { logger } from '../logging/Logger';
 import {
   MerkleNode,
   MerkleProof,
@@ -96,7 +97,7 @@ export class MerkleTree {
         return 'blake3';
       } catch {
         // Fallback на SHA-256 если BLAKE3 недоступен
-        console.warn('BLAKE3 недоступен, используем SHA-256');
+        logger.warn('BLAKE3 недоступен, используем SHA-256');
         return 'sha256';
       }
     }

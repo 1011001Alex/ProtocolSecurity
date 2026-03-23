@@ -18,6 +18,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import * as os from 'os';
 import {
   HealthCheckConfig,
@@ -1096,7 +1097,7 @@ export class HealthCheckService extends EventEmitter {
    */
   private log(action: string, message: string): void {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [HealthCheckService] [${action}] ${message}`);
+    logger.debug(`[HealthCheckService] [${action}] ${message}`);
   }
 }
 

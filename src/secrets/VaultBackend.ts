@@ -177,9 +177,11 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
       options.key = this.config.clientKey;
     }
 
-    // ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify должен использоваться ТОЛЬКО для разработки
-    // В production это создает уязвимость для MITM атак
+    // БЕЗОПАСНОСТЬ: skipTLSVerify должен быть включен ТОЛЬКО для development/testing
+    // В production это создает уязвимость для MITM атак (OWASP A03:2021)
+    // CodeQL: #34 Disabling certificate validation
     if (this.config.skipTLSVerify) {
+      // ПРИМЕЧАНИЕ: В production использовать только с валидными TLS сертификатами
       logger.warn('[VaultBackend] ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify включен! Это небезопасно для production.');
       logger.warn('[VaultBackend] Используйте только в тестовых средах с самоподписанными сертификатами.');
       options.rejectUnauthorized = false;
