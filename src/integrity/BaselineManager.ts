@@ -808,10 +808,10 @@ export class BaselineManager extends EventEmitter {
    * @param outputPath - Путь для экспорта
    * @returns Результат экспорта
    */
-  exportBaseline(baselineId: string, outputPath: string): OperationResult {
+  async exportBaseline(baselineId: string, outputPath: string): Promise<OperationResult> {
     try {
       const loadResult = await this.loadBaseline(baselineId);
-      
+
       if (!loadResult.success || !loadResult.data) {
         return {
           success: false,
@@ -820,18 +820,18 @@ export class BaselineManager extends EventEmitter {
           executionTime: 0
         };
       }
-      
+
       const dir = path.dirname(outputPath);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       fs.writeFileSync(
         outputPath,
         JSON.stringify(loadResult.data, null, 2),
         'utf-8'
       );
-      
+
       return {
         success: true,
         errors: [],
@@ -840,7 +840,7 @@ export class BaselineManager extends EventEmitter {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      
+
       return {
         success: false,
         errors: [errorMessage],

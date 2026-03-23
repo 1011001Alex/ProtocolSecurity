@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../logging/Logger';
+import { logger } from '../utils/StubLogger';
 import { FinanceSecurityConfig, TransactionData, FraudScore, AMLCheckResult } from '../types/finance.types';
 import { PaymentCardEncryption } from './payment/PaymentCardEncryption';
 import { TokenizationService } from './payment/TokenizationService';

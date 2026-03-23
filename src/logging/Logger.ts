@@ -796,7 +796,7 @@ export class SecureLogger extends EventEmitter {
   /**
    * Основная метода логирования
    */
-  private log(
+  private async log(
     level: LogLevel,
     message: string,
     source: LogSource,
@@ -804,7 +804,7 @@ export class SecureLogger extends EventEmitter {
     context?: LogContext,
     fields?: Record<string, unknown>,
     error?: Error
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     // Проверка включен ли логгер
     if (!this.enabled) {
       return null;

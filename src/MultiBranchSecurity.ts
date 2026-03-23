@@ -1,0 +1,505 @@
+/**
+ * ============================================================================
+ * PROTOCOL SECURITY - MULTI-BRANCH INTEGRATION
+ * ============================================================================
+ *
+ * Центральная точка интеграции всех специализированных ветвей безопасности
+ *
+ * Ветви:
+ * - Finance Security (PCI DSS, Fraud, AML, HSM)
+ * - Healthcare Security (HIPAA, PHI, FHIR, Consent)
+ * - E-commerce Security (Fraud, Bot, ATO, Checkout)
+ *
+ * @package protocol-security
+ * @author Theodor Munch
+ * @version 2.0.0
+ */
+
+import { EventEmitter } from 'events';
+import { logger } from './logging/Logger';
+import { FinanceSecurityModule, FinanceSecurityConfig } from './finance';
+import { HealthcareSecurityModule, HealthcareSecurityConfig } from './healthcare';
+import { EcommerceSecurityModule, EcommerceSecurityConfig } from './ecommerce';
+
+/**
+ * Конфигурация Multi-Branch Security System
+ */
+export interface MultiBranchSecurityConfig {
+  /** Finance Security конфигурация */
+  finance?: FinanceSecurityConfig;
+
+  /** Healthcare Security конфигурация */
+  healthcare?: HealthcareSecurityConfig;
+
+  /** E-commerce Security конфигурация */
+  ecommerce?: EcommerceSecurityConfig;
+
+  /** Общие настройки */
+  common?: {
+    /** Включить логирование */
+    enableLogging?: boolean;
+
+    /** Включить audit trail */
+    enableAudit?: boolean;
+
+    /** Режим (development, production) */
+    mode?: 'development' | 'production';
+  };
+}
+
+/**
+ * Статус инициализации ветвей
+ */
+export interface BranchStatus {
+  /** Finance Security статус */
+  finance: {
+    initialized: boolean;
+    pciCompliant: boolean;
+    hsmConnected: boolean;
+  };
+
+  /** Healthcare Security статус */
+  healthcare: {
+    initialized: boolean;
+    hipaaCompliant: boolean;
+    ehrConnected: boolean;
+  };
+
+  /** E-commerce Security статус */
+  ecommerce: {
+    initialized: boolean;
+    botProtectionActive: boolean;
+    fraudDetectionActive: boolean;
+  };
+}
+
+/**
+ * Multi-Branch Security System
+ *
+ * Пример использования:
+ * ```typescript
+ * const security = new MultiBranchSecuritySystem({
+ *   finance: {
+ *     pciCompliant: true,
+ *     hsmProvider: 'aws-cloudhsm',
+ *     fraudDetection: { enabled: true, threshold: 0.85 }
+ *   },
+ *   healthcare: {
+ *     organizationId: 'hospital-123',
+ *     hipaaCompliant: true,
+ *     ehrSystem: 'epic'
+ *   },
+ *   ecommerce: {
+ *     botProtection: { enabled: true, mode: 'AGGRESSIVE' },
+ *     fraudDetection: { enabled: true }
+ *   }
+ * });
+ *
+ * await security.initialize();
+ *
+ * // Обработка финансовой транзакции
+ * const financeResult = await security.finance.processTransaction(transaction);
+ *
+ * // Проверка HIPAA compliance
+ * const hipaaStatus = await security.healthcare.runComplianceCheck();
+ *
+ * // E-commerce fraud анализ
+ * const ecommerceRisk = await security.ecommerce.fraud.analyzeOrder(order);
+ * ```
+ */
+export class MultiBranchSecuritySystem extends EventEmitter {
+  /** Конфигурация */
+  private readonly config: MultiBranchSecurityConfig;
+
+  /** Finance Security модуль */
+  public readonly finance: FinanceSecurityModule;
+
+  /** Healthcare Security модуль */
+  public readonly healthcare: HealthcareSecurityModule;
+
+  /** E-commerce Security модуль */
+  public readonly ecommerce: EcommerceSecurityModule;
+
+  /** Статус инициализации */
+  private isInitialized = false;
+
+  /** Время инициализации */
+  private initializedAt?: Date;
+
+  /**
+   * Создаёт новую Multi-Branch Security System
+   *
+   * @param config - Конфигурация системы
+   */
+  constructor(config: MultiBranchSecurityConfig) {
+    super();
+
+    this.config = {
+      common: {
+        enableLogging: true,
+        enableAudit: true,
+        mode: 'production',
+        ...config.common
+      },
+      ...config
+    };
+
+    // Инициализация модулей
+    this.finance = new FinanceSecurityModule(config.finance || this.getDefaultFinanceConfig());
+    this.healthcare = new HealthcareSecurityModule(config.healthcare || this.getDefaultHealthcareConfig());
+    this.ecommerce = new EcommerceSecurityModule(config.ecommerce || this.getDefaultEcommerceConfig());
+
+    // Подписка на события модулей
+    this.subscribeToModuleEvents();
+
+    logger.info('[MultiBranchSecurity] System created', {
+      finance: !!config.finance,
+      healthcare: !!config.healthcare,
+      ecommerce: !!config.ecommerce
+    });
+  }
+
+  /**
+   * Конфигурация Finance Security по умолчанию
+   */
+  private getDefaultFinanceConfig(): FinanceSecurityConfig {
+    return {
+      pciCompliant: true,
+      hsmProvider: 'mock',
+      tokenization: {
+        enabled: true,
+        algorithm: 'AES-256-GCM',
+        preserveLength: true
+      },
+      fraudDetection: {
+        enabled: true,
+        mlModel: 'xgboost-fraud-v2',
+        threshold: 0.85,
+        realTimeScoring: true
+      },
+      aml: {
+        enabled: true,
+        transactionThreshold: 10000,
+        reportingCurrency: 'USD',
+        sanctionsLists: ['OFAC', 'UN', 'EU']
+      },
+      transactionMonitoring: {
+        enabled: true,
+        velocityChecks: true,
+        geolocationChecks: true,
+        amountPatternAnalysis: true
+      },
+      audit: {
+        enabled: true,
+        retentionDays: 2555,
+        immutable: true
+      }
+    };
+  }
+
+  /**
+   * Конфигурация Healthcare Security по умолчанию
+   */
+  private getDefaultHealthcareConfig(): HealthcareSecurityConfig {
+    return {
+      organizationId: 'default-org',
+      organizationName: 'Default Organization',
+      jurisdiction: 'US',
+      hipaaCompliant: true,
+      hipaaVersion: '2013',
+      auditConfig: {
+        enabled: true,
+        retentionDays: 2555
+      },
+      complianceConfig: {
+        autoCheckEnabled: true,
+        checkInterval: 24,
+        minimumScore: 80
+      },
+      modules: {
+        phiProtection: {},
+        consentManager: {},
+        ehrIntegration: { ehrSystem: 'epic' },
+        fhirSecurity: { baseUrl: 'https://fhir.example.com' },
+        deviceSecurity: {},
+        telehealthSecurity: {},
+        identity: { defaultIAL: 'IAL2' }
+      }
+    };
+  }
+
+  /**
+   * Конфигурация E-commerce Security по умолчанию
+   */
+  private getDefaultEcommerceConfig(): EcommerceSecurityConfig {
+    return {
+      botProtection: {
+        enabled: true,
+        mode: 'AGGRESSIVE',
+        captchaProvider: 'recaptcha',
+        fingerprinting: true
+      },
+      fraudDetection: {
+        enabled: true,
+        mlModel: 'ecommerce-fraud-v3',
+        threshold: 0.75,
+        realTimeScoring: true
+      },
+      accountTakeover: {
+        enabled: true,
+        deviceRecognition: true,
+        behavioralBiometrics: true
+      },
+      checkoutSecurity: {
+        enabled: true,
+        addressValidation: true,
+        emailRiskScoring: true
+      },
+      audit: {
+        enabled: true,
+        retentionDays: 2555
+      }
+    };
+  }
+
+  /**
+   * Подписка на события модулей
+   */
+  private subscribeToModuleEvents(): void {
+    // Finance events
+    this.finance.on('initialized', () => {
+      logger.info('[MultiBranchSecurity] Finance branch initialized');
+      this.emit('branch:initialized', { branch: 'finance' });
+    });
+
+    this.finance.on('transaction:blocked', (data) => {
+      this.emit('security:alert', {
+        branch: 'finance',
+        type: 'TRANSACTION_BLOCKED',
+        data
+      });
+    });
+
+    this.finance.on('transaction:processed', (data) => {
+      this.emit('transaction:processed', {
+        branch: 'finance',
+        data
+      });
+    });
+
+    // Healthcare events
+    this.healthcare.on('initialized', () => {
+      logger.info('[MultiBranchSecurity] Healthcare branch initialized');
+      this.emit('branch:initialized', { branch: 'healthcare' });
+    });
+
+    this.healthcare.on('phi:accessed', (data) => {
+      this.emit('audit:phi-access', {
+        branch: 'healthcare',
+        data
+      });
+    });
+
+    this.healthcare.on('consent:verified', (data) => {
+      this.emit('consent:verified', {
+        branch: 'healthcare',
+        data
+      });
+    });
+
+    // E-commerce events
+    this.ecommerce.on('initialized', () => {
+      logger.info('[MultiBranchSecurity] E-commerce branch initialized');
+      this.emit('branch:initialized', { branch: 'ecommerce' });
+    });
+
+    this.ecommerce.on('bot:blocked', (data) => {
+      this.emit('security:alert', {
+        branch: 'ecommerce',
+        type: 'BOT_BLOCKED',
+        data
+      });
+    });
+
+    this.ecommerce.on('fraud:detected', (data) => {
+      this.emit('security:alert', {
+        branch: 'ecommerce',
+        type: 'FRAUD_DETECTED',
+        data
+      });
+    });
+  }
+
+  /**
+   * Инициализация всех модулей
+   */
+  public async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      logger.warn('[MultiBranchSecurity] Already initialized');
+      return;
+    }
+
+    try {
+      logger.info('[MultiBranchSecurity] Starting initialization...');
+
+      // Инициализация Finance Security
+      if (this.config.finance) {
+        await this.finance.initialize();
+      }
+
+      // Инициализация Healthcare Security
+      if (this.config.healthcare) {
+        await this.healthcare.initialize();
+      }
+
+      // Инициализация E-commerce Security
+      if (this.config.ecommerce) {
+        await this.ecommerce.initialize();
+      }
+
+      this.isInitialized = true;
+      this.initializedAt = new Date();
+
+      logger.info('[MultiBranchSecurity] All branches initialized successfully', {
+        timestamp: this.initializedAt
+      });
+
+      this.emit('initialized', {
+        timestamp: this.initializedAt,
+        branches: {
+          finance: !!this.config.finance,
+          healthcare: !!this.config.healthcare,
+          ecommerce: !!this.config.ecommerce
+        }
+      });
+
+    } catch (error) {
+      logger.error('[MultiBranchSecurity] Initialization failed', { error });
+      this.emit('error', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить статус всех ветвей
+   */
+  public getStatus(): BranchStatus {
+    return {
+      finance: this.finance.getStatus(),
+      healthcare: {
+        initialized: this.healthcare.isInitialized(),
+        hipaaCompliant: this.healthcare.isHipaaCompliant(),
+        ehrConnected: this.healthcare.isEHRConnected()
+      },
+      ecommerce: {
+        initialized: this.ecommerce.isInitialized(),
+        botProtectionActive: this.ecommerce.isBotProtectionActive(),
+        fraudDetectionActive: this.ecommerce.isFraudDetectionActive()
+      }
+    };
+  }
+
+  /**
+   * Получить security dashboard
+   */
+  public getDashboard(): {
+    timestamp: Date;
+    uptime: number;
+    branches: {
+      finance: any;
+      healthcare: any;
+      ecommerce: any;
+    };
+    alerts: {
+      last24h: number;
+      critical: number;
+      high: number;
+      medium: number;
+    };
+  } {
+    return {
+      timestamp: new Date(),
+      uptime: this.initializedAt ? Date.now() - this.initializedAt.getTime() : 0,
+      branches: {
+        finance: this.finance.getDashboard?.() || this.finance.getStatus(),
+        healthcare: this.healthcare.getDashboard?.() || { initialized: this.healthcare.isInitialized() },
+        ecommerce: this.ecommerce.getDashboard?.() || { initialized: this.ecommerce.isInitialized() }
+      },
+      alerts: {
+        last24h: 0, // TODO: Подсчет из логов
+        critical: 0,
+        high: 0,
+        medium: 0
+      }
+    };
+  }
+
+  /**
+   * Остановка всех модулей
+   */
+  public async destroy(): Promise<void> {
+    logger.info('[MultiBranchSecurity] Shutting down...');
+
+    try {
+      await this.ecommerce.destroy();
+      await this.healthcare.destroy();
+      await this.finance.destroy();
+
+      this.isInitialized = false;
+
+      logger.info('[MultiBranchSecurity] All branches shut down');
+
+      this.emit('destroyed');
+
+    } catch (error) {
+      logger.error('[MultiBranchSecurity] Shutdown error', { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Проверка инициализации
+   */
+  public isReady(): boolean {
+    return this.isInitialized;
+  }
+
+  /**
+   * Получить время инициализации
+   */
+  public getUptime(): number {
+    if (!this.initializedAt) return 0;
+    return Date.now() - this.initializedAt.getTime();
+  }
+}
+
+/**
+ * Factory для создания Multi-Branch Security System
+ *
+ * @param config - Конфигурация
+ * @returns Настроенная система безопасности
+ */
+export function createMultiBranchSecuritySystem(config: MultiBranchSecurityConfig): MultiBranchSecuritySystem {
+  return new MultiBranchSecuritySystem(config);
+}
+
+/**
+ * Singleton instance
+ */
+let instance: MultiBranchSecuritySystem | null = null;
+
+/**
+ * Получить или создать singleton instance
+ *
+ * @param config - Конфигурация
+ * @returns Singleton instance
+ */
+export function getMultiBranchSecuritySystem(config?: MultiBranchSecurityConfig): MultiBranchSecuritySystem {
+  if (!instance) {
+    if (!config) {
+      throw new Error('MultiBranchSecuritySystem not initialized. Provide config on first call.');
+    }
+    instance = new MultiBranchSecuritySystem(config);
+  }
+  return instance;
+}
