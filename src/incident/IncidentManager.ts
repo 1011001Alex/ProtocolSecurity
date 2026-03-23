@@ -9,6 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   Incident,
   IncidentLifecycleStage,
@@ -888,7 +889,7 @@ export class IncidentManager extends EventEmitter {
     if (this.config.enableLogging) {
       const timestamp = new Date().toISOString();
       const prefix = `[IncidentManager] [${timestamp}] [${level.toUpperCase()}]`;
-      console.log(`${prefix} ${message}`);
+      logger.info(`${prefix} ${message}`);
     }
   }
 

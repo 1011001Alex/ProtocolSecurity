@@ -18,6 +18,7 @@
 import * as crypto from 'crypto';
 import * as dns from 'dns';
 import { EventEmitter } from 'events';
+import { logger } from './Logger';
 import {
   LogEntry,
   LogContext,

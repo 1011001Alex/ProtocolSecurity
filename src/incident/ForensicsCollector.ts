@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { createHash } from 'crypto';
 import {
   ForensicsDataType,
@@ -925,7 +926,7 @@ export class ForensicsCollector extends EventEmitter {
     if (this.config.enableLogging) {
       const timestamp = new Date().toISOString();
       const prefix = `[ForensicsCollector] [${timestamp}] [${level.toUpperCase()}]`;
-      console.log(`${prefix} ${message}`);
+      logger.info(`${prefix} ${message}`);
     }
   }
 

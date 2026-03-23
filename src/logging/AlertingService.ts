@@ -17,6 +17,7 @@
 
 import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
+import { logger } from './Logger';
 import {
   Alert,
   AlertSeverity,
@@ -595,9 +596,9 @@ Alert ID: ${alert.id}
   ): Promise<NotificationResult> {
     // В production использовать nodemailer или аналогичную библиотеку
     const params = config.params as { smtpHost?: string; smtpPort?: number; from?: string };
-    
-    console.log(`[EMAIL] Sending to ${recipient}: ${alert.title}`);
-    
+
+    logger.info(`[EMAIL] Sending to ${recipient}`, { title: alert.title });
+
     // Эмуляция отправки
     await this.simulateDelay();
     
@@ -621,9 +622,9 @@ Alert ID: ${alert.id}
     config: NotificationChannelConfig
   ): Promise<NotificationResult> {
     const params = config.params as { webhookUrl?: string; channel?: string };
-    
-    console.log(`[SLACK] Sending to ${recipient}: ${alert.title}`);
-    
+
+    logger.info(`[SLACK] Sending to ${recipient}`, { title: alert.title });
+
     // Эмуляция отправки
     await this.simulateDelay();
     
@@ -647,9 +648,9 @@ Alert ID: ${alert.id}
     config: NotificationChannelConfig
   ): Promise<NotificationResult> {
     const params = config.params as { integrationKey?: string };
-    
-    console.log(`[PAGERDUTY] Sending to ${recipient}: ${alert.title}`);
-    
+
+    logger.info(`[PAGERDUTY] Sending to ${recipient}`, { title: alert.title });
+
     // Эмуляция отправки
     await this.simulateDelay();
     
@@ -673,9 +674,9 @@ Alert ID: ${alert.id}
     config: NotificationChannelConfig
   ): Promise<NotificationResult> {
     const params = config.params as { botToken?: string };
-    
-    console.log(`[TELEGRAM] Sending to ${recipient}: ${alert.title}`);
-    
+
+    logger.info(`[TELEGRAM] Sending to ${recipient}`, { title: alert.title });
+
     // Эмуляция отправки
     await this.simulateDelay();
     
@@ -698,8 +699,8 @@ Alert ID: ${alert.id}
     message: string,
     config: NotificationChannelConfig
   ): Promise<NotificationResult> {
-    console.log(`[WEBHOOK] Sending to ${recipient}: ${alert.title}`);
-    
+    logger.info(`[WEBHOOK] Sending to ${recipient}`, { title: alert.title });
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), CHANNEL_TIMEOUTS[NotificationChannel.WEBHOOK]);
@@ -746,8 +747,8 @@ Alert ID: ${alert.id}
     message: string,
     config: NotificationChannelConfig
   ): Promise<NotificationResult> {
-    console.log(`[SMS] Sending to ${recipient}: ${alert.title}`);
-    
+    logger.info(`[SMS] Sending to ${recipient}`, { title: alert.title });
+
     // Эмуляция отправки
     await this.simulateDelay();
     
@@ -770,8 +771,8 @@ Alert ID: ${alert.id}
     message: string,
     config: NotificationChannelConfig
   ): Promise<NotificationResult> {
-    console.log(`[PUSH] Sending to ${recipient}: ${alert.title}`);
-    
+    logger.info(`[PUSH] Sending to ${recipient}`, { title: alert.title });
+
     // Эмуляция отправки
     await this.simulateDelay();
     

@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   PostIncidentReview as PostIncidentReviewType,
   Incident,
@@ -493,7 +494,7 @@ export class PostIncidentReview extends EventEmitter {
     if (this.config.enableLogging) {
       const timestamp = new Date().toISOString();
       const prefix = `[PostIncidentReview] [${timestamp}] [${level.toUpperCase()}]`;
-      console.log(`${prefix} ${message}`);
+      logger.info(`${prefix} ${message}`);
     }
   }
 

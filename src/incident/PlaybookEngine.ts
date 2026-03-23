@@ -9,6 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   PlaybookConfiguration,
   PlaybookExecution,
@@ -982,7 +983,7 @@ export class PlaybookEngine extends EventEmitter {
     if (this.config.enableLogging) {
       const timestamp = new Date().toISOString();
       const prefix = `[PlaybookEngine] [${timestamp}] [${level.toUpperCase()}]`;
-      console.log(`${prefix} ${message}`);
+      logger.info(`${prefix} ${message}`);
     }
   }
 

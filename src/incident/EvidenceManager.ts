@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { createHash } from 'crypto';
 import {
   Evidence,
@@ -679,7 +680,7 @@ export class EvidenceManager extends EventEmitter {
     if (this.config.enableLogging) {
       const timestamp = new Date().toISOString();
       const prefix = `[EvidenceManager] [${timestamp}] [${level.toUpperCase()}]`;
-      console.log(`${prefix} ${message}`);
+      logger.info(`${prefix} ${message}`);
     }
   }
 

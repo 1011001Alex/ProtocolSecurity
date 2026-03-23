@@ -10,6 +10,7 @@
 
 import winston from 'winston';
 import { EventEmitter } from 'events';
+import { logger } from './Logger';
 import { v4 as uuidv4 } from 'uuid';
 
 // =============================================================================

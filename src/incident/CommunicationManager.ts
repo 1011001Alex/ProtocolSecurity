@@ -8,6 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   CommunicationTemplate,
   StakeholderType,
@@ -641,7 +642,7 @@ This notification is submitted in accordance with {{regulation}}.`,
     if (this.config.enableLogging) {
       const timestamp = new Date().toISOString();
       const prefix = `[CommunicationManager] [${timestamp}] [${level.toUpperCase()}]`;
-      console.log(`${prefix} ${message}`);
+      logger.info(`${prefix} ${message}`);
     }
   }
 
