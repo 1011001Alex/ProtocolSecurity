@@ -248,7 +248,7 @@
 
 ```bash
 # Клонирование
-git clone https://github.com/protocol/security.git
+https://github.com/1011001Alex/ProtocolSecurity.git
 cd security
 
 # Установка зависимостей
@@ -581,7 +581,7 @@ app.use(expressErrorHandler({
 
 ```bash
 # Fork проекта
-git clone https://github.com/protocol/security.git
+https://github.com/1011001Alex/ProtocolSecurity.git
 
 # Создание ветки
 git checkout -b feature/new-feature
@@ -624,9 +624,9 @@ copies of the Software.
 
 ## 📞 Контакты
 
-- **Repository:** https://github.com/protocol/security
-- **Issues:** https://github.com/protocol/security/issues
-- **Discussions:** https://github.com/protocol/security/discussions
+- **Repository:** https://github.com/1011001Alex/ProtocolSecurity
+- **Issues:** https://github.com/1011001Alex/ProtocolSecurity/issues
+- **Discussions:** https://github.com/1011001Alex/ProtocolSecurity/Discussions
 
 ---
 
