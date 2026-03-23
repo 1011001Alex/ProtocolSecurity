@@ -18,6 +18,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { randomBytes, createHash, generateKeyPairSync, createSign, createVerify } from 'crypto';
 import {
   DynamicSecretType,
@@ -217,8 +218,8 @@ export class DynamicSecretsManager extends EventEmitter {
       
       this.cleanupInterval.unref();
     }
-    
-    console.log('[DynamicSecrets] Инициализирован:', {
+
+    logger.info('[DynamicSecrets] Инициализирован', {
       maxActiveSecrets: this.config.maxActiveSecrets,
       defaultTTL: this.config.defaultTTL
     });
@@ -231,13 +232,13 @@ export class DynamicSecretsManager extends EventEmitter {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
-    
+
     // Отзыв всех активных секретов
     for (const [secretId, state] of this.secrets.entries()) {
       await this.revokeSecret(secretId, 'system_shutdown');
     }
-    
-    console.log('[DynamicSecrets] Остановлен');
+
+    logger.info('[DynamicSecrets] Остановлен');
   }
 
   /**
@@ -323,11 +324,11 @@ export class DynamicSecretsManager extends EventEmitter {
     };
     
     this.secrets.set(secretId, state);
-    
-    console.log(
-      `[DynamicSecrets] Создан динамический секрет ${secretId} типа ${type}`
-    );
-    
+
+    logger.info(`[DynamicSecrets] Создан динамический секрет ${secretId}`, {
+      type
+    });
+
     this.emit('secret:created', {
       secretId,
       type,
@@ -411,9 +412,9 @@ export class DynamicSecretsManager extends EventEmitter {
     state.expiresAt = new Date(Date.now() + additionalTTL * 1000);
     state.secret.expiresAt = state.expiresAt;
     state.renewed = true;
-    
-    console.log(`[DynamicSecrets] Продлён секрет ${secretId}`);
-    
+
+    logger.info(`[DynamicSecrets] Продлён секрет ${secretId}`);
+
     this.emit('secret:renewed', {
       secretId,
       newExpiresAt: state.expiresAt
@@ -443,10 +444,7 @@ export class DynamicSecretsManager extends EventEmitter {
       try {
         await generator.revoke(state.secret.credentials);
       } catch (error) {
-        console.error(
-          `[DynamicSecrets] Ошибка отзыва секрета ${secretId}:`,
-          error
-        );
+        logger.error(`[DynamicSecrets] Ошибка отзыва секрета ${secretId}`, { error });
       }
     }
     
@@ -466,10 +464,7 @@ export class DynamicSecretsManager extends EventEmitter {
           reason
         );
       } catch (error) {
-        console.error(
-          `[DynamicSecrets] Ошибка отзыва lease для ${secretId}:`,
-          error
-        );
+        logger.error(`[DynamicSecrets] Ошибка отзыва lease для ${secretId}`, { error });
       }
     }
     
@@ -478,11 +473,11 @@ export class DynamicSecretsManager extends EventEmitter {
     
     // Удаление из хранилища
     this.secrets.delete(secretId);
-    
-    console.log(
-      `[DynamicSecrets] Отозван секрет ${secretId} (причина: ${reason})`
-    );
-    
+
+    logger.info(`[DynamicSecrets] Отозван секрет ${secretId}`, {
+      reason
+    });
+
     this.emit('secret:revoked', {
       secretId,
       reason,
@@ -508,7 +503,7 @@ export class DynamicSecretsManager extends EventEmitter {
     }
     
     if (cleanedCount > 0) {
-      console.log(`[DynamicSecrets] Очищено ${cleanedCount} истёкших секретов`);
+      logger.info(`[DynamicSecrets] Очищено ${cleanedCount} истёкших секретов`);
     }
   }
 

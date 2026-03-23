@@ -20,6 +20,7 @@ import {
   JWTPayload,
   JwtHeaderParameters,
 } from 'jsonwebtoken';
+import { logger } from '../logging/Logger';
 import {
   generateKeyPairSync,
   generateKeyPair,
@@ -150,16 +151,16 @@ export class JwtService {
    */
   public async initializeBlacklist(): Promise<void> {
     if (!this.config.enableBlacklistCheck) {
-      console.log('[JwtService] Blacklist проверка отключена');
+      logger.info('[JwtService] Blacklist проверка отключена');
       return;
     }
 
     try {
       this.blacklist = createJWTBlacklist(this.config.blacklist || {});
       await this.blacklist.initialize();
-      console.log('[JwtService] Blacklist инициализирован');
+      logger.info('[JwtService] Blacklist инициализирован');
     } catch (error) {
-      console.error('[JwtService] Ошибка инициализации blacklist:', error);
+      logger.error('[JwtService] Ошибка инициализации blacklist', { error });
       // Не блокируем работу сервиса при ошибке инициализации blacklist
       this.blacklist = null;
     }
@@ -787,7 +788,7 @@ export class JwtService {
 
         jwks.keys.push(jwk);
       } catch (error) {
-        console.error(`Ошибка экспорта ключа ${keyPair.config.kid}:`, error);
+        logger.error(`Ошибка экспорта ключа ${keyPair.config.kid}`, { error });
       }
     }
 
@@ -863,7 +864,7 @@ export class JwtService {
             reason: 'Refresh token rotation',
           });
         } catch (error) {
-          console.error('[JwtService] Ошибка добавления токена в blacklist при rotation:', error);
+          logger.error('[JwtService] Ошибка добавления токена в blacklist при rotation', { error });
           // Не блокируем rotation при ошибке blacklist
         }
       }
@@ -950,9 +951,9 @@ export class JwtService {
           }
         }
 
-        console.log(`[JwtService] Ключ ротирован: ${newKey.kid}`);
+        logger.info(`[JwtService] Ключ ротирован: ${newKey.kid}`);
       } catch (error) {
-        console.error('[JwtService] Ошибка ротации ключей:', error);
+        logger.error('[JwtService] Ошибка ротации ключей', { error });
       }
     }, intervalMs);
   }
@@ -1127,7 +1128,7 @@ export class JwtService {
     this.stopKeyRotation();
     if (this.blacklist) {
       // Асинхронная очистка blacklist
-      this.blacklist.destroy().catch(console.error);
+      this.blacklist.destroy().catch((error) => logger.error('[JwtService] Blacklist destroy error', { error }));
     }
     this.keyPairs.clear();
     this.activeSigningKeyId = null;

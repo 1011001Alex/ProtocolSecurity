@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   MicroSegmentationRule,
@@ -634,9 +635,9 @@ export class MicroSegmentation extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[MS] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[MS] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

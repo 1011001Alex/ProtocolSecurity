@@ -14,6 +14,7 @@
 
 import { EventEmitter } from 'events';
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
+import { logger } from '../logging/Logger';
 import {
   CacheConfig,
   CachedSecret,
@@ -121,24 +122,24 @@ export class SecretCache extends EventEmitter {
     if (this.isInitialized) {
       return;
     }
-    
+
     if (!this.config.enabled) {
-      console.log('[SecretCache] Кэширование отключено');
+      logger.info('[SecretCache] Кэширование отключено');
       this.isInitialized = true;
       return;
     }
-    
+
     // Запускаем периодическую очистку
     this.cleanupInterval = setInterval(
       () => this.cleanupExpired(),
       this.CLEANUP_INTERVAL
     );
-    
+
     // Unref для предотвращения блокировки выхода процесса
     this.cleanupInterval.unref();
-    
+
     this.isInitialized = true;
-    console.log('[SecretCache] Инициализирован с конфигурацией:', {
+    logger.info('[SecretCache] Инициализирован', {
       ttl: this.config.ttl,
       maxEntries: this.config.maxEntries,
       encryption: this.config.encryptInMemory ? 'enabled' : 'disabled',
@@ -155,14 +156,14 @@ export class SecretCache extends EventEmitter {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = undefined;
     }
-    
+
     // Безопасная очистка данных
     this.cache.clear();
     this.accessCounts.clear();
     this.fifoQueue.length = 0;
-    
+
     this.isInitialized = false;
-    console.log('[SecretCache] Остановлен');
+    logger.info('[SecretCache] Остановлен');
   }
 
   /**
@@ -226,7 +227,7 @@ export class SecretCache extends EventEmitter {
         status: secretData.status
       };
     } catch (error) {
-      console.error('[SecretCache] Ошибка десериализации:', error);
+      logger.error('[SecretCache] Ошибка десериализации', { error });
       return null;
     }
   }
@@ -400,9 +401,9 @@ export class SecretCache extends EventEmitter {
       await this.delete(key);
       this.stats.expirations++;
     }
-    
+
     if (expiredKeys.length > 0) {
-      console.log(`[SecretCache] Очищено ${expiredKeys.length} истёкших записей`);
+      logger.info(`[SecretCache] Очищено ${expiredKeys.length} истёкших записей`);
     }
   }
 
@@ -431,7 +432,7 @@ export class SecretCache extends EventEmitter {
     if (oldestKey) {
       await this.delete(oldestKey);
       this.stats.evictions++;
-      console.log(`[SecretCache] Вытеснена запись: ${oldestKey}`);
+      logger.info(`[SecretCache] Вытеснена запись: ${oldestKey}`);
     }
   }
 
@@ -541,7 +542,7 @@ export class SecretCache extends EventEmitter {
       
       return { encrypted, iv, authTag };
     } catch (error) {
-      console.error('[SecretCache] Ошибка шифрования:', error);
+      logger.error('[SecretCache] Ошибка шифрования', { error });
       throw new SecretEncryptionError(
         `Не удалось зашифровать данные: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -577,7 +578,7 @@ export class SecretCache extends EventEmitter {
       
       return decrypted;
     } catch (error) {
-      console.error('[SecretCache] Ошибка расшифровки:', error);
+      logger.error('[SecretCache] Ошибка расшифровки', { error });
       throw new SecretEncryptionError(
         `Не удалось расшифровать данные: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
@@ -620,28 +621,28 @@ export class SecretCache extends EventEmitter {
    */
   async invalidate(secretId: string): Promise<void> {
     await this.delete(secretId);
-    console.log(`[SecretCache] Инвалидирован кэш для: ${secretId}`);
+    logger.info(`[SecretCache] Инвалидирован кэш для: ${secretId}`);
   }
 
   /**
    * Инвалидировать все кэши с префиксом
-   * 
+   *
    * @param prefix - Префикс ключей
    */
   async invalidateByPrefix(prefix: string): Promise<void> {
     const keysToDelete: string[] = [];
-    
+
     for (const key of this.cache.keys()) {
       if (key.startsWith(prefix)) {
         keysToDelete.push(key);
       }
     }
-    
+
     for (const key of keysToDelete) {
       await this.delete(key);
     }
-    
-    console.log(`[SecretCache] Инвалидировано ${keysToDelete.length} записей с префиксом: ${prefix}`);
+
+    logger.info(`[SecretCache] Инвалидировано ${keysToDelete.length} записей с префиксом: ${prefix}`);
   }
 }
 

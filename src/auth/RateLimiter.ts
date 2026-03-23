@@ -10,6 +10,7 @@
 
 import { createHash } from 'crypto';
 import Redis from 'ioredis';
+import { logger } from '../logging/Logger';
 import {
   RateLimitConfig,
   RateLimitStats,
@@ -177,9 +178,9 @@ export class RateLimiterService {
       });
 
       await this.redis.ping();
-      console.log('[RateLimiter] Connected to Redis');
+      logger.info('[RateLimiter] Connected to Redis');
     } catch (error) {
-      console.warn('[RateLimiter] Failed to connect to Redis, using in-memory storage');
+      logger.warn('[RateLimiter] Failed to connect to Redis, using in-memory storage');
       this.redis = null;
     }
   }
@@ -518,9 +519,11 @@ export class RateLimiterService {
 
     this.violationCounts.set(key, blockInfo.violationCount);
 
-    console.log(
-      `[RateLimiter] Blocked ${key} for ${blockInfo.duration}s: ${reason} (violation #${blockInfo.violationCount})`
-    );
+    logger.info(`[RateLimiter] Blocked ${key}`, {
+      duration: blockInfo.duration,
+      reason,
+      violationCount: blockInfo.violationCount
+    });
   }
 
   /**

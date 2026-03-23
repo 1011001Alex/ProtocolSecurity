@@ -11,6 +11,7 @@
 import * as OTPAuth from 'otpauth';
 import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../logging/Logger';
 import {
   ITotpMethod,
   IHotpMethod,
@@ -268,7 +269,7 @@ export class MFService {
         delta: newTimeSkew,
       };
     } catch (error) {
-      console.error('[MFService] Ошибка верификации TOTP:', error);
+      logger.error('[MFService] Ошибка верификации TOTP', { error });
       return { valid: false };
     }
   }
@@ -403,10 +404,10 @@ export class MFService {
 
       return {
         valid: true,
-        newCounter: newCounter + 1, // Инкремент для следующего кода
+        newCounter: newCounter + 1,
       };
     } catch (error) {
-      console.error('[MFService] Ошибка верификации HOTP:', error);
+      logger.error('[MFService] Ошибка верификации HOTP', { error });
       return { valid: false };
     }
   }
@@ -598,7 +599,7 @@ export class MFService {
         reason: 'Неверный код',
       };
     } catch (error) {
-      console.error('[MFService] Ошибка верификации backup кода:', error);
+      logger.error('[MFService] Ошибка верификации backup кода', { error });
       return {
         valid: false,
         reason: 'Ошибка верификации',

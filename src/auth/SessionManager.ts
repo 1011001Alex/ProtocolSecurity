@@ -23,6 +23,7 @@ import {
 } from '../types/auth.types';
 import { JwtService } from './JWTService';
 import { JWTBlacklist } from './JWTBlacklist';
+import { logger } from '../logging/Logger';
 
 /**
  * Конфигурация Session Manager
@@ -197,11 +198,11 @@ export class SessionManager {
       });
 
       this.redis.on('error', (err) => {
-        console.error('[SessionManager] Redis error:', err);
+        logger.error('[SessionManager] Redis error', { error: err });
       });
 
       this.redis.on('connect', () => {
-        console.log('[SessionManager] Connected to Redis');
+        logger.info('[SessionManager] Connected to Redis');
       });
 
       // Тестовое подключение
@@ -216,7 +217,7 @@ export class SessionManager {
         this.blacklist = dependencies.blacklist;
       }
     } catch (error) {
-      console.warn('[SessionManager] Failed to connect to Redis, using in-memory storage');
+      logger.warn('[SessionManager] Failed to connect to Redis, using in-memory storage');
       this.redis = null;
     }
   }
@@ -456,7 +457,7 @@ export class SessionManager {
         session,
       };
     } catch (error) {
-      console.error('[SessionManager] Ошибка валидации сессии:', error);
+      logger.error('[SessionManager] Ошибка валидации сессии', { error });
       return {
         valid: false,
         error: error instanceof Error ? error.message : 'Ошибка валидации',
@@ -518,7 +519,7 @@ export class SessionManager {
     } else {
       // Fallback: in-memory storage (для development)
       // В production всегда использовать Redis
-      console.warn('[SessionManager] Using in-memory storage (not recommended for production)');
+      logger.warn('[SessionManager] Using in-memory storage (not recommended for production)');
     }
   }
 
@@ -617,9 +618,9 @@ export class SessionManager {
           reason: options?.reason || 'User logout',
         });
 
-        console.log(`[SessionManager] Токен сессии ${sessionId} добавлен в blacklist`);
+        logger.info(`[SessionManager] Токен сессии ${sessionId} добавлен в blacklist`);
       } catch (error) {
-        console.error('[SessionManager] Ошибка добавления в blacklist:', error);
+        logger.error('[SessionManager] Ошибка добавления в blacklist', { error });
         // Не блокируем logout при ошибке blacklist
       }
     }
@@ -658,9 +659,9 @@ export class SessionManager {
       try {
         const ttl = this.config.sessionLifetime;
         await this.blacklist.revokeUserTokens(userId, ttl, options.reason);
-        console.log(`[SessionManager] Все токены пользователя ${userId} добавлены в blacklist`);
+        logger.info(`[SessionManager] Все токены пользователя ${userId} добавлены в blacklist`);
       } catch (error) {
-        console.error('[SessionManager] Ошибка добавления в blacklist:', error);
+        logger.error('[SessionManager] Ошибка добавления в blacklist', { error });
       }
     }
 
@@ -698,9 +699,9 @@ export class SessionManager {
             reason: reason || 'Session revoked',
           });
 
-          console.log(`[SessionManager] Токен сессии ${sessionId} добавлен в blacklist: ${reason}`);
+          logger.info(`[SessionManager] Токен сессии ${sessionId} добавлен в blacklist: ${reason}`);
         } catch (error) {
-          console.error('[SessionManager] Ошибка добавления в blacklist:', error);
+          logger.error('[SessionManager] Ошибка добавления в blacklist', { error });
         }
       }
 
@@ -708,7 +709,7 @@ export class SessionManager {
       await this.saveSession(session);
 
       // Логирование причины
-      console.log(`[SessionManager] Session ${sessionId} revoked: ${reason || 'No reason provided'}`);
+      logger.info(`[SessionManager] Session ${sessionId} revoked`, { reason: reason || 'No reason provided' });
     }
   }
 
@@ -754,7 +755,7 @@ export class SessionManager {
           reason: 'Refresh token rotation - old token revoked',
         });
       } catch (error) {
-        console.error('[SessionManager] Ошибка добавления в blacklist при rotation:', error);
+        logger.error('[SessionManager] Ошибка добавления в blacklist при rotation', { error });
       }
     } else {
       // Fallback: старая реализация
@@ -1084,7 +1085,7 @@ export class SessionManager {
    */
   public setBlacklist(blacklist: JWTBlacklist): void {
     this.blacklist = blacklist;
-    console.log('[SessionManager] Blacklist установлен');
+    logger.info('[SessionManager] Blacklist установлен');
   }
 
   /**
@@ -1093,7 +1094,7 @@ export class SessionManager {
    */
   public setJwtService(jwtService: JwtService): void {
     this.jwtService = jwtService;
-    console.log('[SessionManager] JWT Service установлен');
+    logger.info('[SessionManager] JWT Service установлен');
   }
 
   /**

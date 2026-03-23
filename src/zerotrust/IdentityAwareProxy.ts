@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import * as http from 'http';
 import * as https from 'https';
@@ -828,9 +829,9 @@ export class IdentityAwareProxy extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[IAP] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[IAP] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

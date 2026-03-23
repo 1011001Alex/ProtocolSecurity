@@ -10,6 +10,7 @@
  */
 
 import Redis from 'ioredis';
+import { logger } from '../logging/Logger';
 import { AuthError, AuthErrorCode } from '../types/auth.types';
 
 /**
@@ -169,7 +170,7 @@ export class JWTBlacklist {
    */
   public async initialize(): Promise<void> {
     if (!this.config.enabled) {
-      console.log('[JWTBlacklist] Blacklist отключен');
+      logger.info('[JWTBlacklist] Blacklist отключен');
       return;
     }
 
@@ -191,17 +192,17 @@ export class JWTBlacklist {
       });
 
       this.redis.on('error', (err) => {
-        console.error('[JWTBlacklist] Redis error:', err);
+        logger.error('[JWTBlacklist] Redis error', { error: err });
         this.metrics.redisConnected = false;
       });
 
       this.redis.on('connect', () => {
-        console.log('[JWTBlacklist] Connected to Redis');
+        logger.info('[JWTBlacklist] Connected to Redis');
         this.metrics.redisConnected = true;
       });
 
       this.redis.on('close', () => {
-        console.log('[JWTBlacklist] Redis connection closed');
+        logger.info('[JWTBlacklist] Redis connection closed');
         this.metrics.redisConnected = false;
       });
 
@@ -213,9 +214,9 @@ export class JWTBlacklist {
       this.startCleanup();
 
       this.isInitialized = true;
-      console.log('[JWTBlacklist] Инициализация завершена');
+      logger.info('[JWTBlacklist] Инициализация завершена');
     } catch (error) {
-      console.warn('[JWTBlacklist] Failed to connect to Redis, blacklist disabled');
+      logger.warn('[JWTBlacklist] Failed to connect to Redis, blacklist disabled');
       this.redis = null;
       this.metrics.redisConnected = false;
       this.isInitialized = false;
@@ -244,7 +245,7 @@ export class JWTBlacklist {
           this.metrics.cleanupCount++;
         }
       } catch (error) {
-        console.error('[JWTBlacklist] Ошибка очистки:', error);
+        logger.error('[JWTBlacklist] Ошибка очистки', { error });
       }
     }, this.config.cleanupInterval);
   }
@@ -350,7 +351,7 @@ export class JWTBlacklist {
         this.updateMetricsOnRevoke(options?.userId, options?.deviceId);
       } else {
         // Fallback: in-memory storage (только для development)
-        console.warn('[JWTBlacklist] Redis недоступен, используется in-memory storage');
+        logger.warn('[JWTBlacklist] Redis недоступен, используется in-memory storage');
         // В production это критическая ошибка
       }
 
@@ -358,7 +359,7 @@ export class JWTBlacklist {
 
       return tokenInfo;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка отзыва токена:', error);
+      logger.error('[JWTBlacklist] Ошибка отзыва токена', { error });
       throw new AuthError(
         `Ошибка отзыва токена: ${error instanceof Error ? error.message : 'Unknown error'}`,
         AuthErrorCode.INTERNAL_ERROR,
@@ -407,11 +408,11 @@ export class JWTBlacklist {
       } else {
         // Redis недоступен - политика безопасности зависит от конфигурации
         // В production лучше вернуть ошибку или считать токен отозванным
-        console.warn('[JWTBlacklist] Redis недоступен при проверке токена');
+        logger.warn('[JWTBlacklist] Redis недоступен при проверке токена');
         return { isRevoked: false };
       }
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка проверки токена:', error);
+      logger.error('[JWTBlacklist] Ошибка проверки токена', { error });
       // При ошибке считаем токен не отозванным (fail-open для доступности)
       // В production можно изменить на fail-close
       return {
@@ -487,11 +488,11 @@ export class JWTBlacklist {
       // Очищаем индекс
       await this.redis.del(userIndexKey);
 
-      console.log(`[JWTBlacklist] Отозвано ${revokedCount} токенов пользователя ${userId}`);
+      logger.info(`[JWTBlacklist] Отозвано ${revokedCount} токенов пользователя ${userId}`);
 
       return revokedCount;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка массовой revocation пользователя:', error);
+      logger.error('[JWTBlacklist] Ошибка массовой revocation пользователя', { error });
       throw new AuthError(
         `Ошибка массовой revocation: ${error instanceof Error ? error.message : 'Unknown error'}`,
         AuthErrorCode.INTERNAL_ERROR,
@@ -545,11 +546,11 @@ export class JWTBlacklist {
       // Очищаем индекс
       await this.redis.del(deviceIndexKey);
 
-      console.log(`[JWTBlacklist] Отозвано ${revokedCount} токенов устройства ${deviceId}`);
+      logger.info(`[JWTBlacklist] Отозвано ${revokedCount} токенов устройства ${deviceId}`);
 
       return revokedCount;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка массовой revocation устройства:', error);
+      logger.error('[JWTBlacklist] Ошибка массовой revocation устройства', { error });
       throw new AuthError(
         `Ошибка массовой revocation: ${error instanceof Error ? error.message : 'Unknown error'}`,
         AuthErrorCode.INTERNAL_ERROR,
@@ -613,11 +614,11 @@ export class JWTBlacklist {
         }
       }
 
-      console.log(`[JWTBlacklist] Отозвано ${revokedCount} токенов сессии ${sessionId}`);
+      logger.info(`[JWTBlacklist] Отозвано ${revokedCount} токенов сессии ${sessionId}`);
 
       return revokedCount;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка массовой revocation сессии:', error);
+      logger.error('[JWTBlacklist] Ошибка массовой revocation сессии', { error });
       throw new AuthError(
         `Ошибка массовой revocation: ${error instanceof Error ? error.message : 'Unknown error'}`,
         AuthErrorCode.INTERNAL_ERROR,
@@ -696,11 +697,11 @@ export class JWTBlacklist {
         cleanedDeviceIndexes,
       };
 
-      console.log('[JWTBlacklist] Очистка завершена:', result);
+      logger.info('[JWTBlacklist] Очистка завершена', result);
 
       return result;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка очистки:', error);
+      logger.error('[JWTBlacklist] Ошибка очистки', { error });
       return {
         cleanedKeys: 0,
         cleanedUserIndexes: 0,
@@ -746,7 +747,7 @@ export class JWTBlacklist {
 
       return { ...this.metrics };
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка получения метрик:', error);
+      logger.error('[JWTBlacklist] Ошибка получения метрик', { error });
       return this.metrics;
     }
   }
@@ -771,7 +772,7 @@ export class JWTBlacklist {
 
       return JSON.parse(data) as RevokedTokenInfo;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка получения информации о токене:', error);
+      logger.error('[JWTBlacklist] Ошибка получения информации о токене', { error });
       return null;
     }
   }
@@ -805,7 +806,7 @@ export class JWTBlacklist {
 
       return tokens;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка получения токенов пользователя:', error);
+      logger.error('[JWTBlacklist] Ошибка получения токенов пользователя', { error });
       return [];
     }
   }
@@ -839,7 +840,7 @@ export class JWTBlacklist {
 
       return tokens;
     } catch (error) {
-      console.error('[JWTBlacklist] Ошибка получения токенов устройства:', error);
+      logger.error('[JWTBlacklist] Ошибка получения токенов устройства', { error });
       return [];
     }
   }

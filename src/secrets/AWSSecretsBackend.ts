@@ -17,6 +17,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   SecretBackendType,
   AWSSecretsBackendConfig,
@@ -211,17 +212,17 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
       
       // Проверка подключения
       await this.healthCheck();
-      
+
       this.isInitialized = true;
-      
-      console.log('[AWSSecretsBackend] Инициализирован:', {
+
+      logger.info('[AWSSecretsBackend] Инициализирован', {
         region: this.config.region,
         endpoint: this.config.endpoint ?? 'aws'
       });
-      
+
       this.emit('initialized');
     } catch (error) {
-      console.error('[AWSSecretsBackend] Ошибка инициализации:', error);
+      logger.error('[AWSSecretsBackend] Ошибка инициализации', { error });
       throw error;
     }
   }
@@ -235,9 +236,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
       const sdk = await import('@aws-sdk/client-secrets-manager');
       return sdk;
     } catch (error) {
-      // Если SDK не установлен, создаём mock для совместимости
-      console.warn('[AWSSecretsBackend] AWS SDK не найден, используется mock режим');
-      
+      logger.warn('[AWSSecretsBackend] AWS SDK не найден, используется mock режим');
+
       return {
         SecretsManagerClient: class MockClient {
           config = { region: 'mock' };
@@ -262,7 +262,7 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
       await this.listSecretsInternal('');
       return true;
     } catch (error) {
-      console.error('[AWSSecretsBackend] Health check failed:', error);
+      logger.error('[AWSSecretsBackend] Health check failed', { error });
       this.emit('unhealthy', error);
       return false;
     }
@@ -311,8 +311,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
-      console.error(`[AWSSecretsBackend] Ошибка получения секрета ${secretId}:`, error);
+
+      logger.error(`[AWSSecretsBackend] Ошибка получения секрета ${secretId}`, { error });
       throw error;
     }
   }
@@ -385,8 +385,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша описания
     this.secretDescriptions.delete(secret.id);
-    
-    console.log(`[AWSSecretsBackend] Создан секрет: ${secret.id}`);
+
+    logger.info(`[AWSSecretsBackend] Создан секрет: ${secret.id}`);
     this.emit('secret:created', secret.id);
     
     return {
@@ -429,8 +429,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretDescriptions.delete(secretId);
-    
-    console.log(`[AWSSecretsBackend] Обновлён секрет: ${secretId}`);
+
+    logger.info(`[AWSSecretsBackend] Обновлён секрет: ${secretId}`);
     this.emit('secret:updated', secretId);
     
     return {
@@ -462,8 +462,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretDescriptions.delete(secretId);
-    
-    console.log(`[AWSSecretsBackend] Удалён секрет: ${secretId}`);
+
+    logger.info(`[AWSSecretsBackend] Удалён секрет: ${secretId}`);
     this.emit('secret:deleted', secretId);
   }
 
@@ -536,8 +536,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretDescriptions.delete(secretId);
-    
-    console.log(`[AWSSecretsBackend] Откат секрета ${secretId} к версии ${version}`);
+
+    logger.info(`[AWSSecretsBackend] Откат секрета ${secretId} к версии ${version}`);
     this.emit('secret:rollback', { secretId, version });
     
     return await this.getSecret(secretId) as BackendSecret;
@@ -554,8 +554,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     this.secretDescriptions.clear();
     this.isInitialized = false;
-    
-    console.log('[AWSSecretsBackend] Закрыт');
+
+    logger.info('[AWSSecretsBackend] Закрыт');
     this.emit('destroyed');
   }
 
@@ -757,8 +757,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretDescriptions.delete(secretId);
-    
-    console.log(`[AWSSecretsBackend] Настроена ротация для ${secretId}`);
+
+    logger.info(`[AWSSecretsBackend] Настроена ротация для ${secretId}`);
     this.emit('secret:rotation-configured', secretId);
   }
 
@@ -775,8 +775,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     });
     
     await this.client!.send(command);
-    
-    console.log(`[AWSSecretsBackend] Запущена ротация для ${secretId}`);
+
+    logger.info(`[AWSSecretsBackend] Запущена ротация для ${secretId}`);
     this.emit('secret:rotating', secretId);
   }
 
@@ -796,8 +796,8 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretDescriptions.delete(secretId);
-    
-    console.log(`[AWSSecretsBackend] Восстановлен секрет: ${secretId}`);
+
+    logger.info(`[AWSSecretsBackend] Восстановлен секрет: ${secretId}`);
     this.emit('secret:restored', secretId);
   }
 

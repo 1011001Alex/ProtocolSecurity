@@ -17,6 +17,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   SecretBackendType,
   AzureKeyVaultBackendConfig,
@@ -441,19 +442,19 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
       
       // Проверка подключения
       await this.healthCheck();
-      
+
       this.isInitialized = true;
-      
-      console.log('[AzureKeyVaultBackend] Инициализирован:', {
+
+      logger.info('[AzureKeyVaultBackend] Инициализирован', {
         vaultUrl: this.vaultUrl,
         tenantId: this.config.tenantId,
         clientId: this.config.clientId,
         managedIdentity: this.config.useManagedIdentity
       });
-      
+
       this.emit('initialized');
     } catch (error) {
-      console.error('[AzureKeyVaultBackend] Ошибка инициализации:', error);
+      logger.error('[AzureKeyVaultBackend] Ошибка инициализации', { error });
       throw error;
     }
   }
@@ -467,8 +468,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
       const identity = await import('@azure/identity');
       return { ...keyvault, ...identity };
     } catch (error) {
-      console.warn('[AzureKeyVaultBackend] Azure SDK не найден, используется mock режим');
-      
+      logger.warn('[AzureKeyVaultBackend] Azure SDK не найден, используется mock режим');
+
       return {
         SecretClient: class {},
         KeyClient: class {},
@@ -493,7 +494,7 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
       // В production лучше использовать настоящий health check endpoint
       return true;
     } catch (error) {
-      console.error('[AzureKeyVaultBackend] Health check failed:', error);
+      logger.error('[AzureKeyVaultBackend] Health check failed', { error });
       this.emit('unhealthy', error);
       return false;
     }
@@ -530,8 +531,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
-      console.error(`[AzureKeyVaultBackend] Ошибка получения секрета ${secretId}:`, error);
+
+      logger.error(`[AzureKeyVaultBackend] Ошибка получения секрета ${secretId}`, { error });
       throw error;
     }
   }
@@ -606,8 +607,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     
     // Очистка кэша
     this.secretCache.delete(secret.id);
-    
-    console.log(`[AzureKeyVaultBackend] Создан секрет: ${secret.id}`);
+
+    logger.info(`[AzureKeyVaultBackend] Создан секрет: ${secret.id}`);
     this.emit('secret:created', secret.id);
     
     return {
@@ -646,8 +647,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     
     // Очистка кэша
     this.secretCache.delete(secretId);
-    
-    console.log(`[AzureKeyVaultBackend] Обновлён секрет: ${secretId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Обновлён секрет: ${secretId}`);
     this.emit('secret:updated', secretId);
     
     return {
@@ -674,8 +675,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     
     // Очистка кэша
     this.secretCache.delete(secretId);
-    
-    console.log(`[AzureKeyVaultBackend] Удалён секрет: ${secretId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Удалён секрет: ${secretId}`);
     this.emit('secret:deleted', secretId);
   }
 
@@ -743,8 +744,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     
     this.secretCache.clear();
     this.isInitialized = false;
-    
-    console.log('[AzureKeyVaultBackend] Закрыт');
+
+    logger.info('[AzureKeyVaultBackend] Закрыт');
     this.emit('destroyed');
   }
 
@@ -837,8 +838,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     };
     
     const response = await this.client!.createKey(this.vaultUrl, keyId, keyType, options);
-    
-    console.log(`[AzureKeyVaultBackend] Создан ключ: ${keyId} (${keyType})`);
+
+    logger.info(`[AzureKeyVaultBackend] Создан ключ: ${keyId}`, { keyType });
     this.emit('key:created', keyId);
     
     return response;
@@ -853,8 +854,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     await this.ensureInitialized();
     
     await this.client!.deleteKey(this.vaultUrl, keyId);
-    
-    console.log(`[AzureKeyVaultBackend] Удалён ключ: ${keyId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Удалён ключ: ${keyId}`);
     this.emit('key:deleted', keyId);
   }
 
@@ -893,8 +894,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     await this.ensureInitialized();
     
     const response = await this.client!.createCertificate(this.vaultUrl, certId, policy);
-    
-    console.log(`[AzureKeyVaultBackend] Создан сертификат: ${certId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Создан сертификат: ${certId}`);
     this.emit('certificate:created', certId);
     
     return response;
@@ -909,8 +910,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     await this.ensureInitialized();
     
     await this.client!.deleteCertificate(this.vaultUrl, certId);
-    
-    console.log(`[AzureKeyVaultBackend] Удалён сертификат: ${certId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Удалён сертификат: ${certId}`);
     this.emit('certificate:deleted', certId);
   }
 
@@ -923,8 +924,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     await this.ensureInitialized();
     
     const response = await this.client!.recoverDeletedSecret(this.vaultUrl, secretId);
-    
-    console.log(`[AzureKeyVaultBackend] Восстановлен секрет: ${secretId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Восстановлен секрет: ${secretId}`);
     this.emit('secret:recovered', secretId);
     
     return {
@@ -947,8 +948,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     await this.ensureInitialized();
     
     await this.client!.purgeDeletedSecret(this.vaultUrl, secretId);
-    
-    console.log(`[AzureKeyVaultBackend] Очищен секрет: ${secretId}`);
+
+    logger.info(`[AzureKeyVaultBackend] Очищен секрет: ${secretId}`);
     this.emit('secret:purged', secretId);
   }
 
@@ -961,8 +962,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     await this.ensureInitialized();
     
     await this.client!.setAccessPolicy(this.vaultUrl, policies);
-    
-    console.log(`[AzureKeyVaultBackend] Установлены политики доступа`);
+
+    logger.info('[AzureKeyVaultBackend] Установлены политики доступа');
     this.emit('access-policy:updated');
   }
 

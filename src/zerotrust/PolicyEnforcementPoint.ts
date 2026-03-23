@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   PolicyDecision,
@@ -972,9 +973,9 @@ export class PolicyEnforcementPoint extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging && this.config.enableAudit) {
-      console.log(`[PEP] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[PEP] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

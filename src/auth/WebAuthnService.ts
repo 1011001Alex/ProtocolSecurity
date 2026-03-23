@@ -27,6 +27,7 @@ import {
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../logging/Logger';
 import {
   IWebAuthnMethod,
   IUser,
@@ -368,8 +369,8 @@ export class WebAuthnService {
         authenticatorInfo,
       };
     } catch (error) {
-      console.error('[WebAuthnService] Ошибка верификации регистрации:', error);
-      
+      logger.error('[WebAuthnService] Ошибка верификации регистрации', { error });
+
       // Очистка challenge при ошибке
       this.challengeStore.delete(temporaryId);
 
@@ -523,8 +524,8 @@ export class WebAuthnService {
         },
       };
     } catch (error) {
-      console.error('[WebAuthnService] Ошибка верификации аутентификации:', error);
-      
+      logger.error('[WebAuthnService] Ошибка верификации аутентификации', { error });
+
       // Очистка challenge при ошибке
       this.challengeStore.delete(temporaryId);
 

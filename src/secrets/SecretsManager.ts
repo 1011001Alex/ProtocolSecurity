@@ -23,6 +23,7 @@ import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '../logging/Logger';
 import {
   SecretsManagerConfig,
   SecretsManagerEvents,
@@ -237,19 +238,19 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
     if (this.isInitialized) {
       return;
     }
-    
-    console.log('[SecretsManager] Начало инициализации...');
-    
+
+    logger.info('[SecretsManager] Начало инициализации...');
+
     try {
       // Инициализация кэша
       if (this.config.cache.enabled) {
         this.cache = new SecretCache(this.config.cache, this.config.encryptionKey);
         await this.cache.initialize();
       }
-      
+
       // Инициализация бэкендов
       await this.initializeBackends();
-      
+
       // Инициализация менеджеров
       await this.policyManager.initialize(this.config.policies, this.mode === 'production');
       await this.versioningManager.initialize(this.primaryBackend);
@@ -257,19 +258,19 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
       await this.rotator.initialize(this.primaryBackend);
       await this.dynamicSecrets.initialize(this.leaseManager);
       await this.scanner.initialize();
-      
+
       this.isInitialized = true;
-      
-      console.log('[SecretsManager] Инициализация завершена успешно');
-      console.log('[SecretsManager] Конфигурация:', {
+
+      logger.info('[SecretsManager] Инициализация завершена успешно');
+      logger.info('[SecretsManager] Конфигурация', {
         backends: this.backends.size,
         primaryBackend: this.primaryBackend?.type,
         cache: this.config.cache.enabled,
         mode: this.mode
       });
-      
+
     } catch (error) {
-      console.error('[SecretsManager] Ошибка инициализации:', error);
+      logger.error('[SecretsManager] Ошибка инициализации', { error });
       await this.destroy();
       throw error;
     }
@@ -317,25 +318,22 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
             break;
           
           default:
-            console.warn(`[SecretsManager] Неизвестный тип бэкенда: ${backendConfig.type}`);
+            logger.warn(`[SecretsManager] Неизвестный тип бэкенда: ${backendConfig.type}`);
             continue;
         }
-        
+
         this.backends.set(backendConfig.type, backend);
-        
+
         // Первый успешный бэкенд становится основным
         if (!this.primaryBackend) {
           this.primaryBackend = backend;
         }
-        
-        console.log(`[SecretsManager] Инициализирован бэкенд: ${backendConfig.type}`);
-        
+
+        logger.info(`[SecretsManager] Инициализирован бэкенд: ${backendConfig.type}`);
+
       } catch (error) {
-        console.error(
-          `[SecretsManager] Ошибка инициализации бэкенда ${backendConfig.type}:`,
-          error
-        );
-        
+        logger.error(`[SecretsManager] Ошибка инициализации бэкенда ${backendConfig.type}`, { error });
+
         this.emit('backend:unhealthy', backendConfig.type);
       }
     }
@@ -1101,25 +1099,25 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
    * Закрыть менеджер
    */
   async destroy(): Promise<void> {
-    console.log('[SecretsManager] Остановка...');
-    
+    logger.info('[SecretsManager] Остановка...');
+
     // Остановка компонентов
     if (this.cache) {
       await this.cache.destroy();
     }
-    
+
     await this.policyManager.destroy();
     await this.versioningManager.destroy();
     await this.leaseManager.destroy();
     await this.rotator.destroy();
     await this.dynamicSecrets.destroy();
     await this.scanner.destroy();
-    
+
     // Остановка бэкендов
     for (const [type, backend] of this.backends.entries()) {
       try {
         await backend.destroy();
-        
+
         // Удаление из фабрик
         switch (type) {
           case SecretBackendType.VAULT:
@@ -1136,15 +1134,15 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
             break;
         }
       } catch (error) {
-        console.error(`[SecretsManager] Ошибка остановки бэкенда ${type}:`, error);
+        logger.error(`[SecretsManager] Ошибка остановки бэкенда ${type}`, { error });
       }
     }
-    
+
     this.backends.clear();
     this.auditLogs = [];
     this.isInitialized = false;
-    
-    console.log('[SecretsManager] Остановлен');
+
+    logger.info('[SecretsManager] Остановлен');
   }
 
   /**
@@ -1199,7 +1197,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
       const logLine = JSON.stringify(entry) + '\n';
       fs.appendFileSync(this.auditLogPath!, logLine, 'utf8');
     } catch (error) {
-      console.error('[SecretsManager] Ошибка записи audit лога:', error);
+      logger.error('[SecretsManager] Ошибка записи audit лога', { error });
     }
   }
 

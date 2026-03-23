@@ -22,6 +22,7 @@ import {
   SecretVersionError,
   ISecretBackend
 } from '../types/secrets.types';
+import { logger } from '../logging/Logger';
 
 /**
  * Конфигурация системы версионирования
@@ -123,8 +124,8 @@ export class SecretVersioningManager extends EventEmitter {
    */
   async initialize(backend?: ISecretBackend): Promise<void> {
     this.backend = backend;
-    
-    console.log('[SecretVersioning] Инициализирован с конфигурацией:', {
+
+    logger.info('[SecretVersioning] Инициализирован', {
       maxVersions: this.config.maxVersions,
       keepDeletedVersions: this.config.keepDeletedVersions,
       retentionDays: this.config.deletedVersionsRetentionDays
@@ -139,8 +140,8 @@ export class SecretVersioningManager extends EventEmitter {
     this.rollbacks.clear();
     this.secretValues.clear();
     this.lastOperationTime.clear();
-    
-    console.log('[SecretVersioning] Остановлен');
+
+    logger.info('[SecretVersioning] Остановлен');
   }
 
   /**
@@ -209,11 +210,12 @@ export class SecretVersioningManager extends EventEmitter {
     
     // Обновление времени операции
     this.lastOperationTime.set(secret.id, Date.now());
-    
-    console.log(
-      `[SecretVersioning] Создана версия ${newVersionNumber} для секрета ${secret.id}`
-    );
-    
+
+    logger.info(`[SecretVersioning] Создана версия ${newVersionNumber}`, {
+      secretId: secret.id,
+      hash: contentHash
+    });
+
     this.emit('version:created', {
       secretId: secret.id,
       version: newVersionNumber,
@@ -397,11 +399,13 @@ export class SecretVersioningManager extends EventEmitter {
         }
       );
     }
-    
-    console.log(
-      `[SecretVersioning] Откат секрета ${secretId} к версии ${targetVersion}`
-    );
-    
+
+    logger.info(`[SecretVersioning] Откат секрета ${secretId} к версии ${targetVersion}`, {
+      fromVersion: currentVersion,
+      toVersion: targetVersion,
+      reason
+    });
+
     this.emit('version:rollback', {
       secretId,
       fromVersion: currentVersion,
@@ -475,11 +479,12 @@ export class SecretVersioningManager extends EventEmitter {
         valuesMap.delete(version);
       }
     }
-    
-    console.log(
-      `[SecretVersioning] Удалена версия ${version} секрета ${secretId}`
-    );
-    
+
+    logger.info(`[SecretVersioning] Удалена версия ${version}`, {
+      secretId,
+      softDelete: this.config.keepDeletedVersions
+    });
+
     this.emit('version:deleted', {
       secretId,
       version,
@@ -681,10 +686,10 @@ export class SecretVersioningManager extends EventEmitter {
           valuesMap.delete(versionNumber);
         }
       }
-      
-      console.log(
-        `[SecretVersioning] Удалена старая версия ${versionNumber} секрета ${secretId}`
-      );
+
+      logger.debug(`[SecretVersioning] Удалена старая версия ${versionNumber}`, {
+        secretId
+      });
     }
   }
 
@@ -715,11 +720,11 @@ export class SecretVersioningManager extends EventEmitter {
         }
       }
     }
-    
+
     if (totalCleaned > 0) {
-      console.log(
-        `[SecretVersioning] Очищено ${totalCleaned} удалённых версий по истечении срока`
-      );
+      logger.info(`[SecretVersioning] Очищено ${totalCleaned} удалённых версий`, {
+        totalCleaned
+      });
     }
   }
 

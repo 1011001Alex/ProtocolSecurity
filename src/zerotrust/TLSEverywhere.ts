@@ -10,6 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import * as tls from 'tls';
 import * as crypto from 'crypto';
@@ -446,9 +447,9 @@ export class TlsEverywhere extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[TLS] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[TLS] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

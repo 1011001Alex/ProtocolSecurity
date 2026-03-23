@@ -10,6 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   EgressFilterRule,
@@ -607,9 +608,9 @@ export class EgressFilter extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[EF] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[EF] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

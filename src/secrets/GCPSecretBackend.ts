@@ -17,6 +17,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   SecretBackendType,
   GCPSecretsBackendConfig,
@@ -290,17 +291,17 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       
       // Проверка подключения
       await this.healthCheck();
-      
+
       this.isInitialized = true;
-      
-      console.log('[GCPSecretBackend] Инициализирован:', {
+
+      logger.info('[GCPSecretBackend] Инициализирован', {
         projectId: this.config.projectId,
         endpoint: this.config.apiEndpoint ?? 'default'
       });
-      
+
       this.emit('initialized');
     } catch (error) {
-      console.error('[GCPSecretBackend] Ошибка инициализации:', error);
+      logger.error('[GCPSecretBackend] Ошибка инициализации', { error });
       throw error;
     }
   }
@@ -313,8 +314,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       const sdk = await import('@google-cloud/secret-manager');
       return sdk;
     } catch (error) {
-      console.warn('[GCPSecretBackend] GCP SDK не найден, используется mock режим');
-      
+      logger.warn('[GCPSecretBackend] GCP SDK не найден, используется mock режим');
+
       return {
         SecretManagerServiceClient: class MockClient {
           async accessSecretVersion() { return {}; }
@@ -346,7 +347,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       await this.listSecretsInternal();
       return true;
     } catch (error) {
-      console.error('[GCPSecretBackend] Health check failed:', error);
+      logger.error('[GCPSecretBackend] Health check failed', { error });
       this.emit('unhealthy', error);
       return false;
     }
@@ -392,8 +393,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
-      console.error(`[GCPSecretBackend] Ошибка получения секрета ${secretId}:`, error);
+
+      logger.error(`[GCPSecretBackend] Ошибка получения секрета ${secretId}`, { error });
       throw error;
     }
   }
@@ -473,8 +474,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretCache.delete(secret.id);
-    
-    console.log(`[GCPSecretBackend] Создан секрет: ${secret.id}`);
+
+    logger.info(`[GCPSecretBackend] Создан секрет: ${secret.id}`);
     this.emit('secret:created', secret.id);
     
     return {
@@ -526,8 +527,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretCache.delete(secretId);
-    
-    console.log(`[GCPSecretBackend] Обновлён секрет: ${secretId}`);
+
+    logger.info(`[GCPSecretBackend] Обновлён секрет: ${secretId}`);
     this.emit('secret:updated', secretId);
     
     return {
@@ -555,8 +556,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     
     // Очистка кэша
     this.secretCache.delete(secretId);
-    
-    console.log(`[GCPSecretBackend] Удалён секрет: ${secretId}`);
+
+    logger.info(`[GCPSecretBackend] Удалён секрет: ${secretId}`);
     this.emit('secret:deleted', secretId);
   }
 
@@ -628,8 +629,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     
     this.secretCache.clear();
     this.isInitialized = false;
-    
-    console.log('[GCPSecretBackend] Закрыт');
+
+    logger.info('[GCPSecretBackend] Закрыт');
     this.emit('destroyed');
   }
 
@@ -735,8 +736,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       resource: `${this.pathPrefix}/${secretId}`,
       policy
     });
-    
-    console.log(`[GCPSecretBackend] Установлена IAM policy для ${secretId}`);
+
+    logger.info(`[GCPSecretBackend] Установлена IAM policy для ${secretId}`);
     this.emit('secret:policy-updated', secretId);
   }
 
@@ -783,8 +784,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       },
       updateMask: 'rotation'
     });
-    
-    console.log(`[GCPSecretBackend] Настроена ротация для ${secretId}`);
+
+    logger.info(`[GCPSecretBackend] Настроена ротация для ${secretId}`);
     this.emit('secret:rotation-configured', secretId);
   }
 
@@ -800,8 +801,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     await this.client.destroySecretVersion({
       name: `${this.pathPrefix}/${secretId}/versions/${version}`
     });
-    
-    console.log(`[GCPSecretBackend] Уничтожена версия ${version} секрета ${secretId}`);
+
+    logger.info(`[GCPSecretBackend] Уничтожена версия ${version} секрета ${secretId}`);
     this.emit('secret:version-destroyed', { secretId, version });
   }
 
@@ -827,8 +828,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       },
       updateMask: 'topics'
     });
-    
-    console.log(`[GCPSecretBackend] Добавлена тема Pub/Sub ${topicName} для ${secretId}`);
+
+    logger.info(`[GCPSecretBackend] Добавлена тема Pub/Sub ${topicName} для ${secretId}`);
   }
 
   /**

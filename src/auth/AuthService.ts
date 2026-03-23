@@ -10,6 +10,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { randomBytes } from 'crypto';
+import { logger } from '../logging/Logger';
 import {
   IUser,
   IUserAttributes,
@@ -213,9 +214,9 @@ export class AuthService {
         this.rateLimiter.initialize(),
         this.jwtService.initialize(),
       ]);
-      console.log('[AuthService] Все сервисы инициализированы');
+      logger.info('[AuthService] Все сервисы инициализированы');
     } catch (error) {
-      console.error('[AuthService] Ошибка инициализации:', error);
+      logger.error('[AuthService] Ошибка инициализации', { error });
     }
   }
 
@@ -900,7 +901,7 @@ export class AuthService {
       this.securityEvents.shift();
     }
 
-    console.log(`[SecurityEvent] ${event.type}:`, {
+    logger.info(`[SecurityEvent] ${event.type}`, {
       userId: event.userId,
       ipAddress: event.ipAddress,
       riskLevel: event.riskLevel,

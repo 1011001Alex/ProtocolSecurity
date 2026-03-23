@@ -10,6 +10,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   JitAccessRequest,
@@ -674,9 +675,9 @@ export class JustInTimeAccess extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[JIT] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[JIT] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

@@ -14,6 +14,7 @@
 
 import { EventEmitter } from 'events';
 import { randomBytes, randomUUID } from 'crypto';
+import { logger } from '../logging/Logger';
 import {
   RotationConfig,
   RotationStatus,
@@ -230,13 +231,13 @@ export class SecretRotator extends EventEmitter {
   async initialize(backend?: ISecretBackend): Promise<void> {
     this.backend = backend;
     this.isRunning = true;
-    
+
     // Запуск периодической проверки
     if (this.config.enableAutoRotation) {
       this.startRotationCheck();
     }
-    
-    console.log('[SecretRotator] Инициализирован с конфигурацией:', {
+
+    logger.info('[SecretRotator] Инициализирован', {
       autoRotation: this.config.enableAutoRotation,
       checkInterval: this.config.checkInterval,
       maxConcurrent: this.config.maxConcurrentRotations
@@ -248,19 +249,19 @@ export class SecretRotator extends EventEmitter {
    */
   async destroy(): Promise<void> {
     this.isRunning = false;
-    
+
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
     }
-    
+
     // Остановка всех таймеров ротации
     for (const state of this.rotationStates.values()) {
       if (state.nextRotationTimer) {
         clearTimeout(state.nextRotationTimer);
       }
     }
-    
-    console.log('[SecretRotator] Остановлен');
+
+    logger.info('[SecretRotator] Остановлен');
   }
 
   /**
@@ -295,11 +296,11 @@ export class SecretRotator extends EventEmitter {
     
     // Планирование следующей ротации
     this.scheduleNextRotation(secretId);
-    
-    console.log(
-      `[SecretRotator] Настроена ротация для ${secretId} (интервал: ${newConfig.rotationInterval}s)`
-    );
-    
+
+    logger.info(`[SecretRotator] Настроена ротация для ${secretId}`, {
+      rotationInterval: newConfig.rotationInterval
+    });
+
     this.emit('rotation:configured', { secretId, config: newConfig });
   }
 
@@ -393,9 +394,11 @@ export class SecretRotator extends EventEmitter {
       if (config.keepHistory && state.history.length > config.historyLimit) {
         state.history = state.history.slice(-config.historyLimit);
       }
-      
-      console.log(`[SecretRotator] Ротация секрета ${secretId} завершена успешно`);
-      
+
+      logger.info(`[SecretRotator] Ротация секрета ${secretId} завершена успешно`, {
+        newVersion: result.version
+      });
+
       this.emit('rotation:completed', {
         secretId,
         newVersion: result.version
@@ -423,12 +426,9 @@ export class SecretRotator extends EventEmitter {
         error: error instanceof Error ? error.message : 'Unknown error',
         durationMs: 0
       });
-      
-      console.error(
-        `[SecretRotator] Ошибка ротации секрета ${secretId}:`,
-        error
-      );
-      
+
+      logger.error(`[SecretRotator] Ошибка ротации секрета ${secretId}`, { error });
+
       this.emit('rotation:failed', {
         secretId,
         error
@@ -461,11 +461,9 @@ export class SecretRotator extends EventEmitter {
         );
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         if (attempt < this.config.retryAttempts) {
-          console.log(
-            `[SecretRotator] Попытка ${attempt} не удалась, повтор через ${this.config.retryDelay}мс`
-          );
+          logger.info(`[SecretRotator] Попытка ${attempt} не удалась, повтор через ${this.config.retryDelay}мс`);
           await this.sleep(this.config.retryDelay);
         }
       }
@@ -528,10 +526,7 @@ export class SecretRotator extends EventEmitter {
         try {
           await this.activateNewVersion(secretId, updatedSecret.version);
         } catch (error) {
-          console.error(
-            `[SecretRotator] Ошибка активации новой версии ${secretId}:`,
-            error
-          );
+          logger.error(`[SecretRotator] Ошибка активации новой версии ${secretId}`, { error });
         }
       }, config.gracePeriod * 1000);
     }
@@ -557,11 +552,11 @@ export class SecretRotator extends EventEmitter {
     if (!this.backend) {
       throw new SecretBackendError('Бэкенд не инициализирован', 'unknown' as any);
     }
-    
-    console.log(
-      `[SecretRotator] Активация версии ${version} секрета ${secretId} после grace period`
-    );
-    
+
+    logger.info(`[SecretRotator] Активация версии ${version}`, {
+      secretId
+    });
+
     // Логика активации зависит от реализации бэкенда
     this.emit('rotation:version-activated', { secretId, version });
   }
@@ -585,16 +580,11 @@ export class SecretRotator extends EventEmitter {
     // Планирование новой ротации
     state.nextRotationTimer = setTimeout(() => {
       if (this.isRunning && config.enabled) {
-        console.log(
-          `[SecretRotator] Запуск запланированной ротации для ${secretId}`
-        );
-        
+        logger.info(`[SecretRotator] Запуск запланированной ротации для ${secretId}`);
+
         this.rotateSecret(secretId, undefined, 'scheduled')
           .catch(error => {
-            console.error(
-              `[SecretRotator] Ошибка запланированной ротации ${secretId}:`,
-              error
-            );
+            logger.error(`[SecretRotator] Ошибка запланированной ротации ${secretId}`, { error });
           });
       }
     }, config.rotationInterval * 1000);
@@ -632,18 +622,13 @@ export class SecretRotator extends EventEmitter {
       // Проверка времени следующей ротации
       if (state.status.nextRotationAt) {
         const nextRotationTime = state.status.nextRotationAt.getTime();
-        
+
         if (now >= nextRotationTime) {
-          console.log(
-            `[SecretRotator] Время ротации для ${secretId} наступило`
-          );
-          
+          logger.info(`[SecretRotator] Время ротации для ${secretId} наступило`);
+
           this.rotateSecret(secretId, undefined, 'scheduled')
             .catch(error => {
-              console.error(
-                `[SecretRotator] Ошибка ротации ${secretId}:`,
-                error
-              );
+              logger.error(`[SecretRotator] Ошибка ротации ${secretId}`, { error });
             });
         }
       }
@@ -686,31 +671,31 @@ export class SecretRotator extends EventEmitter {
     }
     
     const state = this.rotationStates.get(secretId);
-    
+
     if (state && state.nextRotationTimer) {
       clearTimeout(state.nextRotationTimer);
       state.nextRotationTimer = undefined;
     }
-    
-    console.log(`[SecretRotator] Ротация отключена для ${secretId}`);
+
+    logger.info(`[SecretRotator] Ротация отключена для ${secretId}`);
     this.emit('rotation:disabled', secretId);
   }
 
   /**
    * Включить ротацию для секрета
-   * 
+   *
    * @param secretId - ID секрета
    */
   enableRotation(secretId: string): void {
     const config = this.secretConfigs.get(secretId);
-    
+
     if (config) {
       config.enabled = true;
       this.secretConfigs.set(secretId, config);
       this.scheduleNextRotation(secretId);
     }
-    
-    console.log(`[SecretRotator] Ротация включена для ${secretId}`);
+
+    logger.info(`[SecretRotator] Ротация включена для ${secretId}`);
     this.emit('rotation:enabled', secretId);
   }
 

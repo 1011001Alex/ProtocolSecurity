@@ -22,6 +22,7 @@ import { EventEmitter } from 'events';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logger } from '../logging/Logger';
 import {
   LeakDetection,
   LeakType,
@@ -415,20 +416,20 @@ export class SecretScanner extends EventEmitter {
    */
   async initialize(): Promise<void> {
     if (!this.config.enabled) {
-      console.log('[SecretScanner] Отключён');
+      logger.info('[SecretScanner] Отключён');
       return;
     }
-    
+
     this.isRunning = true;
-    
+
     // Запуск периодического сканирования
     this.scanInterval = setInterval(() => {
       void this.performScheduledScan();
     }, this.config.scanInterval * 1000);
-    
+
     this.scanInterval.unref();
-    
-    console.log('[SecretScanner] Инициализирован:', {
+
+    logger.info('[SecretScanner] Инициализирован', {
       patterns: this.config.patterns.length,
       scanPaths: this.config.scanPaths.length,
       interval: this.config.scanInterval
@@ -440,12 +441,12 @@ export class SecretScanner extends EventEmitter {
    */
   async destroy(): Promise<void> {
     this.isRunning = false;
-    
+
     if (this.scanInterval) {
       clearInterval(this.scanInterval);
     }
-    
-    console.log('[SecretScanner] Остановлен');
+
+    logger.info('[SecretScanner] Остановлен');
   }
 
   /**
@@ -455,8 +456,8 @@ export class SecretScanner extends EventEmitter {
     if (this.config.scanPaths.length === 0) {
       return;
     }
-    
-    console.log('[SecretScanner] Запуск периодического сканирования...');
+
+    logger.info('[SecretScanner] Запуск периодического сканирования...');
     
     const results: ScanResult[] = [];
     
@@ -639,10 +640,11 @@ export class SecretScanner extends EventEmitter {
           
           // Уведомление
           this.emit('leak:detected', detection);
-          
-          console.warn(
-            `[SecretScanner] Обнаружена утечка: ${pattern.name} в ${location}:${lineNum + 1}`
-          );
+
+          logger.warn(`[SecretScanner] Обнаружена утечка: ${pattern.name}`, {
+            location,
+            line: lineNum + 1
+          });
         }
       }
     }
@@ -925,14 +927,14 @@ export class SecretScanner extends EventEmitter {
     
     detection.status = 'false_positive';
     this.stats.falsePositives++;
-    
+
     // Удаление из известных хешей
     if (detection.metadata?.valueHash) {
       this.knownSecretHashes.delete(detection.metadata.valueHash);
     }
-    
-    console.log(`[SecretScanner] Ложное срабатывание: ${detectionId}`);
-    
+
+    logger.info(`[SecretScanner] Ложное срабатывание: ${detectionId}`);
+
     return true;
   }
 

@@ -11,6 +11,7 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../logging/Logger';
 import {
   Identity,
   AuthContext,
@@ -745,9 +746,9 @@ export class ZeroTrustController extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[ZTC] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[ZTC] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

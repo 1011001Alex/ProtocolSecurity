@@ -13,6 +13,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import {
   AccessPolicy,
   AccessPolicyRule,
@@ -89,8 +90,11 @@ export class AccessPolicyManager extends EventEmitter {
     
     // Запуск очистки кэша
     this.startCacheCleanup();
-    
-    console.log(`[AccessPolicy] Инициализирован. Политик: ${this.policies.size}, строгий режим: ${strictMode}`);
+
+    logger.info('[AccessPolicy] Инициализирован', {
+      policiesCount: this.policies.size,
+      strictMode
+    });
   }
 
   /**
@@ -99,7 +103,7 @@ export class AccessPolicyManager extends EventEmitter {
   async destroy(): Promise<void> {
     this.policies.clear();
     this.accessCache.clear();
-    console.log('[AccessPolicy] Остановлен');
+    logger.info('[AccessPolicy] Остановлен');
   }
 
   /**
@@ -117,8 +121,8 @@ export class AccessPolicyManager extends EventEmitter {
     this.validatePolicyRules(policy);
     
     this.policies.set(policy.policyId, policy);
-    
-    console.log(`[AccessPolicy] Добавлена политика: ${policy.name}`);
+
+    logger.info(`[AccessPolicy] Добавлена политика: ${policy.name}`);
     this.emit('policy:added', policy);
   }
 
@@ -152,11 +156,11 @@ export class AccessPolicyManager extends EventEmitter {
     }
     
     this.policies.set(policyId, updated);
-    
+
     // Очистка кэша доступа
     this.clearAccessCache();
-    
-    console.log(`[AccessPolicy] Обновлена политика: ${updated.name}`);
+
+    logger.info(`[AccessPolicy] Обновлена политика: ${updated.name}`);
     this.emit('policy:updated', updated);
     
     return updated;
@@ -173,7 +177,7 @@ export class AccessPolicyManager extends EventEmitter {
     
     if (deleted) {
       this.clearAccessCache();
-      console.log(`[AccessPolicy] Удалена политика: ${policyId}`);
+      logger.info(`[AccessPolicy] Удалена политика: ${policyId}`);
       this.emit('policy:removed', policyId);
     }
     
@@ -701,7 +705,7 @@ export class AccessPolicyManager extends EventEmitter {
         return this.checkAttribute(condition, context);
       
       default:
-        console.warn(`[AccessPolicy] Неизвестный тип условия: ${condition.type}`);
+        logger.warn(`[AccessPolicy] Неизвестный тип условия: ${condition.type}`);
         return true;
     }
   }

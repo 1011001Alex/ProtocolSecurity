@@ -29,6 +29,7 @@ import {
   ISecretBackend,
   SecretBackendError
 } from '../types/secrets.types';
+import { logger } from '../logging/Logger';
 
 /**
  * Ответ от Vault API
@@ -179,8 +180,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
     // ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify должен использоваться ТОЛЬКО для разработки
     // В production это создает уязвимость для MITM атак
     if (this.config.skipTLSVerify) {
-      console.warn('[VaultBackend] ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify включен! Это небезопасно для production.');
-      console.warn('[VaultBackend] Используйте только в тестовых средах с самоподписанными сертификатами.');
+      logger.warn('[VaultBackend] ПРЕДУПРЕЖДЕНИЕ: skipTLSVerify включен! Это небезопасно для production.');
+      logger.warn('[VaultBackend] Используйте только в тестовых средах с самоподписанными сертификатами.');
       options.rejectUnauthorized = false;
     }
 
@@ -213,16 +214,16 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
       this.startHealthCheck();
       
       this.isInitialized = true;
-      
-      console.log('[VaultBackend] Инициализирован:', {
+
+      logger.info('[VaultBackend] Инициализирован', {
         url: this.config.vaultUrl,
         namespace: this.config.namespace,
         secretsPath: this.config.secretsPath
       });
-      
+
       this.emit('initialized');
     } catch (error) {
-      console.error('[VaultBackend] Ошибка инициализации:', error);
+      logger.error('[VaultBackend] Ошибка инициализации', { error });
       throw error;
     }
   }
@@ -237,17 +238,17 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
       this.healthStatus = response;
       
       const healthy = !response.sealed && !response.standby;
-      
+
       if (!healthy) {
-        console.warn('[VaultBackend] Vault unhealthy:', {
+        logger.warn('[VaultBackend] Vault unhealthy', {
           sealed: response.sealed,
           standby: response.standby
         });
       }
-      
+
       return healthy;
     } catch (error) {
-      console.error('[VaultBackend] Health check failed:', error);
+      logger.error('[VaultBackend] Health check failed', { error });
       this.emit('unhealthy', error);
       return false;
     }
@@ -293,8 +294,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
-      console.error(`[VaultBackend] Ошибка получения секрета ${secretId}:`, error);
+
+      logger.error(`[VaultBackend] Ошибка получения секрета ${secretId}`, { error });
       throw error;
     }
   }
@@ -371,8 +372,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
         this.type
       );
     }
-    
-    console.log(`[VaultBackend] Создан секрет: ${secret.id}`);
+
+    logger.info(`[VaultBackend] Создан секрет: ${secret.id}`);
     this.emit('secret:created', secret.id);
     
     return created;
@@ -413,8 +414,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
         this.type
       );
     }
-    
-    console.log(`[VaultBackend] Обновлён секрет: ${secretId} (версия ${updated.version})`);
+
+    logger.info(`[VaultBackend] Обновлён секрет: ${secretId}`, { version: updated.version });
     this.emit('secret:updated', secretId);
     
     return updated;
@@ -434,8 +435,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
     await this.request('POST', `${path}/destroy`, undefined, {
       versions: [this.getCurrentVersion(secretId)]
     });
-    
-    console.log(`[VaultBackend] Удалён секрет: ${secretId}`);
+
+    logger.info(`[VaultBackend] Удалён секрет: ${secretId}`);
     this.emit('secret:deleted', secretId);
   }
 
@@ -528,8 +529,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
         this.type
       );
     }
-    
-    console.log(`[VaultBackend] Откат секрета ${secretId} к версии ${version}`);
+
+    logger.info(`[VaultBackend] Откат секрета ${secretId} к версии ${version}`);
     this.emit('secret:rollback', { secretId, version });
     
     return rolledBack;
@@ -552,8 +553,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
     }
     
     this.isInitialized = false;
-    
-    console.log('[VaultBackend] Закрыт');
+
+    logger.info('[VaultBackend] Закрыт');
     this.emit('destroyed');
   }
 
@@ -696,19 +697,19 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
         policies: string[];
         meta: Record<string, string>;
       }>('GET', '/auth/token/lookup-self');
-      
-      console.log('[VaultBackend] Токен валиден:', {
+
+      logger.info('[VaultBackend] Токен валиден', {
         id: response.id,
         ttl: response.ttl,
         policies: response.policies
       });
-      
+
       // Планирование продления если TTL < 1 час
       if (response.ttl < 3600) {
         this.scheduleTokenRenew();
       }
     } catch (error) {
-      console.error('[VaultBackend] Ошибка валидации токена:', error);
+      logger.error('[VaultBackend] Ошибка валидации токена', { error });
       throw new SecretBackendError(
         'Невалидный токен Vault',
         this.type
@@ -729,11 +730,11 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
           'POST',
           '/auth/token/renew-self'
         );
-        
-        console.log('[VaultBackend] Токен продлён');
+
+        logger.info('[VaultBackend] Токен продлён');
         this.scheduleTokenRenew();
       } catch (error) {
-        console.error('[VaultBackend] Ошибка продления токена:', error);
+        logger.error('[VaultBackend] Ошибка продления токена', { error });
         this.emit('token:expired', error);
       }
     }, renewTime);
@@ -873,10 +874,10 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
    */
   async seal(): Promise<void> {
     await this.ensureInitialized();
-    
+
     await this.request('PUT', '/sys/seal');
-    
-    console.log('[VaultBackend] Vault sealed');
+
+    logger.info('[VaultBackend] Vault sealed');
   }
 
   /**
@@ -886,10 +887,10 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
    */
   async unseal(key: string): Promise<void> {
     await this.ensureInitialized();
-    
+
     await this.request('PUT', '/sys/unseal', undefined, { key });
-    
-    console.log('[VaultBackend] Vault unsealed');
+
+    logger.info('[VaultBackend] Vault unsealed');
   }
 
   /**
@@ -937,8 +938,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
     await this.request('POST', metadataPath, undefined, {
       custom_metadata: metadata
     });
-    
-    console.log(`[VaultBackend] Обновлены метаданные секрета ${secretId}`);
+
+    logger.info(`[VaultBackend] Обновлены метаданные секрета ${secretId}`);
   }
 
   /**
@@ -955,8 +956,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
     await this.request('POST', `${path}/destroy`, undefined, {
       versions: [version]
     });
-    
-    console.log(`[VaultBackend] Удалена версия ${version} секрета ${secretId}`);
+
+    logger.info(`[VaultBackend] Удалена версия ${version} секрета ${secretId}`);
   }
 
   /**
@@ -973,8 +974,8 @@ export class VaultBackend extends EventEmitter implements ISecretBackend {
     await this.request('POST', `${path}/undelete`, undefined, {
       versions: [version]
     });
-    
-    console.log(`[VaultBackend] Восстановлена версия ${version} секрета ${secretId}`);
+
+    logger.info(`[VaultBackend] Восстановлена версия ${version} секрета ${secretId}`);
   }
 }
 

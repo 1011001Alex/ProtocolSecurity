@@ -14,6 +14,7 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
+import { logger } from '../logging/Logger';
 import {
   SecretLease,
   LeaseConfig,
@@ -140,11 +141,11 @@ export class SecretLeaseManager extends EventEmitter {
    */
   async initialize(): Promise<void> {
     this.isRunning = true;
-    
+
     // Запуск периодической проверки истёкших lease
     this.startExpirationCheck();
-    
-    console.log('[SecretLease] Инициализирован с конфигурацией:', {
+
+    logger.info('[SecretLease] Инициализирован', {
       autoRenewal: this.config.enableAutoRenewal,
       checkInterval: this.config.expirationCheckInterval,
       maxLeasesPerSubject: this.config.maxLeasesPerSubject
@@ -156,23 +157,23 @@ export class SecretLeaseManager extends EventEmitter {
    */
   async destroy(): Promise<void> {
     this.isRunning = false;
-    
+
     // Остановка всех таймеров
     if (this.expirationCheckInterval) {
       clearInterval(this.expirationCheckInterval);
     }
-    
+
     // Остановка всех lease таймеров
     for (const state of this.leases.values()) {
       this.clearLeaseTimers(state);
     }
-    
+
     // Отзыв всех активных lease
     for (const leaseId of this.leases.keys()) {
       await this.revokeLeaseInternal(leaseId, 'system_shutdown');
     }
-    
-    console.log('[SecretLease] Остановлен');
+
+    logger.info('[SecretLease] Остановлен');
   }
 
   /**
@@ -234,16 +235,17 @@ export class SecretLeaseManager extends EventEmitter {
     // Обновление индексов
     this.addToSubjectIndex(context.subjectId, lease.leaseId);
     this.addToSecretIndex(secretId, lease.leaseId);
-    
+
     // Установка таймеров
     this.setupLeaseTimers(state);
-    
-    console.log(
-      `[SecretLease] Выдан lease ${lease.leaseId} для секрета ${secretId} (TTL: ${effectiveTTL}s)`
-    );
-    
+
+    logger.info(`[SecretLease] Выдан lease ${lease.leaseId}`, {
+      secretId,
+      ttl: effectiveTTL
+    });
+
     this.emit('lease:acquired', lease);
-    
+
     return lease;
   }
 
@@ -320,21 +322,21 @@ export class SecretLeaseManager extends EventEmitter {
     lease.expiresAt = newExpiresAt;
     lease.renewCount++;
     lease.status = 'renewed';
-    
+
     // Перенастройка таймеров
     this.clearLeaseTimers(state);
     this.setupLeaseTimers(state);
-    
-    console.log(
-      `[SecretLease] Продлён lease ${leaseId} (новое истечение: ${newExpiresAt.toISOString()})`
-    );
-    
+
+    logger.info(`[SecretLease] Продлён lease ${leaseId}`, {
+      newExpiresAt: newExpiresAt.toISOString()
+    });
+
     this.emit('lease:renewed', {
       lease,
       oldExpiresAt,
       newExpiresAt
     });
-    
+
     return lease;
   }
 
@@ -399,17 +401,17 @@ export class SecretLeaseManager extends EventEmitter {
     // Перемещение в историю
     this.revokedLeases.set(leaseId, lease);
     this.leases.delete(leaseId);
-    
+
     // Обновление индексов
     this.removeFromSubjectIndex(lease.leasedBy, leaseId);
     this.removeFromSecretIndex(lease.secretId, leaseId);
-    
-    console.log(
-      `[SecretLease] Отозван lease ${leaseId} (причина: ${reason})`
-    );
-    
+
+    logger.info(`[SecretLease] Отозван lease ${leaseId}`, {
+      reason
+    });
+
     this.emit('lease:revoked', { lease, reason });
-    
+
     return true;
   }
 
@@ -500,17 +502,19 @@ export class SecretLeaseManager extends EventEmitter {
         revokedCount++;
       }
     }
-    
-    console.log(
-      `[SecretLease] Отозвано ${revokedCount} lease для субъекта ${subjectId}`
-    );
-    
+
+    logger.info(`[SecretLease] Отозвано ${revokedCount} lease`, {
+      subjectId,
+      count: revokedCount,
+      reason
+    });
+
     this.emit('lease:bulk-revoked', {
       subjectId,
       count: revokedCount,
       reason
     });
-    
+
     return revokedCount;
   }
 
@@ -539,17 +543,19 @@ export class SecretLeaseManager extends EventEmitter {
         revokedCount++;
       }
     }
-    
-    console.log(
-      `[SecretLease] Отозвано ${revokedCount} lease для секрета ${secretId}`
-    );
-    
+
+    logger.info(`[SecretLease] Отозвано ${revokedCount} lease`, {
+      secretId,
+      count: revokedCount,
+      reason
+    });
+
     this.emit('lease:bulk-revoked', {
       secretId,
       count: revokedCount,
       reason
     });
-    
+
     return revokedCount;
   }
 
@@ -575,16 +581,11 @@ export class SecretLeaseManager extends EventEmitter {
       };
       
       await this.renewLease(leaseId, context);
-      
-      console.log(
-        `[SecretLease] Автоматически продлён lease ${leaseId}`
-      );
+
+      logger.info(`[SecretLease] Автоматически продлён lease ${leaseId}`);
     } catch (error) {
-      console.error(
-        `[SecretLease] Ошибка автоматического продления lease ${leaseId}:`,
-        error
-      );
-      
+      logger.error(`[SecretLease] Ошибка автоматического продления lease ${leaseId}`, { error });
+
       this.emit('lease:auto-renew-failed', {
         leaseId,
         error
@@ -648,9 +649,9 @@ export class SecretLeaseManager extends EventEmitter {
     
     const lease = state.lease;
     lease.status = 'expired';
-    
-    console.log(`[SecretLease] Истёк lease ${leaseId}`);
-    
+
+    logger.info(`[SecretLease] Истёк lease ${leaseId}`);
+
     this.emit('lease:expired', lease);
     
     // Grace period перед окончательным удалением
@@ -825,7 +826,7 @@ export class SecretLeaseManager extends EventEmitter {
    */
   clearRevokedLeasesHistory(): void {
     this.revokedLeases.clear();
-    console.log('[SecretLease] Очищена история отозванных lease');
+    logger.info('[SecretLease] Очищена история отозванных lease');
   }
 
   /**

@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import {
@@ -797,9 +798,9 @@ export class DevicePostureChecker extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[DPC] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[DPC] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }

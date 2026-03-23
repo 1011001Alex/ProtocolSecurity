@@ -11,6 +11,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import * as tls from 'tls';
@@ -747,9 +748,9 @@ export class ServiceMeshMTLS extends EventEmitter {
     };
     
     this.emit('log', event);
-    
+
     if (this.config.enableVerboseLogging) {
-      console.log(`[mTLS] ${new Date().toISOString()} - ${message}`, data ?? '');
+      logger.debug(`[mTLS] ${message}`, { timestamp: new Date().toISOString(), ...data });
     }
   }
 }
