@@ -197,7 +197,7 @@ export function createDataBreachPlaybook(): PlaybookConfiguration {
       parameters: {
         lockType: 'compromised_accounts',
         notifyUsers: false,
-        preserveAccess': true
+        preserveAccess: true
       },
       conditions: [],
       dependencies: ['detect-004'],

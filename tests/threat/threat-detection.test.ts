@@ -5,15 +5,15 @@
  * ============================================================================
  */
 
-import { ThreatDetectionEngine } from '../src/threat/ThreatDetectionEngine';
-import { UEBAService } from '../src/threat/UEBAService';
-import { MITREAttackMapper } from '../src/threat/MITREAttackMapper';
-import { CorrelationEngine } from '../src/threat/CorrelationEngine';
-import { RiskScorer } from '../src/threat/RiskScorer';
-import { NetworkAnalyzer } from '../src/threat/NetworkAnalyzer';
-import { EndpointDetector } from '../src/threat/EndpointDetector';
-import { KillChainAnalyzer } from '../src/threat/KillChainAnalyzer';
-import { ThreatDashboardService } from '../src/threat/ThreatDashboard';
+import { ThreatDetectionEngine } from '../../src/threat/ThreatDetectionEngine';
+import { UEBAService } from '../../src/threat/UEBAService';
+import { MITREAttackMapper } from '../../src/threat/MITREAttackMapper';
+import { CorrelationEngine } from '../../src/threat/CorrelationEngine';
+import { RiskScorer } from '../../src/threat/RiskScorer';
+import { NetworkAnalyzer } from '../../src/threat/NetworkAnalyzer';
+import { EndpointDetector } from '../../src/threat/EndpointDetector';
+import { KillChainAnalyzer } from '../../src/threat/KillChainAnalyzer';
+import { ThreatDashboardService } from '../../src/threat/ThreatDashboard';
 import {
   IsolationForest,
   LSTMModel,

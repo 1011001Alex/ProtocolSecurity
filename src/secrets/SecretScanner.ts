@@ -364,7 +364,7 @@ export class SecretScanner extends EventEmitter {
       // NPM Token
       {
         name: 'NPM Token',
-        regex: //npm_[A-Za-z0-9]{36}/gi,
+        regex: /npm_[A-Za-z0-9]{36}/gi,
         secretType: 'npm_token',
         severity: LeakSeverity.HIGH
       },

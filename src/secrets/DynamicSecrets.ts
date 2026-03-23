@@ -898,7 +898,7 @@ Valid To: ${validTo.toISOString()}
     // Генерация токена service account
     // В реальной реализации здесь был бы вызов Kubernetes API
     const token = `eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.${Buffer.from(JSON.stringify({
-      kubernetes.io: {
+      "kubernetes.io": {
         namespace,
         serviceaccount: {
           name,

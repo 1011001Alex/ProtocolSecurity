@@ -44,22 +44,22 @@ import {
   SIEMRule,
   RuleCondition,
   RuleAction
-} from '../src/types/logging.types';
+} from '../../src/types/logging.types';
 
 // Импорты классов
-import { SecureLogger, LoggerFactory } from '../src/logging/Logger';
-import { LogBuffer, KafkaBatchConsumer } from '../src/logging/LogBuffer';
-import { LogParser } from '../src/logging/LogParser';
-import { LogEnricher } from '../src/logging/LogEnricher';
-import { LogCorrelator } from '../src/logging/LogCorrelator';
-import { SIEMEngine } from '../src/logging/SIEMEngine';
-import { AttackDetector } from '../src/logging/AttackDetection';
-import { AnomalyDetector } from '../src/logging/AnomalyDetection';
-import { AlertingService } from '../src/logging/AlertingService';
-import { LogStorage } from '../src/logging/LogStorage';
-import { IntegrityVerifier } from '../src/logging/IntegrityVerifier';
-import { ElasticsearchClient, QueryBuilder } from '../src/logging/ElasticsearchClient';
-import { ComplianceReporter } from '../src/logging/ComplianceReporter';
+import { SecureLogger, LoggerFactory } from '../../src/logging/Logger';
+import { LogBuffer, KafkaBatchConsumer } from '../../src/logging/LogBuffer';
+import { LogParser } from '../../src/logging/LogParser';
+import { LogEnricher } from '../../src/logging/LogEnricher';
+import { LogCorrelator } from '../../src/logging/LogCorrelator';
+import { SIEMEngine } from '../../src/logging/SIEMEngine';
+import { AttackDetector } from '../../src/logging/AttackDetection';
+import { AnomalyDetector } from '../../src/logging/AnomalyDetection';
+import { AlertingService } from '../../src/logging/AlertingService';
+import { LogStorage } from '../../src/logging/LogStorage';
+import { IntegrityVerifier } from '../../src/logging/IntegrityVerifier';
+import { ElasticsearchClient, QueryBuilder } from '../../src/logging/ElasticsearchClient';
+import { ComplianceReporter } from '../../src/logging/ComplianceReporter';
 
 // ============================================================================
 // HELPER FUNCTIONS

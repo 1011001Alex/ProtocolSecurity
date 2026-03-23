@@ -23,11 +23,11 @@ import {
   DevicePosture,
   AccessPolicyRule,
   PolicyConstraint
-} from '../zerotrust/zerotrust.types';
-import { PolicyDecisionPoint } from '../zerotrust/PolicyDecisionPoint';
-import { PolicyEnforcementPoint } from '../zerotrust/PolicyEnforcementPoint';
-import { DevicePostureChecker } from '../zerotrust/DevicePostureChecker';
-import { TrustVerifier } from '../zerotrust/TrustVerifier';
+} from '../../src/zerotrust/zerotrust.types';
+import { PolicyDecisionPoint } from '../../src/zerotrust/PolicyDecisionPoint';
+import { PolicyEnforcementPoint } from '../../src/zerotrust/PolicyEnforcementPoint';
+import { DevicePostureChecker } from '../../src/zerotrust/DevicePostureChecker';
+import { TrustVerifier } from '../../src/zerotrust/TrustVerifier';
 import { MicroSegmentation } from '../zerotrust/MicroSegmentation';
 import { ZeroTrustController } from '../zerotrust/ZeroTrustController';
 

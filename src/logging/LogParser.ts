@@ -814,7 +814,7 @@ export class LogParser {
         const sdId = sdContent.substring(0, spaceIndex);
         const params = sdContent.substring(spaceIndex + 1);
         
-        const paramPattern /(\w+)="([^"]*)"/g;
+        const paramPattern = /(\w+)="([^"]*)"/g;
         const paramsObj: Record<string, string> = {};
         
         let paramMatch;

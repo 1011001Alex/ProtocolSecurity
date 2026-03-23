@@ -64,7 +64,7 @@ const BUILTIN_RULES: SIEMRule[] = [
       {
         field: 'message',
         operator: RuleOperator.REGEX,
-        pattern: '(union\\s+select|or\\s+1\\s*=\\s*1|\\';\\s*drop\\s+table|sleep\\s*\\(|benchmark\\s*\\()',
+        pattern: "(union\\s+select|or\\s+1\\s*=\\s*1|';\\s*drop\\s+table|sleep\\s*\\(|benchmark\\s*\\()",
         flags: 'i'
       }
     ],

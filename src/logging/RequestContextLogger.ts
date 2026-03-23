@@ -81,7 +81,7 @@ const CONTEXT_HEADERS = {
 const CONTEXT_SYMBOL = Symbol('request-context');
 
 // ============================================================================
-ASYNC LOCAL STORAGE
+// ASYNC LOCAL STORAGE
 // ============================================================================
 
 /**
