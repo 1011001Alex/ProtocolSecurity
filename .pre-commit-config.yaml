@@ -1,23 +1,397 @@
-# Pre-commit hooks for Protocol Security
-# Install: pip install pre-commit && pre-commit install
+# =============================================================================
+# PRE-COMMIT CONFIGURATION FOR PROTOCOL SECURITY
+# =============================================================================
+# Pre-commit hooks для обнаружения секретов перед каждым коммитом
+# Интеграция с GitLeaks и TruffleHog
+# =============================================================================
+#
+# Установка:
+#   pip install pre-commit
+#   pre-commit install
+#   pre-commit install --hook-type pre-push
+#
+# =============================================================================
 
+# Версия конфигурации
 repos:
-  # Security scanning
+  # ===========================================================================
+  # GITLEAKS HOOK
+  # ===========================================================================
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.1
     hooks:
       - id: gitleaks
-        args: ['--config', '.gitleaks.toml']
+        name: GitLeaks Secrets Detection
+        description: Detect hardcoded secrets in source code
+        entry: gitleaks detect --staged --config .gitleaks.toml --report-format json --report-path reports/secrets/gitleaks-precommit.json
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        verbose: true
 
-  # Secret detection
+  # ===========================================================================
+  # TRUFFLEHOG HOOK
+  # ===========================================================================
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.63.0
+    hooks:
+      - id: trufflehog
+        name: TruffleHog Deep Secrets Detection
+        description: Find credentials and secrets deep in git history
+        language: system
+        entry: trufflehog
+        args:
+          - git
+          - file://.
+          - --only-verified
+          - --fail
+        pass_filenames: false
+        always_run: false
+        stages: [pre-push]
+        verbose: true
+
+  # ===========================================================================
+  # DETECT SECRETS (YELP)
+  # ===========================================================================
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.4.0
     hooks:
       - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
-        exclude: package.lock.json
+        name: Detect Secrets (Yelp)
+        description: Detect secrets in source code using Yelp's detect-secrets
+        language: python
+        entry: detect-secrets-hook
+        args:
+          - --baseline
+          - .secrets.baseline
+        exclude: |
+          (?x)^(
+            package-lock\.json|
+            yarn\.lock|
+            package\.json|
+            .*\.min\.js|
+            .*\.bundle\.js|
+            tests/.*|
+            __tests__/.*|
+            .*\.test\.ts|
+            .*\.spec\.ts|
+            mocks/.*|
+            fixtures/.*|
+            examples/.*
+          )$
 
-  # TypeScript linting
+  # ===========================================================================
+  # GIT-HISTORIC (ADDITIONAL HISTORICAL SCAN)
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: gitleaks-full-history
+        name: GitLeaks Full History Check
+        description: Full git history scan before push
+        entry: bash -c '
+          echo "Running full history gitleaks scan..." &&
+          gitleaks detect --source . --config .gitleaks.toml --report-format json --report-path reports/secrets/gitleaks-full-history.json --verbose
+        '
+        language: system
+        pass_filenames: false
+        always_run: false
+        stages: [pre-push]
+        verbose: true
+
+  # ===========================================================================
+  # SECRET SCANNER - ENV FILES
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: secret-scanner-env
+        name: Scan for .env files
+        description: Prevent committing .env files
+        entry: bash -c '
+          if git diff --cached --name-only | grep -E "^\.env|\.env\." ; then
+            echo "ERROR: Attempted to commit .env file!"
+            echo "Please add .env files to .gitignore"
+            exit 1
+          fi
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # SECRET SCANNER - KEY FILES
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: secret-scanner-key-files
+        name: Scan for key files
+        description: Prevent committing private keys and sensitive files
+        entry: bash -c '
+          forbidden_files=(
+            "*.pem"
+            "*.key"
+            "private_key*"
+            "*_rsa"
+            "*_dsa"
+            "*_ecdsa"
+            "*_ed25519"
+            "*.p12"
+            "*.pfx"
+            "*.jks"
+            "*.keystore"
+            "credentials"
+            "*.credentials"
+            "*secret*"
+            "*password*"
+          )
+          
+          for pattern in "${forbidden_files[@]}"; do
+            if git diff --cached --name-only | grep -qi "$pattern"; then
+              echo "ERROR: Attempted to commit sensitive file matching: $pattern"
+              echo "Private keys and credentials should never be committed!"
+              exit 1
+            fi
+          done
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # SECRET SCANNER - PATTERNS IN CODE
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: secret-scanner-patterns
+        name: Scan for secret patterns
+        description: Detect secret patterns in staged code
+        entry: bash -c '
+          patterns=(
+            "AKIA[0-9A-Z]{16}"
+            "AIza[0-9A-Za-z_-]{35}"
+            "ghp_[0-9a-zA-Z]{36}"
+            "xox[baprs]-[0-9-]{10,}"
+            "-----BEGIN.*PRIVATE KEY-----"
+            "password\s*[=:]\s*['\"][^'\"]{8,}"
+            "api_key\s*[=:]\s*['\"][^'\"]{16,}"
+            "secret\s*[=:]\s*['\"][^'\"]{16,}"
+          )
+          
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          
+          for file in $files; do
+            if [ -f "$file" ]; then
+              for pattern in "${patterns[@]}"; do
+                if git show ":$file" | grep -qiE "$pattern"; then
+                  echo "WARNING: Possible secret detected in $file"
+                  echo "Pattern: $pattern"
+                  echo "Please verify this is not a real secret!"
+                fi
+              done
+            fi
+          done
+          
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # AWS SPECIFIC CHECKS
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: aws-credentials-check
+        name: AWS Credentials Check
+        description: Prevent committing AWS credentials
+        entry: bash -c '
+          aws_patterns=(
+            "aws_access_key_id\s*[=:]\s*['\"][A-Z0-9]{20}['\"]"
+            "aws_secret_access_key\s*[=:]\s*['\"][A-Za-z0-9/+=]{40}['\"]"
+            "AWS_ACCESS_KEY_ID\s*[=:]\s*['\"][A-Z0-9]{20}['\"]"
+            "AWS_SECRET_ACCESS_KEY\s*[=:]\s*['\"][A-Za-z0-9/+=]{40}['\"]"
+          )
+          
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          
+          for file in $files; do
+            if [ -f "$file" ]; then
+              for pattern in "${aws_patterns[@]}"; do
+                if git show ":$file" | grep -qiE "$pattern"; then
+                  echo "ERROR: AWS credentials detected in $file"
+                  echo "AWS credentials must never be committed!"
+                  echo "Use environment variables or AWS Secrets Manager"
+                  exit 1
+                fi
+              done
+            fi
+          done
+          
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # GITHUB TOKEN CHECK
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: github-token-check
+        name: GitHub Token Check
+        description: Prevent committing GitHub tokens
+        entry: bash -c '
+          gh_patterns=(
+            "ghp_[0-9a-zA-Z]{36}"
+            "gho_[0-9a-zA-Z]{36}"
+            "ghu_[0-9a-zA-Z]{36}"
+            "ghs_[0-9a-zA-Z]{36}"
+            "ghr_[0-9a-zA-Z]{36}"
+            "github_pat_[0-9a-zA-Z_]{22}_[0-9a-zA-Z_]{59}"
+          )
+          
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          
+          for file in $files; do
+            if [ -f "$file" ]; then
+              for pattern in "${gh_patterns[@]}"; do
+                if git show ":$file" | grep -qE "$pattern"; then
+                  echo "ERROR: GitHub token detected in $file"
+                  echo "GitHub tokens must never be committed!"
+                  echo "Use GitHub Secrets for CI/CD"
+                  exit 1
+                fi
+              done
+            fi
+          done
+          
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # DATABASE CONNECTION STRING CHECK
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: database-connection-check
+        name: Database Connection String Check
+        description: Prevent committing database credentials
+        entry: bash -c '
+          db_patterns=(
+            "mongodb(\+srv)?://[^:]+:[^@]+@"
+            "postgres(ql)?://[^:]+:[^@]+@"
+            "mysql://[^:]+:[^@]+@"
+            "redis://[^:]+:[^@]+@"
+            "amqp://[^:]+:[^@]+@"
+            "Server=[^;]+;Database=[^;]+;User Id=[^;]+;Password=[^;]+"
+          )
+          
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          
+          for file in $files; do
+            if [ -f "$file" ]; then
+              for pattern in "${db_patterns[@]}"; do
+                if git show ":$file" | grep -qiE "$pattern"; then
+                  echo "ERROR: Database connection string with credentials in $file"
+                  echo "Use environment variables for database credentials!"
+                  exit 1
+                fi
+              done
+            fi
+          done
+          
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # SLACK TOKEN CHECK
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: slack-token-check
+        name: Slack Token Check
+        description: Prevent committing Slack tokens
+        entry: bash -c '
+          slack_patterns=(
+            "xoxb-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]+"
+            "xoxa-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]+"
+            "xoxp-[0-9]{10,}-[0-9]{10,}-[a-zA-Z0-9]+"
+            "https://hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[a-zA-Z0-9]+"
+          )
+          
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          
+          for file in $files; do
+            if [ -f "$file" ]; then
+              for pattern in "${slack_patterns[@]}"; do
+                if git show ":$file" | grep -qE "$pattern"; then
+                  echo "ERROR: Slack token/webhook detected in $file"
+                  echo "Slack credentials must never be committed!"
+                  exit 1
+                fi
+              done
+            fi
+          done
+          
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # JWT SECRET CHECK
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: jwt-secret-check
+        name: JWT Secret Check
+        description: Prevent committing JWT secrets
+        entry: bash -c '
+          jwt_patterns=(
+            "jwt[_-]?secret[_-]?key\s*[=:]\s*['\"][^'\"]{16,}"
+            "JWT_SECRET\s*[=:]\s*['\"][^'\"]{16,}"
+            "JWT_PRIVATE\s*[=:]\s*['\"][^'\"]+"
+          )
+          
+          files=$(git diff --cached --name-only --diff-filter=ACM)
+          
+          for file in $files; do
+            if [ -f "$file" ]; then
+              for pattern in "${jwt_patterns[@]}"; do
+                if git show ":$file" | grep -qiE "$pattern"; then
+                  echo "WARNING: Possible JWT secret detected in $file"
+                  echo "JWT secrets should be in environment variables!"
+                fi
+              done
+            fi
+          done
+          
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+
+  # ===========================================================================
+  # TYPESCRIPT LINTING
+  # ===========================================================================
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.55.0
     hooks:
@@ -29,7 +403,9 @@ repos:
           - '@typescript-eslint/parser@6.13.1'
           - '@typescript-eslint/eslint-plugin@6.13.1'
 
-  # TypeScript compilation check
+  # ===========================================================================
+  # TYPESCRIPT COMPILATION CHECK
+  # ===========================================================================
   - repo: local
     hooks:
       - id: tsc
@@ -39,17 +415,23 @@ repos:
         types: [typescript]
         pass_filenames: false
 
-  # Test runner
+  # ===========================================================================
+  # TEST RUNNER
+  # ===========================================================================
   - repo: local
     hooks:
       - id: jest
         name: Jest Tests
         entry: npm test -- --findRelatedTests
         language: system
-        types: [typescript]
         pass_filenames: true
+        stages: [commit]
+        verbose: true
+        require_serial: false
 
-  # Security audit
+  # ===========================================================================
+  # SECURITY AUDIT
+  # ===========================================================================
   - repo: local
     hooks:
       - id: npm-audit
@@ -58,8 +440,11 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-push]
+        verbose: true
 
-  # Dependency check
+  # ===========================================================================
+  # DEPENDENCY CHECK
+  # ===========================================================================
   - repo: local
     hooks:
       - id: npm-outdated
@@ -68,3 +453,40 @@ repos:
         language: system
         pass_filenames: false
         stages: [manual]
+
+# =============================================================================
+# DEFAULT SETTINGS
+# =============================================================================
+default_stages: [commit]
+default_language_version:
+  python: python3
+  node: system
+
+# =============================================================================
+# FAIL FAST
+# =============================================================================
+fail_fast: true
+
+# =============================================================================
+# MINIMUM VERSION
+# =============================================================================
+minimum_pre_commit_version: "3.0.0"
+
+# =============================================================================
+# CI SETTINGS
+# =============================================================================
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+    
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
+
+# =============================================================================
+# END OF CONFIGURATION
+# =============================================================================
