@@ -9,10 +9,11 @@
  * - Finance Security (PCI DSS, Fraud, AML, HSM)
  * - Healthcare Security (HIPAA, PHI, FHIR, Consent)
  * - E-commerce Security (Fraud, Bot, ATO, Checkout)
+ * - Blockchain Security (PQC, ZK, MEV, Smart Contracts, NFT)
  *
  * @package protocol-security
  * @author Theodor Munch
- * @version 2.0.0
+ * @version 3.0.0
  */
 
 import { EventEmitter } from 'events';
@@ -20,6 +21,7 @@ import { logger } from './logging/Logger';
 import { FinanceSecurityModule, FinanceSecurityConfig } from './finance';
 import { HealthcareSecurityModule, HealthcareSecurityConfig } from './healthcare';
 import { EcommerceSecurityModule, EcommerceSecurityConfig } from './ecommerce';
+import { BlockchainSecurityModule, BlockchainSecurityConfig } from './blockchain';
 
 /**
  * Конфигурация Multi-Branch Security System
@@ -33,6 +35,9 @@ export interface MultiBranchSecurityConfig {
 
   /** E-commerce Security конфигурация */
   ecommerce?: EcommerceSecurityConfig;
+
+  /** Blockchain Security конфигурация */
+  blockchain?: BlockchainSecurityConfig;
 
   /** Общие настройки */
   common?: {
@@ -70,6 +75,14 @@ export interface BranchStatus {
     initialized: boolean;
     botProtectionActive: boolean;
     fraudDetectionActive: boolean;
+  };
+
+  /** Blockchain Security статус */
+  blockchain: {
+    initialized: boolean;
+    pqcEnabled: boolean;
+    zkEnabled: boolean;
+    mevProtectionActive: boolean;
   };
 }
 
@@ -120,6 +133,9 @@ export class MultiBranchSecuritySystem extends EventEmitter {
   /** E-commerce Security модуль */
   public readonly ecommerce: EcommerceSecurityModule;
 
+  /** Blockchain Security модуль */
+  public readonly blockchain: BlockchainSecurityModule;
+
   /** Статус инициализации */
   private isInitialized = false;
 
@@ -148,6 +164,7 @@ export class MultiBranchSecuritySystem extends EventEmitter {
     this.finance = new FinanceSecurityModule(config.finance || this.getDefaultFinanceConfig());
     this.healthcare = new HealthcareSecurityModule(config.healthcare || this.getDefaultHealthcareConfig());
     this.ecommerce = new EcommerceSecurityModule(config.ecommerce || this.getDefaultEcommerceConfig());
+    this.blockchain = new BlockchainSecurityModule(config.blockchain || this.getDefaultBlockchainConfig());
 
     // Подписка на события модулей
     this.subscribeToModuleEvents();
@@ -155,7 +172,8 @@ export class MultiBranchSecuritySystem extends EventEmitter {
     logger.info('[MultiBranchSecurity] System created', {
       finance: !!config.finance,
       healthcare: !!config.healthcare,
-      ecommerce: !!config.ecommerce
+      ecommerce: !!config.ecommerce,
+      blockchain: !!config.blockchain
     });
   }
 
@@ -263,6 +281,46 @@ export class MultiBranchSecuritySystem extends EventEmitter {
   }
 
   /**
+   * Конфигурация Blockchain Security по умолчанию
+   */
+  private getDefaultBlockchainConfig(): BlockchainSecurityConfig {
+    return {
+      postQuantum: {
+        enabled: true,
+        algorithm: 'CRYSTALS-Dilithium',
+        hybridMode: true
+      },
+      zeroKnowledge: {
+        enabled: true,
+        provider: 'circom',
+        proofSystem: 'Groth16'
+      },
+      mevProtection: {
+        enabled: true,
+        mode: 'AGGRESSIVE',
+        flashbotsEnabled: true,
+        commitRevealEnabled: true
+      },
+      contractVerification: {
+        enabled: true,
+        prover: 'Z3',
+        autoVerify: true
+      },
+      bridgeSecurity: {
+        enabled: true,
+        zkVerification: true,
+        multiSigThreshold: '5-of-9',
+        insuranceEnabled: true
+      },
+      nftSecurity: {
+        enabled: true,
+        provenanceTracking: true,
+        royaltyEnforcement: 'ON_CHAIN'
+      }
+    };
+  }
+
+  /**
    * Подписка на события модулей
    */
   private subscribeToModuleEvents(): void {
@@ -328,6 +386,34 @@ export class MultiBranchSecuritySystem extends EventEmitter {
         data
       });
     });
+
+    // Blockchain events
+    this.blockchain.on('initialized', () => {
+      logger.info('[MultiBranchSecurity] Blockchain branch initialized');
+      this.emit('branch:initialized', { branch: 'blockchain' });
+    });
+
+    this.blockchain.on('mev_detected', (data) => {
+      this.emit('security:alert', {
+        branch: 'blockchain',
+        type: 'MEV_DETECTED',
+        data
+      });
+    });
+
+    this.blockchain.on('contract_verified', (data) => {
+      this.emit('contract:verified', {
+        branch: 'blockchain',
+        data
+      });
+    });
+
+    this.blockchain.on('bridge_initiated', (data) => {
+      this.emit('bridge:transaction', {
+        branch: 'blockchain',
+        data
+      });
+    });
   }
 
   /**
@@ -357,6 +443,11 @@ export class MultiBranchSecuritySystem extends EventEmitter {
         await this.ecommerce.initialize();
       }
 
+      // Инициализация Blockchain Security
+      if (this.config.blockchain) {
+        await this.blockchain.initialize();
+      }
+
       this.isInitialized = true;
       this.initializedAt = new Date();
 
@@ -369,7 +460,8 @@ export class MultiBranchSecuritySystem extends EventEmitter {
         branches: {
           finance: !!this.config.finance,
           healthcare: !!this.config.healthcare,
-          ecommerce: !!this.config.ecommerce
+          ecommerce: !!this.config.ecommerce,
+          blockchain: !!this.config.blockchain
         }
       });
 
@@ -395,6 +487,12 @@ export class MultiBranchSecuritySystem extends EventEmitter {
         initialized: this.ecommerce.isInitialized(),
         botProtectionActive: this.ecommerce.isBotProtectionActive(),
         fraudDetectionActive: this.ecommerce.isFraudDetectionActive()
+      },
+      blockchain: {
+        initialized: this.blockchain.isReady(),
+        pqcEnabled: this.blockchain.postQuantum ? true : false,
+        zkEnabled: this.blockchain.zkAuth ? true : false,
+        mevProtectionActive: this.blockchain.mevProtection ? true : false
       }
     };
   }
@@ -441,6 +539,7 @@ export class MultiBranchSecuritySystem extends EventEmitter {
     logger.info('[MultiBranchSecurity] Shutting down...');
 
     try {
+      await this.blockchain.destroy();
       await this.ecommerce.destroy();
       await this.healthcare.destroy();
       await this.finance.destroy();

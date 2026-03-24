@@ -1350,7 +1350,7 @@ export class LoggerFactory {
     await Promise.all(closePromises);
     this.instances.clear();
   }
-  
+
   /**
    * Закрытие логгера по имени
    */
@@ -1368,3 +1368,36 @@ export class LoggerFactory {
 // ============================================================================
 
 export default SecureLogger;
+
+// ============================================================================
+// ГЛОБАЛЬНЫЙ ЭКСПОРТ LOGGER ДЛЯ СОВМЕСТИМОСТИ
+// ============================================================================
+
+/**
+ * Глобальный экземпляр logger для использования во всех модулях
+ * 
+ * @example
+ * ```typescript
+ * import { logger } from './logging/Logger';
+ * logger.info('Message', { data: 'value' });
+ * ```
+ */
+export const logger = new SecureLogger({
+  config: {
+    level: LogLevel.DEBUG,
+    format: 'structured',
+    enableColors: true,
+    enableTimestamps: true,
+    enableStackTrace: false,
+    maxLogSize: 1024 * 1024,
+    transports: [{ type: 'console' as const, params: { enableColors: true, format: 'structured' } }]
+  },
+  globalConfig: {
+    serviceName: 'protocol-security',
+    environment: process.env.NODE_ENV || 'development',
+    region: 'local',
+    version: '3.0.0-alpha',
+    rateLimiting: { maxAlerts: 100, suppressionWindow: 60000 },
+    defaultContext: {}
+  }
+});

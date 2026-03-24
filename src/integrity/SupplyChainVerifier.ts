@@ -332,6 +332,7 @@ export class SupplyChainVerifier extends EventEmitter {
    * Проверка доверенного registry
    *
    * БЕЗОПАСНОСТЬ: Используем безопасную проверку URL через URL API
+   * с защитой от SSRF атак
    */
   private async checkRegistry(component: SBOMComponent): Promise<VerificationCheck> {
     try {
@@ -364,6 +365,7 @@ export class SupplyChainVerifier extends EventEmitter {
       let parsedUrl: URL;
       try {
         parsedUrl = new URL(registryUrl);
+
         // Проверяем что используется безопасный протокол
         if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
           return {
@@ -374,6 +376,44 @@ export class SupplyChainVerifier extends EventEmitter {
             errors: [`Протокол ${parsedUrl.protocol} не разрешен`]
           };
         }
+
+        // ИСПРАВЛЕНИЕ: Полная sanitization URL для предотвращения SSRF
+        // Проверяем hostname на внутренние IP и localhost
+        const hostname = parsedUrl.hostname.toLowerCase();
+
+        // Блокируем localhost
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+          return {
+            name: 'Registry Trust Check',
+            description: 'Проверка доверенного registry',
+            passed: false,
+            details: 'localhost hostname заблокирован',
+            errors: ['Использование localhost hostname запрещено']
+          };
+        }
+
+        // Блокируем private IP диапазоны (RFC 1918)
+        if (this.isPrivateIP(hostname)) {
+          return {
+            name: 'Registry Trust Check',
+            description: 'Проверка доверенного registry',
+            passed: false,
+            details: 'Private IP hostname заблокирован',
+            errors: ['Использование private IP hostname запрещено']
+          };
+        }
+
+        // Блокируем link-local адреса
+        if (hostname.startsWith('169.254.') || hostname.startsWith('fe80:')) {
+          return {
+            name: 'Registry Trust Check',
+            description: 'Проверка доверенного registry',
+            passed: false,
+            details: 'Link-local hostname заблокирован',
+            errors: ['Использование link-local hostname запрещено']
+          };
+        }
+
       } catch {
         return {
           name: 'Registry Trust Check',
@@ -405,6 +445,44 @@ export class SupplyChainVerifier extends EventEmitter {
         errors: [errorMessage]
       };
     }
+  }
+
+  /**
+   * Проверка hostname на private IP (RFC 1918)
+   *
+   * @param hostname - hostname для проверки
+   * @returns true если hostname это private IP
+   */
+  private isPrivateIP(hostname: string): boolean {
+    // IPv4 private ranges
+    const ipv4PrivateRanges = [
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,                          // 10.0.0.0/8
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}$/,          // 172.16.0.0/12
+      /^192\.168\.\d{1,3}\.\d{1,3}$/                               // 192.168.0.0/16
+    ];
+
+    // IPv6 private ranges (fc00::/7)
+    const ipv6PrivatePatterns = [
+      /^fc[0-9a-f]{2}:/i,                                         // Unique Local Address
+      /^fd[0-9a-f]{2}:/i,                                         // Unique Local Address
+      /^::1$/                                                     // Loopback
+    ];
+
+    // Проверка IPv4
+    for (const range of ipv4PrivateRanges) {
+      if (range.test(hostname)) {
+        return true;
+      }
+    }
+
+    // Проверка IPv6
+    for (const pattern of ipv6PrivatePatterns) {
+      if (pattern.test(hostname)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

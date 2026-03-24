@@ -3,14 +3,14 @@
  * COMPREHENSIVE CRYPTOGRAPHIC TESTS
  * ============================================================================
  * Полнофункциональные тесты для всех криптографических компонентов
- * 
+ *
  * Запуск: npm test
  * ============================================================================
  */
 
 import * as assert from 'assert';
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import { randomBytes } from 'node:crypto';
+import { describe, it, beforeEach, afterEach } from '@jest/globals';
+import { randomBytes } from 'crypto';
 
 // Импорты тестируемых модулей
 import { SecureRandom } from '../src/crypto/SecureRandom';

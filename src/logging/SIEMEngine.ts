@@ -1290,6 +1290,8 @@ export class SIEMEngine extends EventEmitter {
   
   /**
    * Создание fingerprint для дедупликации
+   *
+   * БЕЗОПАСНОСТЬ: Используем SHA-256 вместо MD5 для криптографической стойкости
    */
   private createAlertFingerprint(result: RuleExecutionResult, log: LogEntry): string {
     const fingerprintData = JSON.stringify({
@@ -1299,8 +1301,9 @@ export class SIEMEngine extends EventEmitter {
       user: log.context.userId,
       hour: log.timestamp.substring(0, 13) // Группировка по часам
     });
-    
-    return crypto.createHash('md5').update(fingerprintData).digest('hex');
+
+    // ИСПОЛЬЗУЕМ SHA-256 вместо уязвимого MD5
+    return crypto.createHash('sha256').update(fingerprintData).digest('hex');
   }
   
   /**

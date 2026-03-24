@@ -283,17 +283,17 @@ describe('EnvironmentValidator', () => {
     });
 
     it('должен пропускать запуск с валидными секретами в production', () => {
-      setTestEnvironment({ 
+      setTestEnvironment({
         NODE_ENV: 'production',
         REDIS_PASSWORD: 'xK9#mP2$vL5@nQ8!wR3&jT6*hY0^cF4%',
         VAULT_TOKEN: 'hvs.aBcDeFgHiJkLmNoPqRsTuVwXyZ123456',
         ELASTICSEARCH_PASSWORD: 'yL0@nP3$qM6#rK9!vS4&kW7^dG2%hT5',
-        SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX',
+        SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx',
         JIRA_API_TOKEN: 'jira_prod_token_12345678901234567890'
       });
-      validator = new EnvironmentValidator({ 
+      validator = new EnvironmentValidator({
         nodeEnv: 'production',
-        logWarnings: false 
+        logWarnings: false
       });
 
       const result = validator.validateEnvironment();
@@ -402,7 +402,7 @@ describe('EnvironmentValidator', () => {
   describe('Value Masking', () => {
     it('должен маскировать длинные значения', () => {
       const masked = validator['maskValue']('my_secret_password_123');
-      expect(masked).toBe('my_s*******************');
+      expect(masked).toBe('my_s******************'); // 4 visible + 18 masked = 22 chars
     });
 
     it('должен маскировать короткие значения', () => {
@@ -618,7 +618,7 @@ describe('EnvironmentValidator Integration', () => {
       REDIS_PASSWORD: 'xK9#mP2$vL5@nQ8!wR3&jT6*hY0^cF4%',
       VAULT_TOKEN: 'hvs.aBcDeFgHiJkLmNoPqRsTuVwXyZ123456',
       ELASTICSEARCH_PASSWORD: 'yL0@nP3$qM6#rK9!vS4&kW7^dG2%hT5',
-      SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX',
+      SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx',
       JIRA_API_TOKEN: 'jira_prod_token_12345678901234567890',
       REDIS_TLS_ENABLED: 'true',
       MTLS_ENABLED: 'true',
@@ -626,14 +626,39 @@ describe('EnvironmentValidator Integration', () => {
       VAULT_URL: 'https://vault.production.local:8200'
     });
 
-    const validator = new EnvironmentValidator({ 
+    const validator = new EnvironmentValidator({
       nodeEnv: 'production',
-      logWarnings: false 
+      logWarnings: false
     });
 
     const result = validator.validateEnvironment();
 
     expect(result.isProductionReady).toBe(true);
     expect(result.errors.length).toBe(0);
+  });
+
+  it('должен обнаруживать REDACTED Slack webhook URL', () => {
+    setTestEnvironment({
+      NODE_ENV: 'production',
+      REDIS_PASSWORD: 'xK9#mP2$vL5@nQ8!wR3&jT6*hY0^cF4%',
+      VAULT_TOKEN: 'hvs.aBcDeFgHiJkLmNoPqRsTuVwXyZ123456',
+      ELASTICSEARCH_PASSWORD: 'yL0@nP3$qM6#rK9!vS4&kW7^dG2%hT5',
+      SLACK_WEBHOOK_URL: 'https://hooks.slack.com/services/REDACTED/REDACTED/REDACTED',
+      JIRA_API_TOKEN: 'jira_prod_token_12345678901234567890'
+    });
+
+    const validator = new EnvironmentValidator({
+      nodeEnv: 'production',
+      logWarnings: false
+    });
+
+    const result = validator.validateEnvironment();
+
+    expect(result.isProductionReady).toBe(false);
+    
+    const placeholderIssue = result.issues.find(
+      i => i.variable === 'SLACK_WEBHOOK_URL' && i.type === 'PLACEHOLDER_URL'
+    );
+    expect(placeholderIssue).toBeDefined();
   });
 });

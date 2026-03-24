@@ -463,14 +463,26 @@ export class EnvironmentValidator {
 
     // Валидация SLACK_WEBHOOK_URL
     const slackWebhook = process.env.SLACK_WEBHOOK_URL;
-    if (slackWebhook && slackWebhook.includes('YOUR/WEBHOOK/URL')) {
+    
+    // Проверка на плейсхолдеры и тестовые URL
+    const placeholderPatterns = [
+      'YOUR/WEBHOOK/URL',
+      'REDACTED',
+      'T00000000',
+      'B00000000',
+      'XXXXXXXXXXXXXXXXXXXXXXXX'
+    ];
+    
+    const isPlaceholder = placeholderPatterns.some(pattern => slackWebhook?.includes(pattern));
+    
+    if (isPlaceholder) {
       issues.push({
         severity: 'high',
         variable: 'SLACK_WEBHOOK_URL',
         type: 'PLACEHOLDER_URL',
-        message: `Webhook URL содержит плейсхолдер`,
+        message: `Webhook URL содержит плейсхолдер или тестовое значение`,
         recommendation: `Создайте webhook в Slack и замените URL`,
-        currentValue: this.maskValue(slackWebhook)
+        currentValue: this.maskValue(slackWebhook || '')
       });
     } else if (slackWebhook && !WEBHOOK_URL_PATTERN.test(slackWebhook)) {
       issues.push({

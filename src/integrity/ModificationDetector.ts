@@ -643,17 +643,35 @@ export class ModificationDetector extends EventEmitter {
 
   /**
    * Проверяет является ли файл критичным
+   *
+   * БЕЗОПАСНОСТЬ: Корректная обработка glob patterns для предотвращения
+   * уязвимостей regex injection и incomplete regex validation
    */
   private isCriticalFile(filePath: string): boolean {
     return this.config.criticalFilePatterns.some(pattern => {
-      // ИСПОЛЬЗУЕМ ПОЛНОЕ ЭКРАНИРОВАНИЕ для безопасности
-      // Экранируем все специальные regex символы перед заменой wildcard
-      const escapedPattern = pattern
-        .replace(/[.+?^${}()|[\]\\]/g, '\\$&')  // Экранируем специальные regex символы
-        .replace(/\*\*/g, '.*')                 // Заменяем ** на .*
-        .replace(/\*/g, '[^/]*');               // Заменяем * на [^/]*
-      
-      const regex = new RegExp(`^${escapedPattern}$`, 'i');
+      // ИСПРАВЛЕНИЕ: Правильный порядок обработки glob patterns
+      // 1. Сначала обрабатываем ** (рекурсивный wildcard)
+      // 2. Затем обрабатываем * (single level wildcard)
+      // 3. Экранируем все остальные специальные regex символы
+
+      let regexPattern = pattern;
+
+      // Временная замена ** на уникальный плейсхолдер
+      regexPattern = regexPattern.replace(/\*\*/g, '\x00RECURSIVE_WILDCARD\x00');
+
+      // Временная замена * на уникальный плейсхолдер
+      regexPattern = regexPattern.replace(/\*/g, '\x00SINGLE_WILDCARD\x00');
+
+      // Экранируем все специальные regex символы
+      regexPattern = regexPattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+
+      // Восстанавливаем wildcard паттерны
+      // ** соответствует любому пути включая /
+      regexPattern = regexPattern.replace(/\x00RECURSIVE_WILDCARD\x00/g, '.*');
+      // * соответствует любым символам кроме /
+      regexPattern = regexPattern.replace(/\x00SINGLE_WILDCARD\x00/g, '[^/]*');
+
+      const regex = new RegExp(`^${regexPattern}$`, 'i');
       return regex.test(filePath);
     });
   }

@@ -817,10 +817,11 @@ export function createInputValidationMiddleware(config: InputValidationConfig = 
         );
       }
 
+      // Вычисляем duration
+      const duration = Date.now() - startTime;
+
       // Обработка ошибок
       if (!result.valid) {
-        const duration = Date.now() - startTime;
-
         logger?.warning(
           `[InputValidation] Валидация не пройдена (${duration}ms): ${req.method} ${req.path}, ошибок: ${result.errors.length}`,
           LogSource.SECURITY,
