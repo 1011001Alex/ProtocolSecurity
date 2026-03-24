@@ -91,7 +91,19 @@ const PATTERNS = {
   PATH_TRAVERSAL: /(\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e\/|\.\.%2f|%2e%2e%5c)/i,
   
   // Command injection
-  COMMAND_INJECTION: /[;&|`$(){}[\]<>&]/
+  COMMAND_INJECTION: /[;&|`$(){}[\]<>&]/,
+
+  // Email
+  EMAIL: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+
+  // Credit card numbers (13-19 digits)
+  CREDIT_CARD: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{1,7}\b/g,
+
+  // SSN
+  SSN: /\b\d{3}-\d{2}-\d{4}\b/g,
+
+  // Phone numbers
+  PHONE: /\+?[\d\s-()]{10,}/g
 };
 
 /**
@@ -643,10 +655,15 @@ export class LogParser {
         const parseTime = Date.now() - startTime;
         this.updateParseTimeStats(parseTime);
         
-        // Извлечение полей безопасности
+        // Извлечение полей безопасности и маскировка
         if (result.log) {
           this.extractSecurityFields(result.log);
           this.statistics.fieldsExtracted += Object.keys(result.extractedFields || {}).length;
+          
+          // Маскировка чувствительных данных в сообщении
+          if (result.log.message) {
+            result.log.message = this.maskSensitiveData(result.log.message);
+          }
         }
       } else {
         this.statistics.errorCount++;
@@ -1406,7 +1423,7 @@ export class LogParser {
       message: this.masker.mask(line),
       context: {
         clientIp: extractedFields.clientIp as string,
-        metadata: extractedFields
+        metadata: { ...extractedFields } // Копируем extractedFields в metadata
       },
       fields: extractedFields,
       schemaVersion: '1.0.0'
@@ -1633,12 +1650,45 @@ export class LogParser {
   }
   
   /**
+   * Маскировка чувствительных данных
+   */
+  private maskSensitiveData(message: string): string {
+    let masked = message;
+
+    // Маскировка email
+    masked = masked.replace(PATTERNS.EMAIL, (match) => {
+      const parts = match.split('@');
+      if (parts.length === 2) {
+        const user = parts[0];
+        const domain = parts[1];
+        const maskedUser = user.charAt(0) + '***' + user.charAt(user.length - 1);
+        return maskedUser + '@' + domain;
+      }
+      return '***@***.***';
+    });
+
+    // Маскировка credit cards
+    masked = masked.replace(PATTERNS.CREDIT_CARD, (match) => {
+      const digits = match.replace(/\D/g, '');
+      if (digits.length >= 13) {
+        return '****-****-****-' + digits.slice(-4);
+      }
+      return '****';
+    });
+
+    // Маскировка SSN
+    masked = masked.replace(PATTERNS.SSN, '***-**-****');
+
+    return masked;
+  }
+
+  /**
    * Извлечение полей безопасности
    */
   private extractSecurityFields(log: LogEntry): void {
     const fields = log.fields || {};
-    
-    // Проверка на SQL injection
+
+    // Проверка на SQL injection (приоритет 1)
     if (typeof log.message === 'string' && PATTERNS.SQL_INJECTION.test(log.message)) {
       log.context.metadata = {
         ...log.context.metadata,
@@ -1646,27 +1696,24 @@ export class LogParser {
         threatLevel: 'high'
       };
     }
-    
-    // Проверка на XSS
-    if (typeof log.message === 'string' && PATTERNS.XSS.test(log.message)) {
+    // Проверка на XSS (приоритет 2)
+    else if (typeof log.message === 'string' && PATTERNS.XSS.test(log.message)) {
       log.context.metadata = {
         ...log.context.metadata,
         securityThreat: 'xss',
         threatLevel: 'high'
       };
     }
-    
-    // Проверка на path traversal
-    if (typeof log.message === 'string' && PATTERNS.PATH_TRAVERSAL.test(log.message)) {
+    // Проверка на path traversal (приоритет 3)
+    else if (typeof log.message === 'string' && PATTERNS.PATH_TRAVERSAL.test(log.message)) {
       log.context.metadata = {
         ...log.context.metadata,
         securityThreat: 'path_traversal',
         threatLevel: 'medium'
       };
     }
-    
-    // Проверка на command injection
-    if (typeof log.message === 'string' && PATTERNS.COMMAND_INJECTION.test(log.message)) {
+    // Проверка на command injection (приоритет 4 - самый общий паттерн)
+    else if (typeof log.message === 'string' && PATTERNS.COMMAND_INJECTION.test(log.message)) {
       log.context.metadata = {
         ...log.context.metadata,
         securityThreat: 'command_injection',

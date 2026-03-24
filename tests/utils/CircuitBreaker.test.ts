@@ -1405,10 +1405,13 @@ describe('Integration with Retry Logic', () => {
 
     // Retry loop с circuit breaker
     let lastError: Error | null = null;
+    let success = false;
     for (let i = 0; i < 5; i++) {
       try {
         const result = await cb.execute(flakyFunction);
         expect(result).toBe('Success on attempt 3');
+        lastError = null; // Сбрасываем ошибку при успехе
+        success = true;
         break;
       } catch (error) {
         lastError = error as Error;
@@ -1416,6 +1419,7 @@ describe('Integration with Retry Logic', () => {
       }
     }
 
+    expect(success).toBe(true);
     expect(lastError).toBeNull();
     expect(attemptCount).toBe(3);
 

@@ -7,14 +7,14 @@
  * =============================================================================
  */
 
-import { PasswordService, createPasswordService } from './src/auth/PasswordService';
-import { MFService, createMFService } from './src/auth/MFService';
-import { DeviceFingerprintService, createDeviceFingerprintService } from './src/auth/DeviceFingerprint';
-import { RBACService, createRBACService } from './src/auth/RBACService';
-import { ABACService, createABACService } from './src/auth/ABACService';
-import { RateLimiterService, createRateLimiterService } from './src/auth/RateLimiter';
-import { OAuthService, createOAuthService } from './src/auth/OAuthService';
-import { AuthService, createAuthService } from './src/auth/AuthService';
+import { PasswordService, createPasswordService } from '../src/auth/PasswordService';
+import { MFService, createMFService } from '../src/auth/MFService';
+import { DeviceFingerprintService, createDeviceFingerprintService } from '../src/auth/DeviceFingerprint';
+import { RBACService, createRBACService } from '../src/auth/RBACService';
+import { ABACService, createABACService } from '../src/auth/ABACService';
+import { RateLimiterService, createRateLimiterService } from '../src/auth/RateLimiter';
+import { OAuthService, createOAuthService } from '../src/auth/OAuthService';
+import { AuthService, createAuthService } from '../src/auth/AuthService';
 
 // =============================================================================
 // PASSWORD SERVICE TESTS

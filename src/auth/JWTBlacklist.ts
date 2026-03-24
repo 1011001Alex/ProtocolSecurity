@@ -296,7 +296,7 @@ export class JWTBlacklist {
     if (!this.config.enabled) {
       throw new AuthError(
         'JWT Blacklist отключен',
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         503
       );
     }
@@ -304,7 +304,7 @@ export class JWTBlacklist {
     if (!tokenId || tokenId.trim() === '') {
       throw new AuthError(
         'Неверный идентификатор токена',
-        AuthErrorCode.TOKEN_INVALID,
+        'TOKEN_INVALID',
         400
       );
     }
@@ -312,7 +312,7 @@ export class JWTBlacklist {
     if (ttl <= 0) {
       throw new AuthError(
         'TTL должен быть положительным числом',
-        AuthErrorCode.INVALID_ARGUMENT,
+        'INVALID_ARGUMENT',
         400
       );
     }
@@ -362,7 +362,7 @@ export class JWTBlacklist {
       logger.error('[JWTBlacklist] Ошибка отзыва токена', { error });
       throw new AuthError(
         `Ошибка отзыва токена: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         500
       );
     }
@@ -442,10 +442,10 @@ export class JWTBlacklist {
     reason?: string,
     sessionId?: string
   ): Promise<number> {
-    if (!this.redis) {
+    if (!this.redis || !this.isInitialized || !this.metrics.redisConnected) {
       throw new AuthError(
         'Redis недоступен',
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         503
       );
     }
@@ -495,7 +495,7 @@ export class JWTBlacklist {
       logger.error('[JWTBlacklist] Ошибка массовой revocation пользователя', { error });
       throw new AuthError(
         `Ошибка массовой revocation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         500
       );
     }
@@ -516,7 +516,7 @@ export class JWTBlacklist {
     if (!this.redis) {
       throw new AuthError(
         'Redis недоступен',
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         503
       );
     }
@@ -553,7 +553,7 @@ export class JWTBlacklist {
       logger.error('[JWTBlacklist] Ошибка массовой revocation устройства', { error });
       throw new AuthError(
         `Ошибка массовой revocation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         500
       );
     }
@@ -574,7 +574,7 @@ export class JWTBlacklist {
     if (!this.redis) {
       throw new AuthError(
         'Redis недоступен',
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         503
       );
     }
@@ -621,7 +621,7 @@ export class JWTBlacklist {
       logger.error('[JWTBlacklist] Ошибка массовой revocation сессии', { error });
       throw new AuthError(
         `Ошибка массовой revocation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        AuthErrorCode.INTERNAL_ERROR,
+        'INTERNAL_ERROR',
         500
       );
     }
@@ -642,7 +642,7 @@ export class JWTBlacklist {
     cleanedUserIndexes: number;
     cleanedDeviceIndexes: number;
   }> {
-    if (!this.redis) {
+    if (!this.redis || !this.isInitialized || !this.metrics.redisConnected) {
       return {
         cleanedKeys: 0,
         cleanedUserIndexes: 0,
@@ -721,7 +721,7 @@ export class JWTBlacklist {
    * @returns Метрики blacklist
    */
   public async getMetrics(): Promise<BlacklistMetrics> {
-    if (!this.redis) {
+    if (!this.redis || !this.isInitialized || !this.metrics.redisConnected) {
       return {
         ...this.metrics,
         redisConnected: false,

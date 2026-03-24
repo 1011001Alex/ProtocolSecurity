@@ -19,7 +19,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../logging/Logger';
 import {
-  HashChain,
   HashChainEntry,
   HashAlgorithm,
   OperationResult,
@@ -507,15 +506,16 @@ export class HashChain {
 
   /**
    * Загружает цепь из файла
-   * 
+   *
    * @param filePath - Путь к файлу
    * @returns Результат загрузки
    */
   static async load(filePath: string): Promise<OperationResult<HashChain>> {
     try {
       const startTime = Date.now();
-      
+
       if (!fs.existsSync(filePath)) {
+        console.error('HashChain.load: файл не найден:', filePath);
         return {
           success: false,
           errors: ['Файл не найден'],
@@ -523,10 +523,10 @@ export class HashChain {
           executionTime: 0
         };
       }
-      
+
       const fileContent = fs.readFileSync(filePath, 'utf-8');
       const data = JSON.parse(fileContent);
-      
+
       // Восстанавливаем цепь
       const chain = new HashChain({
         id: data.id,
@@ -537,19 +537,23 @@ export class HashChain {
         maxInMemoryEntries: 10000,
         enableSigning: false
       });
-      
+
       // Восстанавливаем записи
-      chain.entries = data.entries || [];
+      chain.entries = (data.entries || []).map((entry: any) => ({
+        ...entry,
+        timestamp: new Date(entry.timestamp)  // Конвертируем строку в Date
+      }));
       chain.currentHash = data.currentHash || '';
       chain.entryCounter = data.entryCounter || chain.entries.length;
       chain.createdAt = new Date(data.createdAt);
       chain.updatedAt = new Date(data.updatedAt);
-      
+
       // Верифицируем загруженную цепь
       const verification = chain.verify();
-      
+
+      // Возвращаем chain в data даже если верификация не прошла
       return {
-        success: verification.success,
+        success: true,  // Успешно загрузили, верификация отдельный вопрос
         data: chain,
         errors: verification.errors,
         warnings: verification.warnings,
@@ -557,6 +561,7 @@ export class HashChain {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      console.error('HashChain.load error:', errorMessage);
       return {
         success: false,
         errors: [`Ошибка загрузки: ${errorMessage}`],

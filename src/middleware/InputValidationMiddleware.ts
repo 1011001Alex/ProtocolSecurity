@@ -669,23 +669,44 @@ export function createInputValidationMiddleware(config: InputValidationConfig = 
     const startTime = Date.now();
 
     try {
-      // Проверка skip условий
-      if (mergedConfig.skipPaths?.some(pattern => pattern.test(req.path))) {
+      // Проверка skip путей (в strictMode не пропускаем)
+      if (!mergedConfig.strictMode && mergedConfig.skipPaths?.some(pattern => pattern.test(req.path))) {
         logger?.debug(
           `[InputValidation] Пропуск пути: ${req.path}`,
           LogSource.APPLICATION,
           'InputValidationMiddleware'
         );
+        // Устанавливаем результат валидации для пропущенных путей
+        const skipResult: RequestValidationResult = {
+          valid: true,
+          data: {},
+          errors: [],
+          warnings: [],
+          sanitized: {}
+        };
+        (req as any).validationResult = skipResult;
+        (req as any).sanitizedData = {};
         next();
         return;
       }
 
-      if (mergedConfig.skipMethods?.includes(req.method)) {
+      // Проверка skip методов (в strictMode не пропускаем если есть schema)
+      if (!mergedConfig.strictMode && mergedConfig.skipMethods?.includes(req.method)) {
         logger?.debug(
           `[InputValidation] Пропуск метода: ${req.method}`,
           LogSource.APPLICATION,
           'InputValidationMiddleware'
         );
+        // Устанавливаем результат валидации для пропущенных методов
+        const skipResult: RequestValidationResult = {
+          valid: true,
+          data: {},
+          errors: [],
+          warnings: [],
+          sanitized: {}
+        };
+        (req as any).validationResult = skipResult;
+        (req as any).sanitizedData = {};
         next();
         return;
       }
@@ -747,6 +768,16 @@ export function createInputValidationMiddleware(config: InputValidationConfig = 
           LogSource.APPLICATION,
           'InputValidationMiddleware'
         );
+        // Устанавливаем пустой результат валидации
+        const emptyResult: RequestValidationResult = {
+          valid: true,
+          data: {},
+          errors: [],
+          warnings: [],
+          sanitized: {}
+        };
+        (req as any).validationResult = emptyResult;
+        (req as any).sanitizedData = {};
         next();
         return;
       }
@@ -834,6 +865,10 @@ export function createInputValidationMiddleware(config: InputValidationConfig = 
             errors: result.errors.map(e => ({ field: e.field, code: e.code }))
           }
         );
+
+        // Добавление результатов валидации в request ПЕРЕД обработкой ошибок
+        (req as any).validationResult = result;
+        (req as any).sanitizedData = result.sanitized;
 
         if (mergedConfig.strictMode) {
           const errorResponse = mergedConfig.errorHandler(result.errors, req);

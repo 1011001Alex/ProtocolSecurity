@@ -250,7 +250,7 @@ export class IntegrityService extends EventEmitter {
         executionTime: 0
       };
     }
-    
+
     try {
       // Создаем hash chain для audit логов
       this.hashChain = this.hashChainManager!.createChain(
@@ -258,45 +258,55 @@ export class IntegrityService extends EventEmitter {
         'Audit Log Chain',
         { algorithm: this.config.defaultHashAlgorithm }
       );
-      
+
       // Запускаем FIM если есть конфигурация
       if (this.config.fim && this.config.fim.length > 0) {
-        this.fim = FIMFactory.createWithConfig(this.config.fim, {
-          hashAlgorithm: this.config.defaultHashAlgorithm,
-          enableAuditLog: this.config.enableAuditLog,
-          auditLogPath: this.config.auditLogPath
-        });
-        
-        await this.fim.start();
-        this.status.components.fim = true;
-        
-        // Подключаемся к событиям FIM
-        this.fim.on('file-event', (event) => {
-          this.logAuditEvent('file-event', event);
-          this.emit('file:modified', event);
-        });
-        
-        this.fim.on('violation', (violation) => {
-          this.logAuditEvent('violation', violation);
-          this.emit('violation:detected', violation);
-        });
+        try {
+          this.fim = FIMFactory.createWithConfig(this.config.fim, {
+            hashAlgorithm: this.config.defaultHashAlgorithm,
+            enableAuditLog: this.config.enableAuditLog,
+            auditLogPath: this.config.auditLogPath
+          });
+
+          await this.fim.start();
+          this.status.components.fim = true;
+
+          // Подключаемся к событиям FIM
+          this.fim.on('file-event', (event) => {
+            this.logAuditEvent('file-event', event);
+            this.emit('file:modified', event);
+          });
+
+          this.fim.on('violation', (violation) => {
+            this.logAuditEvent('violation', violation);
+            this.emit('violation:detected', violation);
+          });
+        } catch (fimError) {
+          // FIM ошибка не критична - продолжаем без него
+          console.warn('FIM не запустился:', fimError);
+        }
       }
-      
+
       // Запускаем Runtime Verifier
-      this.runtimeVerifier = RuntimeVerifierFactory.createForProduction([]);
-      await this.runtimeVerifier.start();
-      this.status.components.runtime = true;
-      
+      try {
+        this.runtimeVerifier = RuntimeVerifierFactory.createForProduction([]);
+        await this.runtimeVerifier.start();
+        this.status.components.runtime = true;
+      } catch (rvError) {
+        // Runtime Verifier ошибка не критична
+        console.warn('Runtime Verifier не запустился:', rvError);
+      }
+
       // Запускаем Modification Detector
       this.status.components.detector = true;
-      
+
       this.status.isActive = true;
       this.status.startedAt = new Date();
-      
+
       this.logAuditEvent('service-started', { version: this.status.version });
-      
+
       this.emit('started', this.status);
-      
+
       return {
         success: true,
         errors: [],
@@ -306,7 +316,7 @@ export class IntegrityService extends EventEmitter {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
       this.logAuditEvent('service-start-error', { error: errorMessage });
-      
+
       return {
         success: false,
         errors: [errorMessage],

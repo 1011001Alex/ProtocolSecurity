@@ -608,11 +608,12 @@ export class DigitalSignatureService {
     privateKey: crypto.KeyObject,
     algorithm: SignatureAlgorithm
   ): Promise<Buffer> {
-    const sign = crypto.createSign(algorithm === 'Ed448' ? 'ED448' : 'ED25519');
-    sign.update(data);
-    sign.end();
-    
-    return sign.sign(privateKey);
+    // Для EdDSA используем crypto.sign напрямую
+    return crypto.sign(
+      algorithm === 'Ed448' ? 'ED448' : 'ED25519',
+      data,
+      privateKey
+    );
   }
 
   /**
@@ -626,7 +627,7 @@ export class DigitalSignatureService {
     const sign = crypto.createSign(this.getECDSASignatureAlgorithm(algorithm));
     sign.update(hash);
     sign.end();
-    
+
     return sign.sign(privateKey);
   }
 
@@ -642,7 +643,7 @@ export class DigitalSignatureService {
     const sign = crypto.createSign(params.hashAlgorithm);
     sign.update(hash);
     sign.end();
-    
+
     if (params.type === 'RSA-PSS') {
       return sign.sign({
         key: privateKey,
@@ -670,11 +671,13 @@ export class DigitalSignatureService {
     publicKey: crypto.KeyObject,
     algorithm: SignatureAlgorithm
   ): Promise<boolean> {
-    const verify = crypto.createVerify(algorithm === 'Ed448' ? 'ED448' : 'ED25519');
-    verify.update(data);
-    verify.end();
-    
-    return verify.verify(publicKey, signature);
+    // Для EdDSA используем crypto.verify напрямую
+    return crypto.verify(
+      algorithm === 'Ed448' ? 'ED448' : 'ED25519',
+      data,
+      publicKey,
+      signature
+    );
   }
 
   /**
@@ -689,7 +692,7 @@ export class DigitalSignatureService {
     const verify = crypto.createVerify(this.getECDSASignatureAlgorithm(algorithm));
     verify.update(hash);
     verify.end();
-    
+
     return verify.verify(publicKey, signature);
   }
 
@@ -858,14 +861,34 @@ export class DigitalSignatureService {
   /**
    * Конвертация Web Crypto Key в Node.js KeyObject
    */
-  private webCryptoToNodeCrypto(key: CryptoKey | crypto.KeyObject): crypto.KeyObject {
+  private webCryptoToNodeCrypto(key: CryptoKey | crypto.KeyObject | Buffer | Uint8Array | string): crypto.KeyObject {
     if (key instanceof crypto.KeyObject) {
       return key;
     }
-    
+
+    // Если это Buffer или Uint8Array, пробуем импортировать как ключ
+    if (Buffer.isBuffer(key) || key instanceof Uint8Array) {
+      // Для Ed25519 ключей - создаем KeyObject из raw bytes
+      try {
+        // Пытаемся создать ключ из raw bytes
+        return crypto.createSecretKey(Buffer.from(key));
+      } catch {
+        throw this.createError('INVALID_ARGUMENT', 'Не удалось импортировать ключ из Buffer');
+      }
+    }
+
+    // Если это строка (PEM формат)
+    if (typeof key === 'string') {
+      return crypto.createPrivateKey(key);
+    }
+
     // Для Web Crypto Key нужно экспортировать и импортировать
     // В Node.js 15+ это делается через keyObject
-    return crypto.KeyObject.from(key);
+    try {
+      return crypto.KeyObject.from(key as CryptoKey);
+    } catch {
+      throw this.createError('INVALID_ARGUMENT', 'Не удалось конвертировать CryptoKey в KeyObject');
+    }
   }
 
   /**

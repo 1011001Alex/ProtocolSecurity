@@ -703,28 +703,30 @@ class ConfidenceScorer {
   ): number {
     // Базовый вес категории
     let score = this.baseWeights[attackType] || 0.5;
-    
-    // Фактор количества совпадений
-    const patternRatio = matchedPatterns / Math.max(totalPatterns, 1);
-    score *= (0.5 + 0.5 * patternRatio);
-    
+
+    // Фактор количества совпадений - логарифмическая шкала
+    // Даже 1 матч дает высокий confidence
+    const patternRatio = Math.min(1.0, matchedPatterns / Math.max(totalPatterns, 1));
+    const matchFactor = 0.7 + (0.3 * patternRatio); // 0.7-1.0 диапазон
+    score *= matchFactor;
+
     // Контекстные факторы
     if (contextFactors.isFromSecuritySource) {
       score *= 1.1;
     }
-    
+
     if (contextFactors.hasMaliciousIP) {
       score *= 1.2;
     }
-    
+
     if (contextFactors.hasSuspiciousUserAgent) {
       score *= 1.1;
     }
-    
+
     if (contextFactors.isAfterHours) {
       score *= 1.05;
     }
-    
+
     // Нормализация
     return Math.min(1.0, Math.max(0.0, score));
   }

@@ -73,40 +73,49 @@ const DEFAULT_CONFIG: CircuitBreakerConfig = {
 export interface CircuitBreakerStats {
   /** Текущее состояние */
   state: CircuitState;
-  
+
   /** Количество failures */
   failures: number;
-  
+
   /** Количество successes */
   successes: number;
-  
+
   /** Всего запросов */
   totalRequests: number;
-  
+
   /** Всего failures */
   totalFailures: number;
-  
+
   /** Всего successes */
   totalSuccesses: number;
-  
+
   /** Всего rejections (отклонено из-за OPEN) */
   totalRejections: number;
-  
+
   /** Среднее время выполнения (ms) */
   averageLatency: number;
-  
+
+  /** Порог failures для разрыва цепи */
+  failureThreshold: number;
+
+  /** Таймаут reset (ms) */
+  resetTimeout: number;
+
+  /** Имя circuit breaker */
+  name: string;
+
   /** Последняя ошибка */
   lastError?: string;
-  
+
   /** Время последнего failure */
   lastFailureAt?: Date;
-  
+
   /** время последнего success */
   lastSuccessAt?: Date;
-  
+
   /** Время перехода в OPEN */
   openedAt?: Date;
-  
+
   /** Время следующего attempted reset */
   nextResetAt?: Date;
 }
@@ -184,6 +193,8 @@ export class CircuitBreaker extends EventEmitter {
       totalSuccesses: 0,
       totalRejections: 0,
       averageLatency: 0,
+      failureThreshold: this.config.failureThreshold,
+      resetTimeout: this.config.resetTimeout,
       name: this.config.name
     };
     
@@ -284,36 +295,43 @@ export class CircuitBreaker extends EventEmitter {
   private async onSuccess(startTime: number): Promise<void> {
     const latency = Date.now() - startTime;
     this.updateLatency(latency);
-    
-    this.stats.successes++;
+
+    // В HALF_OPEN state увеличиваем только totalSuccesses, не successes
+    // successes используется для подсчета в текущем состоянии
+    if (this.state !== CircuitState.HALF_OPEN) {
+      this.stats.successes++;
+    }
     this.stats.totalSuccesses++;
     this.stats.lastSuccessAt = new Date();
-    
+
     if (this.state === CircuitState.HALF_OPEN) {
       this.successCount++;
-      
+
       if (this.successCount >= this.config.successThreshold) {
         this.transitionTo(CircuitState.CLOSED);
         this.emit('close', { stats: this.getStats() });
         this.log('CLOSE', `Circuit замкнут после ${this.successCount} успехов`);
       }
     }
-    
+
     this.emit('success', { latency, stats: this.getStats() });
   }
-  
+
   /**
    * Обработка failure
    */
   private async onFailure(error: Error, startTime: number): Promise<void> {
     const latency = Date.now() - startTime;
     this.updateLatency(latency);
-    
-    this.stats.failures++;
+
+    // В HALF_OPEN state увеличиваем только totalFailures, не failures
+    if (this.state !== CircuitState.HALF_OPEN) {
+      this.stats.failures++;
+    }
     this.stats.totalFailures++;
     this.stats.lastError = error.message;
     this.stats.lastFailureAt = new Date();
-    
+
     if (this.state === CircuitState.HALF_OPEN) {
       // Немедленно разрываем цепь
       this.transitionTo(CircuitState.OPEN);
@@ -321,14 +339,14 @@ export class CircuitBreaker extends EventEmitter {
       this.log('OPEN', `Circuit разорван в HALF_OPEN: ${error.message}`);
     } else if (this.state === CircuitState.CLOSED) {
       this.failureCount++;
-      
+
       if (this.failureCount >= this.config.failureThreshold) {
         this.transitionTo(CircuitState.OPEN);
         this.emit('open', { error: error.message, stats: this.getStats() });
         this.log('OPEN', `Circuit разорван после ${this.failureCount} failures`);
       }
     }
-    
+
     this.emit('failure', { error: error.message, stats: this.getStats() });
   }
   
@@ -339,19 +357,19 @@ export class CircuitBreaker extends EventEmitter {
     const oldState = this.state;
     this.state = newState;
     this.stats.state = newState;
-    
+
     // Очистка таймеров
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
       this.resetTimer = null;
     }
-    
+
     // Логика перехода
     switch (newState) {
       case CircuitState.OPEN:
         this.stats.openedAt = new Date();
         this.stats.nextResetAt = new Date(Date.now() + this.config.resetTimeout);
-        
+
         // Установка таймера для попытки восстановления
         this.resetTimer = setTimeout(() => {
           this.transitionTo(CircuitState.HALF_OPEN);
@@ -359,20 +377,26 @@ export class CircuitBreaker extends EventEmitter {
           this.log('HALF_OPEN', 'Попытка восстановления');
         }, this.config.resetTimeout);
         break;
-        
+
       case CircuitState.HALF_OPEN:
+        // Сбрасываем счетчики при переходе в HALF_OPEN
         this.failureCount = 0;
         this.successCount = 0;
+        // Сбрасываем текущие счетчики для метрик
+        this.stats.failures = 0;
+        this.stats.successes = 0;
         break;
-        
+
       case CircuitState.CLOSED:
         this.failureCount = 0;
         this.successCount = 0;
+        this.stats.failures = 0;
+        this.stats.successes = 0;
         this.stats.openedAt = undefined;
         this.stats.nextResetAt = undefined;
         break;
     }
-    
+
     this.log('STATE_CHANGE', `${oldState} -> ${newState}`);
   }
   
@@ -381,8 +405,12 @@ export class CircuitBreaker extends EventEmitter {
    */
   private updateLatency(latency: number): void {
     const total = this.stats.totalSuccesses + this.stats.totalFailures;
-    this.stats.averageLatency =
-      (this.stats.averageLatency * (total - 1) + latency) / total;
+    if (total === 0) {
+      this.stats.averageLatency = latency;
+    } else {
+      this.stats.averageLatency =
+        (this.stats.averageLatency * (total - 1) + latency) / total;
+    }
   }
   
   /**

@@ -721,13 +721,15 @@ describe('HealthCheckService', () => {
       testService.start();
     });
 
-    it('должен останавливать периодические проверки', () => {
+    it('должен останавливать периодические проверки', async () => {
       const testService = new HealthCheckService();
-      
+
       testService.start();
+      // Даем время на выполнение первой проверки
+      await new Promise(resolve => setTimeout(resolve, 100));
       testService.stop();
-      
-      // После остановки не должно быть проверок
+
+      // После остановки результат последней проверки должен сохраниться
       expect(testService.getLastCheckResult()).toBeDefined();
     });
 
@@ -799,11 +801,14 @@ describe('HealthCheckService', () => {
     it('должен сохранять последний результат', async () => {
       await service.performHealthCheck();
       const result1 = service.getLastCheckResult();
-      
+
+      await new Promise(resolve => setTimeout(resolve, 10)); // Небольшая задержка
       await service.performHealthCheck();
       const result2 = service.getLastCheckResult();
-      
-      expect(result1).toBe(result2); // Один и тот же объект
+
+      // Проверяем, что результат обновился (новый timestamp)
+      expect(result2).toBeDefined();
+      expect(result2.summary.timestamp).toBeGreaterThan(result1.summary.timestamp);
     });
   });
 

@@ -402,10 +402,17 @@ export class ModificationDetector extends EventEmitter {
       behavioralAnomalies: [],
       recommendations: []
     };
-    
-    // Определяем тип изменения
-    if (baselineFile.size !== currentFile.size) {
+
+    // Определяем тип изменения - hash отличается значит файл изменен
+    if (baselineFile.hash !== currentFile.hash) {
       result.modificationTypes.push('content_change');
+      result.riskScore += 10; // Базовый риск при изменении содержимого
+    }
+
+    // Дополнительная проверка размера
+    if (baselineFile.size !== currentFile.size) {
+      // Size изменение уже учтено в content_change, но добавим деталь
+      result.riskScore += 5;
     }
     
     // Проверяем timestamp anomalies

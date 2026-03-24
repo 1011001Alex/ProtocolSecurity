@@ -788,6 +788,9 @@ describe('Multi-Branch Integration Tests', () => {
 
 ### Blockchain Security
 
+| Standard | Level | Status |
+|----------|-------|--------|
+| **FATF Travel Rule** | Full | 🆕 In Dev |
 | **OFAC Sanctions** | Full | 🆕 In Dev |
 | **EU MiCA** | Full | 🆕 In Dev |
 | **SEC Guidelines** | Full | 🆕 In Dev |

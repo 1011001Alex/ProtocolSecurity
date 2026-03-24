@@ -422,34 +422,15 @@ export class MerkleTree {
 
   /**
    * Перестраивает путь от листа к корню
-   * 
+   *
    * @param leafIndex - Индекс листа
    */
   private rebuildPathToRoot(leafIndex: number): void {
-    let currentIndex = leafIndex;
-    let currentLevel = this.leaves;
+    if (!this.root || this.allNodes.length === 0) return;
 
-    while (currentLevel.length > 1) {
-      const parentIndex = Math.floor(currentIndex / 2);
-      const isLeft = currentIndex % 2 === 0;
-      const siblingIndex = isLeft ? currentIndex + 1 : currentIndex - 1;
-
-      // Получаем узлы для вычисления нового хеша родителя
-      const leftNode = isLeft ? currentLevel[currentIndex] : (siblingIndex < currentLevel.length ? currentLevel[siblingIndex] : currentLevel[currentIndex]);
-      const rightNode = isLeft ? (siblingIndex < currentLevel.length ? currentLevel[siblingIndex] : currentLevel[currentIndex]) : currentLevel[currentIndex];
-
-      // Находим родительский узел в allNodes и обновляем его хеш
-      const parentHash = this.hashNode(leftNode.hash, rightNode.hash);
-      
-      // Обновляем узел на следующем уровне
-      currentIndex = parentIndex;
-      currentLevel = this.getLevelNodes(currentLevel);
-      
-      const parentNode = currentLevel[parentIndex];
-      if (parentNode) {
-        parentNode.hash = parentHash;
-      }
-    }
+    // Перестраиваем все дерево заново с обновленным листом
+    // Это менее эффективно но гарантирует корректность
+    this.root = this.buildTree([...this.leaves]);
   }
 
   /**

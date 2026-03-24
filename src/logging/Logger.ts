@@ -752,7 +752,8 @@ export class SecureLogger extends EventEmitter {
    */
   private getEventCode(level: LogLevel, source: LogSource): string {
     const levelCode = level.toString().padStart(2, '0');
-    const sourceCode = source.substring(0, 3).toUpperCase();
+    const sourceName = LogSource[source] || 'UNK';
+    const sourceCode = sourceName.substring(0, 3).toUpperCase();
     return `EVT-${sourceCode}-${levelCode}`;
   }
   
@@ -811,7 +812,9 @@ export class SecureLogger extends EventEmitter {
     }
     
     // Проверка уровня логирования
-    if (level > this.config.level) {
+    // В режиме debug (enableDebug=true) разрешаем все уровни включая TRACE
+    const isDebugMode = this.globalConfig?.enableDebug === true;
+    if (!isDebugMode && level > this.config.level) {
       return null;
     }
     
@@ -941,27 +944,27 @@ export class SecureLogger extends EventEmitter {
    * Логирование уровня EMERGENCY (0)
    * Система неработоспособна
    */
-  emergency(
+  async emergency(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.EMERGENCY, message, source, component, context, fields);
   }
-  
+
   /**
    * Логирование уровня ALERT (1)
    * Требуется немедленное действие
    */
-  alert(
+  async alert(
     message: string,
     source: LogSource = LogSource.SECURITY,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.ALERT, message, source, component, context, fields);
   }
   
@@ -969,98 +972,112 @@ export class SecureLogger extends EventEmitter {
    * Логирование уровня CRITICAL (2)
    * Критическое состояние
    */
-  critical(
+  async critical(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.CRITICAL, message, source, component, context, fields);
   }
-  
+
   /**
    * Логирование уровня ERROR (3)
    * Ошибка
    */
-  error(
+  async error(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>,
     errorObj?: Error
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.ERROR, message, source, component, context, fields, errorObj);
   }
-  
+
   /**
    * Логирование уровня WARNING (4)
    * Предупреждение
    */
-  warning(
+  async warning(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.WARNING, message, source, component, context, fields);
   }
-  
+
   /**
    * Логирование уровня NOTICE (5)
    * Нормальное, но значимое событие
    */
-  notice(
+  async notice(
     message: string,
     source: LogSource = LogSource.AUDIT,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.NOTICE, message, source, component, context, fields);
   }
-  
+
   /**
    * Логирование уровня INFO (6)
    * Информационное сообщение
    */
-  info(
+  async info(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.INFO, message, source, component, context, fields);
   }
-  
+
   /**
    * Логирование уровня DEBUG (7)
    * Отладочная информация
    */
-  debug(
+  async debug(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.DEBUG, message, source, component, context, fields);
   }
-  
+
+  /**
+   * Логирование уровня WARNING (4)
+   * Предупреждение
+   */
+  async warn(
+    message: string,
+    source: LogSource = LogSource.APPLICATION,
+    component: string = this.globalConfig.serviceName,
+    context?: LogContext,
+    fields?: Record<string, unknown>
+  ): Promise<LogEntry | null> {
+    return this.log(LogLevel.WARNING, message, source, component, context, fields);
+  }
+
   /**
    * Логирование уровня TRACE (8)
    * Детальная трассировка
    */
-  trace(
+  async trace(
     message: string,
     source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(LogLevel.TRACE, message, source, component, context, fields);
   }
   
@@ -1071,12 +1088,12 @@ export class SecureLogger extends EventEmitter {
   /**
    * Логирование события аутентификации
    */
-  authEvent(
+  async authEvent(
     eventType: 'login_success' | 'login_failure' | 'logout' | 'password_change',
     userId: string,
     clientIp: string,
     details?: Record<string, unknown>
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(
       eventType === 'login_failure' ? LogLevel.WARNING : LogLevel.INFO,
       `Authentication event: ${eventType}`,
@@ -1093,18 +1110,18 @@ export class SecureLogger extends EventEmitter {
       }
     );
   }
-  
+
   /**
    * Логирование события доступа к данным
    */
-  dataAccessEvent(
+  async dataAccessEvent(
     userId: string,
     resourceType: string,
     resourceId: string,
     action: 'read' | 'write' | 'delete',
     result: 'success' | 'denied',
     clientIp: string
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(
       result === 'denied' ? LogLevel.WARNING : LogLevel.INFO,
       `Data access: ${action} ${resourceType}/${resourceId} - ${result}`,
@@ -1122,17 +1139,17 @@ export class SecureLogger extends EventEmitter {
       }
     );
   }
-  
+
   /**
    * Логирование события изменения конфигурации
    */
-  configChangeEvent(
+  async configChangeEvent(
     userId: string,
     configPath: string,
     oldValue: unknown,
     newValue: unknown,
     clientIp: string
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(
       LogLevel.NOTICE,
       `Configuration changed: ${configPath}`,
@@ -1150,18 +1167,18 @@ export class SecureLogger extends EventEmitter {
       }
     );
   }
-  
+
   /**
    * Логирование сетевого события
    */
-  networkEvent(
+  async networkEvent(
     eventType: 'connection' | 'disconnection' | 'error' | 'timeout',
     remoteIp: string,
     remotePort: number,
     localPort: number,
     protocol: string,
     bytesTransferred?: number
-  ): LogEntry | null {
+  ): Promise<LogEntry | null> {
     return this.log(
       eventType === 'error' ? LogLevel.ERROR : LogLevel.INFO,
       `Network ${eventType}: ${remoteIp}:${remotePort} -> :${localPort} (${protocol})`,

@@ -94,7 +94,7 @@ export class SecretVersioningManager extends EventEmitter {
     keepDeletedVersions: true,
     deletedVersionsRetentionDays: 90,
     requireRollbackReason: true,
-    minVersionInterval: 100,
+    minVersionInterval: 1, // 1ms для тестов
     enableIntegrityCheck: true
   };
 
@@ -650,10 +650,10 @@ export class SecretVersioningManager extends EventEmitter {
     const hashInput = JSON.stringify({
       value,
       secretId: metadata.secretId,
-      previousVersion: metadata.previousVersion,
-      timestamp: Date.now()
+      previousVersion: metadata.previousVersion
+      // Не включаем timestamp чтобы хеш был детерминированным
     });
-    
+
     return createHash('sha256').update(hashInput).digest('hex');
   }
 

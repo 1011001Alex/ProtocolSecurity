@@ -660,9 +660,21 @@ export class SecretScanner extends EventEmitter {
       scannedAt: new Date(),
       errors: []
     };
-    
+
     this.scanContent(logContent, logSource, result, LeakType.LOG_EXPOSURE);
+
+    // Обновление статистики
+    this.stats.totalScans++;
+    this.stats.totalLeaks += result.leaks.length;
     
+    for (const leak of result.leaks) {
+      const typeCount = this.stats.leaksByType.get(leak.leakType) ?? 0;
+      this.stats.leaksByType.set(leak.leakType, typeCount + 1);
+
+      const severityCount = this.stats.leaksBySeverity.get(leak.severity) ?? 0;
+      this.stats.leaksBySeverity.set(leak.severity, severityCount + 1);
+    }
+
     return result.leaks;
   }
 

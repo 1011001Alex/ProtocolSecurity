@@ -558,7 +558,10 @@ export class IncidentReporter extends EventEmitter {
     const iocCount: Map<string, number> = new Map();
 
     for (const incident of incidents) {
-      for (const ioc of incident.details.indicatorsOfCompromise || []) {
+      const details = incident.details;
+      if (!details) continue;
+      
+      for (const ioc of details.indicatorsOfCompromise || []) {
         const key = `${ioc.type}:${ioc.value}`;
         iocCount.set(key, (iocCount.get(key) || 0) + 1);
       }
@@ -577,7 +580,7 @@ export class IncidentReporter extends EventEmitter {
     const techniqueCount: Map<string, number> = new Map();
 
     for (const incident of incidents) {
-      for (const technique of incident.details.mitreTechniques || []) {
+      for (const technique of incident.details?.mitreTechniques || []) {
         techniqueCount.set(technique, (techniqueCount.get(technique) || 0) + 1);
       }
     }

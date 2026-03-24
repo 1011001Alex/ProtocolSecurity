@@ -167,11 +167,11 @@ describe('IncidentClassifier', () => {
 
       const result = classifier.classify(contextWithCritical);
 
-      expect(result.severity).toBeOneOf([
+      expect([
         IncidentSeverity.CRITICAL,
         IncidentSeverity.HIGH,
         IncidentSeverity.MEDIUM
-      ]);
+      ]).toContain(result.severity);
       expect(result.influencingFactors.length).toBeGreaterThan(0);
     });
 
@@ -179,25 +179,33 @@ describe('IncidentClassifier', () => {
       const contexts = [
         {
           title: 'Ransomware Attack Detected',
-          expectedCategory: IncidentCategory.RANSOMWARE_ATTACK
+          expectedCategory: IncidentCategory.RANSOMWARE_ATTACK,
+          description: 'Ransomware encryption detected on multiple hosts'
         },
         {
           title: 'DDoS Attack in Progress',
-          expectedCategory: IncidentCategory.DDOS_ATTACK
+          expectedCategory: IncidentCategory.DDOS_ATTACK,
+          description: 'Traffic spike causing service unavailable'
         },
         {
           title: 'Data Breach - Customer Information',
-          expectedCategory: IncidentCategory.DATA_BREACH
+          expectedCategory: IncidentCategory.DATA_BREACH,
+          description: 'Unauthorized access to data exfiltration detected'
         },
         {
           title: 'Credential Compromise - Admin Account',
-          expectedCategory: IncidentCategory.CREDENTIAL_COMPROMISE
+          expectedCategory: IncidentCategory.CREDENTIAL_COMPROMISE,
+          description: 'Compromised credentials detected, brute force attempt'
         }
       ];
 
-      for (const { title, expectedCategory } of contexts) {
+      for (const { title, expectedCategory, description } of contexts) {
         const result = classifier.classify({
-          details: createTestIncidentDetails({ title, category: IncidentCategory.OTHER }),
+          details: createTestIncidentDetails({ 
+            title, 
+            description,
+            category: undefined as any 
+          }),
           affectedSystems: [],
           affectedUsers: [],
           affectedData: [],
@@ -342,10 +350,18 @@ describe('PlaybookEngine', () => {
       expect(execution.status).toBe('running');
       expect(execution.progress).toBe(0);
 
-      // Ждем выполнения playbook
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Ждем выполнения playbook с увеличенным timeout
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
-      const updatedExecution = engine.getExecutionStatus(execution.id);
+      // Проверяем статус с повторными попытками
+      let updatedExecution = engine.getExecutionStatus(execution.id);
+      let attempts = 0;
+      while (!updatedExecution && attempts < 5) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        updatedExecution = engine.getExecutionStatus(execution.id);
+        attempts++;
+      }
+      
       expect(updatedExecution).toBeDefined();
     });
 
@@ -943,6 +959,15 @@ describe('IncidentManager - Integration Tests', () => {
 
   describe('createIncident()', () => {
     it('должен создавать новый инцидент', async () => {
+      // Отключаем автоклассификацию, чтобы severity не перезаписывался
+      manager = new IncidentManager({
+        enableLogging: false,
+        debugMode: true,
+        enableAudit: false,
+        autoClassification: false,
+        autoStartPlaybook: false
+      });
+
       const incident = await manager.createIncident(
         createTestIncidentDetails(),
         testActor,

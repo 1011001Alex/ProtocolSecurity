@@ -1,0 +1,1847 @@
+
+> protocol-security@3.0.0-alpha test
+> jest --coverage --testPathPattern=HealthCheckService
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.483Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.671Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.673Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.676Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.679Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.681Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.683Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.685Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.690Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.695Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.697Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.699Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.701Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.703Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.704Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.706Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.707Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.709Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.711Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.723Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.724Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.726Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.727Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.729Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.732Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.733Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.735Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.736Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.738Z protocol-security: [CircuitBreaker:test_service] [INIT] CircuitBreaker инициализирован: test_service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.742Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.745Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.747Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.749Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.750Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.752Z protocol-security: [CircuitBreaker:redis_test] [INIT] CircuitBreaker инициализирован: redis_test
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.922Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.926Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.928Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.930Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.932Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.935Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.937Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.939Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.942Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.943Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.946Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.948Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.950Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.952Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.954Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.971Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.974Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.976Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.977Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.979Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:09.999Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.003Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.006Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.009Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.011Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.015Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.018Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.021Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.023Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.025Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.030Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.033Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.035Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.037Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.039Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.043Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.047Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.049Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.051Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.052Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.077Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.081Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.084Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.086Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.088Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.093Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.095Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.097Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.098Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.099Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.155Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.159Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.162Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.165Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.168Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.173Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.179Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.182Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.186Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.194Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.198Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.201Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.204Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.207Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.209Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.482Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.484Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.486Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.487Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.489Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.606Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.608Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.610Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.611Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.613Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.795Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.797Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.799Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.800Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.802Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.803Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.805Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.806Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:10.808Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.019Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.058Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.061Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.062Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.064Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.170Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.173Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.176Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.178Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.181Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.186Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.190Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.193Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.195Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.197Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.203Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.206Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.208Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.211Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.213Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.342Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.344Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.345Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.346Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.348Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.450Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.452Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.453Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.455Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.456Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.559Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.562Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.563Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.565Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.566Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.567Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.569Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.571Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.573Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.575Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.577Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.579Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.581Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.582Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.584Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.585Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.587Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.588Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.589Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.591Z protocol-security: [HealthCheckService] [START] Запуск Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.592Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.595Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.597Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.598Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.600Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.601Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.603Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.604Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.606Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.607Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.608Z protocol-security: [HealthCheckService] [START] Запуск Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.610Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.612Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.614Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.615Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.616Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.618Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.620Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.621Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.622Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.624Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.625Z protocol-security: [HealthCheckService] [START] Запуск Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.762Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.764Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.766Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.768Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.770Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.772Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.774Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.775Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.777Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.779Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.903Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.904Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.906Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.907Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.908Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.910Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.911Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.913Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.914Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.915Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:11.916Z protocol-security: [HealthCheckService] [START] Запуск Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.184Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.188Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.190Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.191Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.193Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.194Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.196Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.197Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.199Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.201Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.202Z protocol-security: [HealthCheckService] [START] Запуск Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.203Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.206Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.212Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.215Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.217Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.219Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.220Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.222Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.223Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.225Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.226Z protocol-security: [HealthCheckService] [START] Запуск Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.227Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.229Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.232Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.233Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.235Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.236Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.238Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.240Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.241Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.243Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.245Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.246Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.248Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.250Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.252Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.595Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.598Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.599Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.601Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.602Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.604Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.605Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.607Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.608Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.610Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.613Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.615Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.616Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.617Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.619Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.621Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.623Z protocol-security: [CircuitBreaker:redis] [INIT] CircuitBreaker инициализирован: redis
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.626Z protocol-security: [CircuitBreaker:database] [INIT] CircuitBreaker инициализирован: database
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.628Z protocol-security: [CircuitBreaker:vault] [INIT] CircuitBreaker инициализирован: vault
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.630Z protocol-security: [CircuitBreaker:elasticsearch] [INIT] CircuitBreaker инициализирован: elasticsearch
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+  console.debug
+    [34m[DEBUG][0m 2026-03-24T21:54:12.634Z protocol-security: [HealthCheckService] [STOP] Остановка Health Check Service
+
+      at ConsoleTransport.method [as send] (src/logging/Logger.ts:158:7)
+          at Array.map (<anonymous>)
+
+---------------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------------------------------------------------------------------
+File                             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                                                                     
+---------------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------------------------------------------------------------------
+All files                        |    1.93 |     0.97 |    1.82 |    1.93 |                                                                                                                                       
+ src                             |       0 |        0 |       0 |       0 |                                                                                                                                       
+  MultiBranchSecurity.ts         |       0 |        0 |       0 |       0 | 19-603                                                                                                                                
+  app.ts                         |       0 |        0 |       0 |       0 | 21-893                                                                                                                                
+  index.ts                       |       0 |        0 |       0 |       0 | 11-361                                                                                                                                
+ src/auth                        |       0 |        0 |       0 |       0 |                                                                                                                                       
+  ABACService.ts                 |       0 |        0 |       0 |       0 | 11-925                                                                                                                                
+  AuthService.ts                 |       0 |        0 |       0 |       0 | 11-982                                                                                                                                
+  DeviceFingerprint.ts           |       0 |        0 |       0 |       0 | 11-872                                                                                                                                
+  JWTBlacklist.ts                |       0 |        0 |       0 |       0 | 12-910                                                                                                                                
+  JWTService.ts                  |       0 |        0 |       0 |       0 | 13-1819                                                                                                                               
+  MFService.ts                   |       0 |        0 |       0 |       0 | 11-743                                                                                                                                
+  OAuthService.ts                |       0 |        0 |       0 |       0 | 11-1040                                                                                                                               
+  PasswordService.ts             |       0 |        0 |       0 |       0 | 11-681                                                                                                                                
+  RBACService.ts                 |       0 |        0 |       0 |       0 | 11-814                                                                                                                                
+  RateLimiter.ts                 |       0 |        0 |       0 |       0 | 11-860                                                                                                                                
+  SessionManager.ts              |       0 |        0 |       0 |       0 | 12-1120                                                                                                                               
+  WebAuthnService.ts             |       0 |        0 |       0 |       0 | 11-701                                                                                                                                
+ src/blockchain                  |       0 |        0 |       0 |       0 |                                                                                                                                       
+  BlockchainSecurityModule.ts    |       0 |        0 |       0 |       0 | 11-146                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 22-42                                                                                                                                 
+ src/blockchain/bridge           |       0 |        0 |       0 |       0 |                                                                                                                                       
+  BridgeSecurity.ts              |       0 |        0 |       0 |       0 | 11-157                                                                                                                                
+ src/blockchain/contracts        |       0 |        0 |       0 |       0 |                                                                                                                                       
+  FormalVerifier.ts              |       0 |        0 |       0 |       0 | 11-164                                                                                                                                
+ src/blockchain/crypto           |       0 |        0 |       0 |       0 |                                                                                                                                       
+  PostQuantumSigner.ts           |       0 |        0 |       0 |       0 | 11-171                                                                                                                                
+ src/blockchain/mev              |       0 |        0 |       0 |       0 |                                                                                                                                       
+  MEVProtector.ts                |       0 |        0 |       0 |       0 | 11-189                                                                                                                                
+ src/blockchain/nft              |       0 |        0 |       0 |       0 |                                                                                                                                       
+  NFTAuthenticator.ts            |       0 |        0 |       0 |       0 | 11-163                                                                                                                                
+  RoyaltyEnforcer.ts             |       0 |        0 |       0 |       0 | 11-165                                                                                                                                
+ src/blockchain/zk               |       0 |        0 |       0 |       0 |                                                                                                                                       
+  ZKAuthenticator.ts             |       0 |        0 |       0 |       0 | 11-200                                                                                                                                
+ src/cloud                       |       0 |      100 |       0 |       0 |                                                                                                                                       
+  CloudNativeSecurityModule.ts   |       0 |      100 |       0 |       0 | 7-51                                                                                                                                  
+ src/crypto                      |       0 |        0 |       0 |       0 |                                                                                                                                       
+  CryptoService.ts               |       0 |        0 |       0 |       0 | 28-872                                                                                                                                
+  DigitalSignature.ts            |       0 |        0 |       0 |       0 | 22-1075                                                                                                                               
+  EnvelopeEncryption.ts          |       0 |        0 |       0 |       0 | 26-907                                                                                                                                
+  HSMInterface.ts                |       0 |        0 |       0 |       0 | 25-1297                                                                                                                               
+  HashService.ts                 |       0 |        0 |       0 |       0 | 21-555                                                                                                                                
+  KeyDerivation.ts               |       0 |        0 |       0 |       0 | 23-664                                                                                                                                
+  KeyManager.ts                  |       0 |        0 |       0 |       0 | 24-1056                                                                                                                               
+  PostQuantum.ts                 |       0 |        0 |       0 |       0 | 21-927                                                                                                                                
+  SecureRandom.ts                |       0 |        0 |       0 |       0 | 16-631                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 10-62                                                                                                                                 
+ src/ecommerce                   |       0 |        0 |       0 |       0 |                                                                                                                                       
+  AccountTakeoverPrevention.ts   |       0 |        0 |       0 |       0 | 11-309                                                                                                                                
+  BotProtection.ts               |       0 |        0 |       0 |       0 | 11-390                                                                                                                                
+  CheckoutSecurity.ts            |       0 |        0 |       0 |       0 | 11-286                                                                                                                                
+  CouponAbusePrevention.ts       |       0 |      100 |       0 |       0 | 4-17                                                                                                                                  
+  EcommerceSecurityModule.ts     |       0 |        0 |       0 |       0 | 11-208                                                                                                                                
+  InventoryFraud.ts              |       0 |      100 |       0 |       0 | 4-17                                                                                                                                  
+  MarketplaceSecurity.ts         |       0 |      100 |       0 |       0 | 4-21                                                                                                                                  
+  PaymentFraudDetection.ts       |       0 |      100 |       0 |       0 | 4-24                                                                                                                                  
+  ReviewFraudDetection.ts        |       0 |        0 |       0 |       0 | 11-286                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 7-32                                                                                                                                  
+ src/enterprise                  |       0 |      100 |       0 |       0 |                                                                                                                                       
+  EnterpriseSecurityModule.ts    |       0 |      100 |       0 |       0 | 7-51                                                                                                                                  
+ src/errors                      |       0 |        0 |       0 |       0 |                                                                                                                                       
+  BaseError.ts                   |       0 |        0 |       0 |       0 | 10-650                                                                                                                                
+  ErrorHandlerMiddleware.ts      |       0 |        0 |       0 |       0 | 11-436                                                                                                                                
+ src/finance                     |       0 |        0 |       0 |       0 |                                                                                                                                       
+  FinanceSecurityModule.ts       |       0 |        0 |       0 |       0 | 11-349                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 21-41                                                                                                                                 
+ src/finance/aml                 |       0 |        0 |       0 |       0 |                                                                                                                                       
+  AMLChecker.ts                  |       0 |        0 |       0 |       0 | 5-100                                                                                                                                 
+  SanctionsScreening.ts          |       0 |        0 |       0 |       0 | 21-783                                                                                                                                
+  SuspiciousActivityReporting.ts |       0 |        0 |       0 |       0 | 20-782                                                                                                                                
+ src/finance/fraud               |       0 |        0 |       0 |       0 |                                                                                                                                       
+  BehavioralBiometrics.ts        |       0 |        0 |       0 |       0 | 20-925                                                                                                                                
+  FraudDetectionEngine.ts        |       0 |        0 |       0 |       0 | 16-209                                                                                                                                
+  TransactionMonitoring.ts       |       0 |        0 |       0 |       0 | 5-55                                                                                                                                  
+ src/finance/hsm                 |       0 |        0 |       0 |       0 |                                                                                                                                       
+  HSMIntegration.ts              |       0 |        0 |       0 |       0 | 21-678                                                                                                                                
+  KeyManagement.ts               |       0 |        0 |       0 |       0 | 21-998                                                                                                                                
+ src/finance/payment             |       0 |        0 |       0 |       0 |                                                                                                                                       
+  PaymentCardEncryption.ts       |       0 |        0 |       0 |       0 | 17-314                                                                                                                                
+  SecurePINProcessing.ts         |       0 |        0 |       0 |       0 | 19-490                                                                                                                                
+  TokenizationService.ts         |       0 |        0 |       0 |       0 | 17-483                                                                                                                                
+ src/government                  |       0 |      100 |       0 |       0 |                                                                                                                                       
+  GovernmentSecurityModule.ts    |       0 |      100 |       0 |       0 | 7-48                                                                                                                                  
+ src/health                      |   82.25 |    67.92 |   66.66 |   81.59 |                                                                                                                                       
+  HealthCheckService.ts          |   85.94 |    66.66 |   82.19 |   85.35 | 216,237,246,424,472-502,527,570,591,633,654,704,725,776,836,838,855,880,882,902,937,939,954,973,993-995,1010,1012,1082-1083,1101,1111 
+  HealthCheckTypes.ts            |     100 |      100 |     100 |     100 |                                                                                                                                       
+  index.ts                       |       0 |      100 |       0 |       0 | 11-35                                                                                                                                 
+ src/healthcare                  |       0 |        0 |       0 |       0 |                                                                                                                                       
+  HealthcareSecurityModule.ts    |       0 |        0 |       0 |       0 | 11-240                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 7-27                                                                                                                                  
+ src/healthcare/consent          |       0 |        0 |       0 |       0 |                                                                                                                                       
+  PatientConsentManager.ts       |       0 |        0 |       0 |       0 | 20-796                                                                                                                                
+ src/healthcare/devices          |       0 |        0 |       0 |       0 |                                                                                                                                       
+  MedicalDeviceSecurity.ts       |       0 |        0 |       0 |       0 | 17-199                                                                                                                                
+ src/healthcare/ehr              |       0 |        0 |       0 |       0 |                                                                                                                                       
+  EHRIntegration.ts              |       0 |        0 |       0 |       0 | 16-163                                                                                                                                
+  FHIRSecurity.ts                |       0 |        0 |       0 |       0 | 17-214                                                                                                                                
+ src/healthcare/identity         |       0 |        0 |       0 |       0 |                                                                                                                                       
+  HealthcareIdentity.ts          |       0 |        0 |       0 |       0 | 17-234                                                                                                                                
+ src/healthcare/phi              |       0 |        0 |       0 |       0 |                                                                                                                                       
+  PHIProtection.ts               |       0 |        0 |       0 |       0 | 20-642                                                                                                                                
+ src/healthcare/telehealth       |       0 |        0 |       0 |       0 |                                                                                                                                       
+  TelehealthSecurity.ts          |       0 |        0 |       0 |       0 | 11-177                                                                                                                                
+ src/incident                    |       0 |        0 |       0 |       0 |                                                                                                                                       
+  CommunicationManager.ts        |       0 |        0 |       0 |       0 | 10-678                                                                                                                                
+  ContainmentActions.ts          |       0 |        0 |       0 |       0 | 11-846                                                                                                                                
+  EvidenceManager.ts             |       0 |        0 |       0 |       0 | 10-740                                                                                                                                
+  ExternalIntegrations.ts        |       0 |        0 |       0 |       0 | 10-741                                                                                                                                
+  ForensicsCollector.ts          |       0 |        0 |       0 |       0 | 10-991                                                                                                                                
+  IncidentClassifier.ts          |       0 |        0 |       0 |       0 | 10-1285                                                                                                                               
+  IncidentManager.ts             |       0 |        0 |       0 |       0 | 11-939                                                                                                                                
+  IncidentReporter.ts            |       0 |        0 |       0 |       0 | 10-643                                                                                                                                
+  PlaybookEngine.ts              |       0 |        0 |       0 |       0 | 11-1319                                                                                                                               
+  PostIncidentReview.ts          |       0 |        0 |       0 |       0 | 10-515                                                                                                                                
+  TimelineReconstructor.ts       |       0 |        0 |       0 |       0 | 10-563                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 14-151                                                                                                                                
+ src/incident/Playbooks          |       0 |      100 |       0 |       0 |                                                                                                                                       
+  CredentialCompromise.ts        |       0 |      100 |       0 |       0 | 10-707                                                                                                                                
+  DDoSAttack.ts                  |       0 |      100 |       0 |       0 | 10-718                                                                                                                                
+  DataBreach.ts                  |       0 |      100 |       0 |       0 | 10-679                                                                                                                                
+  InsiderThreat.ts               |       0 |      100 |       0 |       0 | 10-736                                                                                                                                
+  MalwareOutbreak.ts             |       0 |      100 |       0 |       0 | 10-497                                                                                                                                
+  RansomwareAttack.ts            |       0 |      100 |       0 |       0 | 10-862                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 8-13                                                                                                                                  
+ src/integrity                   |       0 |        0 |       0 |       0 |                                                                                                                                       
+  ArtifactSigner.ts              |       0 |        0 |       0 |       0 | 17-977                                                                                                                                
+  BaselineManager.ts             |       0 |        0 |       0 |       0 | 17-855                                                                                                                                
+  CodeSigner.ts                  |       0 |        0 |       0 |       0 | 17-910                                                                                                                                
+  FileIntegrityMonitor.ts        |       0 |        0 |       0 |       0 | 18-1012                                                                                                                               
+  HashChain.ts                   |       0 |        0 |       0 |       0 | 17-820                                                                                                                                
+  IntegrityService.ts            |       0 |        0 |       0 |       0 | 16-956                                                                                                                                
+  MerkleTree.ts                  |       0 |        0 |       0 |       0 | 15-759                                                                                                                                
+  ModificationDetector.ts        |       0 |        0 |       0 |       0 | 17-865                                                                                                                                
+  RuntimeVerifier.ts             |       0 |        0 |       0 |       0 | 17-702                                                                                                                                
+  SBOMGenerator.ts               |       0 |        0 |       0 |       0 | 17-1101                                                                                                                               
+  SLSAVerifier.ts                |       0 |        0 |       0 |       0 | 21-816                                                                                                                                
+  SupplyChainVerifier.ts         |       0 |        0 |       0 |       0 | 19-702                                                                                                                                
+  TransparencyLog.ts             |       0 |        0 |       0 |       0 | 17-757                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 23-71                                                                                                                                 
+ src/logging                     |    2.63 |     1.45 |    1.98 |    2.73 |                                                                                                                                       
+  AlertingService.ts             |       0 |        0 |       0 |       0 | 18-1502                                                                                                                               
+  AnomalyDetection.ts            |       0 |        0 |       0 |       0 | 19-1409                                                                                                                               
+  AttackDetection.ts             |       0 |        0 |       0 |       0 | 18-1611                                                                                                                               
+  ComplianceReporter.ts          |       0 |        0 |       0 |       0 | 18-1220                                                                                                                               
+  ElasticsearchClient.ts         |       0 |        0 |       0 |       0 | 19-1049                                                                                                                               
+  IntegrityVerifier.ts           |       0 |        0 |       0 |       0 | 18-977                                                                                                                                
+  LogBuffer.ts                   |       0 |        0 |       0 |       0 | 19-1245                                                                                                                               
+  LogCorrelator.ts               |       0 |        0 |       0 |       0 | 19-1461                                                                                                                               
+  LogEnricher.ts                 |       0 |        0 |       0 |       0 | 18-1337                                                                                                                               
+  LogParser.ts                   |       0 |        0 |       0 |       0 | 18-1874                                                                                                                               
+  LogStorage.ts                  |       0 |        0 |       0 |       0 | 19-1150                                                                                                                               
+  Logger.ts                      |    39.1 |       20 |      25 |   39.93 | 165-178,186,201,216,228-230,235-502,548-549,575-577,656-688,725,736,811,818,825,882,890-906,918-1039,1067-1324,1347-1378              
+  RealTimeAlerter.ts             |       0 |        0 |       0 |       0 | 11-927                                                                                                                                
+  RequestContextLogger.ts        |       0 |        0 |       0 |       0 | 14-373                                                                                                                                
+  SIEMEngine.ts                  |       0 |        0 |       0 |       0 | 19-1588                                                                                                                               
+  SecurityContextLogger.ts       |       0 |        0 |       0 |       0 | 15-511                                                                                                                                
+  SecurityEventTypes.ts          |       0 |      100 |     100 |       0 | 460-498                                                                                                                               
+  StructuredSecurityLogger.ts    |       0 |        0 |       0 |       0 | 11-669                                                                                                                                
+  index.ts                       |       0 |        0 |       0 |       0 | 15-271                                                                                                                                
+ src/middleware                  |       0 |        0 |       0 |       0 |                                                                                                                                       
+  CORSMiddleware.ts              |       0 |        0 |       0 |       0 | 95-463                                                                                                                                
+  InputValidationMiddleware.ts   |       0 |        0 |       0 |       0 | 25-1134                                                                                                                               
+  RateLimitMiddleware.ts         |       0 |        0 |       0 |       0 | 18-1158                                                                                                                               
+  SecurityHeadersMiddleware.ts   |       0 |        0 |       0 |       0 | 231-688                                                                                                                               
+ src/mobile                      |       0 |      100 |       0 |       0 |                                                                                                                                       
+  MobileSecurityModule.ts        |       0 |      100 |       0 |       0 | 7-52                                                                                                                                  
+ src/secrets                     |       0 |        0 |       0 |       0 |                                                                                                                                       
+  AWSSecretsBackend.ts           |       0 |        0 |       0 |       0 | 19-880                                                                                                                                
+  AccessPolicy.ts                |       0 |        0 |       0 |       0 | 15-929                                                                                                                                
+  AzureKeyVaultBackend.ts        |       0 |        0 |       0 |       0 | 19-1022                                                                                                                               
+  DynamicSecrets.ts              |       0 |        0 |       0 |       0 | 20-1119                                                                                                                               
+  GCPSecretBackend.ts            |       0 |        0 |       0 |       0 | 19-887                                                                                                                                
+  SecretCache.ts                 |       0 |        0 |       0 |       0 | 15-703                                                                                                                                
+  SecretLeaseManager.ts          |       0 |        0 |       0 |       0 | 15-842                                                                                                                                
+  SecretRotator.ts               |       0 |        0 |       0 |       0 | 15-787                                                                                                                                
+  SecretScanner.ts               |       0 |        0 |       0 |       0 | 21-1086                                                                                                                               
+  SecretVersioning.ts            |       0 |        0 |       0 |       0 | 15-783                                                                                                                                
+  SecretsManager.ts              |       0 |        0 |       0 |       0 | 22-1409                                                                                                                               
+  VaultBackend.ts                |       0 |        0 |       0 |       0 | 19-1036                                                                                                                               
+ src/threat                      |       0 |        0 |       0 |       0 |                                                                                                                                       
+  AutomatedResponse.ts           |       0 |        0 |       0 |       0 | 8-1191                                                                                                                                
+  CorrelationEngine.ts           |       0 |        0 |       0 |       0 | 8-834                                                                                                                                 
+  EndpointDetector.ts            |       0 |        0 |       0 |       0 | 8-887                                                                                                                                 
+  KillChainAnalyzer.ts           |       0 |        0 |       0 |       0 | 8-672                                                                                                                                 
+  MITREAttackMapper.ts           |       0 |        0 |       0 |       0 | 8-1077                                                                                                                                
+  MLModels.ts                    |       0 |        0 |       0 |       0 | 8-1091                                                                                                                                
+  NetworkAnalyzer.ts             |       0 |        0 |       0 |       0 | 8-865                                                                                                                                 
+  RiskScorer.ts                  |       0 |        0 |       0 |       0 | 8-952                                                                                                                                 
+  ThreatDashboard.ts             |       0 |        0 |       0 |       0 | 8-915                                                                                                                                 
+  ThreatDetectionEngine.ts       |       0 |        0 |       0 |       0 | 9-1132                                                                                                                                
+  ThreatHunting.ts               |       0 |        0 |       0 |       0 | 8-749                                                                                                                                 
+  ThreatIntelligence.ts          |       0 |        0 |       0 |       0 | 8-1082                                                                                                                                
+  UEBAService.ts                 |       0 |        0 |       0 |       0 | 8-1328                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 9-33                                                                                                                                  
+ src/utils                       |    9.18 |     2.48 |    8.79 |    9.38 |                                                                                                                                       
+  CircuitBreaker.ts              |   36.14 |       20 |   37.14 |   37.26 | 142-149,212-215,234-235,247-257,272-277,281,308-313,324-400,411-422,436,450-456,464,479-497,513,532,551-568                           
+  EnvironmentValidator.ts        |       0 |        0 |       0 |       0 | 19-748                                                                                                                                
+  InputValidator.ts              |       0 |        0 |       0 |       0 | 18-993                                                                                                                                
+  PerformanceMonitor.ts          |   15.63 |     8.77 |    9.67 |   15.63 | 348-869,882-885,892-908                                                                                                               
+  RetryHandler.ts                |       0 |        0 |       0 |       0 | 16-635                                                                                                                                
+  StubLogger.ts                  |       0 |        0 |       0 |       0 | 10-63                                                                                                                                 
+  index.ts                       |       0 |      100 |       0 |       0 | 8-53                                                                                                                                  
+ src/zerotrust                   |       0 |        0 |       0 |       0 |                                                                                                                                       
+  DevicePostureChecker.ts        |       0 |        0 |       0 |       0 | 13-808                                                                                                                                
+  EgressFilter.ts                |       0 |        0 |       0 |       0 | 12-618                                                                                                                                
+  IdentityAwareProxy.ts          |       0 |        0 |       0 |       0 | 13-839                                                                                                                                
+  JustInTimeAccess.ts            |       0 |        0 |       0 |       0 | 12-685                                                                                                                                
+  MicroSegmentation.ts           |       0 |        0 |       0 |       0 | 13-645                                                                                                                                
+  NetworkAccessControl.ts        |       0 |        0 |       0 |       0 | 12-770                                                                                                                                
+  NetworkPolicyEngine.ts         |       0 |        0 |       0 |       0 | 12-494                                                                                                                                
+  PolicyDecisionPoint.ts         |       0 |        0 |       0 |       0 | 13-1113                                                                                                                               
+  PolicyEnforcementPoint.ts      |       0 |        0 |       0 |       0 | 13-983                                                                                                                                
+  ServiceMeshMTLS.ts             |       0 |        0 |       0 |       0 | 13-758                                                                                                                                
+  SoftwareDefinedPerimeter.ts    |       0 |        0 |       0 |       0 | 13-725                                                                                                                                
+  TLSEverywhere.ts               |       0 |        0 |       0 |       0 | 12-457                                                                                                                                
+  TrustVerifier.ts               |       0 |        0 |       0 |       0 | 14-1009                                                                                                                               
+  ZeroTrustController.ts         |       0 |        0 |       0 |       0 | 12-756                                                                                                                                
+  index.ts                       |       0 |      100 |       0 |       0 | 15-218                                                                                                                                
+  zerotrust.types.ts             |       0 |        0 |       0 |       0 | 22-1157                                                                                                                               
+---------------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------------------------------------------------------------------

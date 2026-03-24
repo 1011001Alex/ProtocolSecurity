@@ -24,13 +24,13 @@ import {
   BaselineComparisonResult,
   FileHash,
   FileChange,
-  MerkleTree,
   MerkleProof,
   SignatureResult,
   HashAlgorithm,
   OperationResult,
   SigningKeyConfig
 } from '../types/integrity.types';
+import { MerkleTree } from './MerkleTree';
 import { CodeSigner } from './CodeSigner';
 
 /**
@@ -130,16 +130,26 @@ export class BaselineManager extends EventEmitter {
     metadata: Partial<BaselineMetadata> = {}
   ): Promise<OperationResult<IntegrityBaseline>> {
     const startTime = Date.now();
-    
+
     try {
+      // Проверяем что файлы не пустые
+      if (files.length === 0) {
+        return {
+          success: false,
+          errors: ['Список файлов пуст'],
+          warnings: [],
+          executionTime: Date.now() - startTime
+        };
+      }
+
       // Генерируем ID
       const id = this.generateBaselineId(name);
       const version = '1.0.0';
-      
+
       // Создаем Merkle tree
       const merkleTree = new MerkleTree(this.config.hashAlgorithm);
       const merkleRoot = merkleTree.build(files);
-      
+
       // Генерируем Merkle proofs для каждого файла
       const merkleProofs: Record<string, MerkleProof> = {};
       for (const file of files) {
@@ -148,10 +158,10 @@ export class BaselineManager extends EventEmitter {
           merkleProofs[file.filePath] = proof;
         }
       }
-      
+
       // Кэшируем tree
       this.merkleTreeCache.set(`${id}:${version}`, merkleTree);
-      
+
       // Создаем baseline
       const baseline: IntegrityBaseline = {
         id,
@@ -175,7 +185,7 @@ export class BaselineManager extends EventEmitter {
           notes: metadata.notes
         }
       };
-      
+
       // Подписываем если включено
       if (this.config.autoSign && this.signer) {
         const signResult = await this.signBaseline(baseline);
@@ -183,12 +193,12 @@ export class BaselineManager extends EventEmitter {
           baseline.signature = signResult.data;
         }
       }
-      
+
       // Сохраняем baseline
       this.saveBaseline(baseline);
-      
+
       this.emit('baseline-created', baseline);
-      
+
       return {
         success: true,
         data: baseline,
@@ -198,7 +208,8 @@ export class BaselineManager extends EventEmitter {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-      
+      console.error('BaselineManager.createBaseline error:', errorMessage);
+
       return {
         success: false,
         errors: [errorMessage],

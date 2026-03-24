@@ -597,7 +597,12 @@ export class AccessPolicyManager extends EventEmitter {
    * Проверка соответствия действия
    */
   private matchAction(action: SecretAction, actions: SecretAction[]): boolean {
-    return actions.includes(action) || actions.includes(SecretAction.READ);
+    // Проверка на wildcard
+    if (actions.includes('*' as SecretAction)) {
+      return true;
+    }
+    // Точное совпадение действия
+    return actions.includes(action);
   }
 
   /**
@@ -631,31 +636,31 @@ export class AccessPolicyManager extends EventEmitter {
       if (pattern === '*') {
         return true;
       }
-      
+
       // Проверка по роли (role:admin)
       if (pattern.startsWith('role:')) {
         const role = pattern.slice(5);
-        if (context.roles.includes(role)) {
+        if (context.roles && Array.isArray(context.roles) && context.roles.includes(role)) {
           return true;
         }
         continue;
       }
-      
+
       // Проверка по типу (type:service)
       if (pattern.startsWith('type:')) {
         const type = pattern.slice(5);
-        if (context.attributes['type'] === type) {
+        if (context.attributes && context.attributes['type'] === type) {
           return true;
         }
         continue;
       }
-      
+
       // Прямое совпадение по ID
       if (pattern === context.subjectId) {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -779,12 +784,13 @@ export class AccessPolicyManager extends EventEmitter {
   private checkMFA(condition: PolicyCondition, context: AccessContext): boolean {
     const required = condition.value as boolean;
     const operator = condition.operator ?? 'equals';
-    
+    const mfaVerified = context.mfaVerified ?? false;
+
     if (operator === 'equals') {
-      return context.mfaVerified === required;
+      return mfaVerified === required;
     }
-    
-    return context.mfaVerified === true;
+
+    return mfaVerified === true;
   }
 
   /**
@@ -887,7 +893,7 @@ export class AccessPolicyManager extends EventEmitter {
   /**
    * Очистка кэша доступа
    */
-  private clearAccessCache(): void {
+  public clearAccessCache(): void {
     this.accessCache.clear();
   }
 
@@ -897,7 +903,7 @@ export class AccessPolicyManager extends EventEmitter {
   private startCacheCleanup(): void {
     setInterval(() => {
       const now = Date.now();
-      
+
       for (const [key, value] of this.accessCache.entries()) {
         if (now - value.timestamp > this.ACCESS_CACHE_TTL) {
           this.accessCache.delete(key);

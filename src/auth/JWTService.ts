@@ -92,6 +92,30 @@ export interface JwtServiceConfig {
 
   /** Включить ли проверку blacklist */
   enableBlacklistCheck?: boolean;
+
+  /** Улучшения безопасности refresh токенов */
+  refreshTokenSecurity?: {
+    /** Включить fingerprinting refresh токенов */
+    enableFingerprinting?: boolean;
+    /** Включить защиту от replay attacks */
+    enableReplayProtection?: boolean;
+    /** Включить detection аномалий использования */
+    enableAnomalyDetection?: boolean;
+    /** Максимальное количество использований refresh токена */
+    maxTokenUses?: number;
+    /** Требуемое совпадение fingerprint (%) */
+    fingerprintMatchThreshold?: number;
+  };
+
+  /** Настройки key versioning для seamless rotation */
+  keyVersioning?: {
+    /** Включить версионирование ключей */
+    enabled?: boolean;
+    /** Поддерживать ли старые ключи для верификации */
+    supportOldKeysForVerification?: boolean;
+    /** Период поддержки старых ключей (часы) */
+    oldKeySupportPeriodHours?: number;
+  };
 }
 
 /**
@@ -104,9 +128,21 @@ const DEFAULT_CONFIG: JwtServiceConfig = {
   refreshTokenLifetime: 604800, // 7 дней
   idTokenLifetime: 3600, // 1 час
   defaultAlgorithm: 'RS256',
-  minRsaKeySize: 2048,
-  ecCurve: 'P-256',
+  minRsaKeySize: 4096, // Увеличено с 2048 до 4096 бит для повышенной безопасности
+  ecCurve: 'P-384', // Улучшено с P-256 до P-384
   enableBlacklistCheck: true,
+  refreshTokenSecurity: {
+    enableFingerprinting: true,
+    enableReplayProtection: true,
+    enableAnomalyDetection: true,
+    maxTokenUses: 1, // Refresh token одноразовый
+    fingerprintMatchThreshold: 85, // 85% совпадения fingerprint
+  },
+  keyVersioning: {
+    enabled: true,
+    supportOldKeysForVerification: true,
+    oldKeySupportPeriodHours: 72, // 3 дня поддержки старых ключей
+  },
 };
 
 /**
@@ -118,6 +154,68 @@ interface KeyPair {
   publicKey: KeyLike;
   signer: ReturnType<typeof createSigner>;
   verifier: ReturnType<typeof createVerifier>;
+  /** Версия ключа для key versioning */
+  version: number;
+  /** Ключи для верификации (для старых ключей) */
+  verificationOnly?: boolean;
+  /** Время когда ключ станет verification-only */
+  verificationOnlyFrom?: Date;
+}
+
+/**
+ * Refresh token fingerprint данные
+ */
+interface RefreshTokenFingerprint {
+  /** Уникальный идентификатор fingerprint */
+  fingerprintId: string;
+  /** Хэш fingerprint данных */
+  fingerprintHash: string;
+  /** IP адрес использования */
+  ipAddress: string;
+  /** User-Agent */
+  userAgent: string;
+  /** Device fingerprint если доступен */
+  deviceFingerprint?: string;
+  /** Geo location */
+  geoLocation?: string;
+  /** Время создания */
+  createdAt: Date;
+  /** Время последнего использования */
+  lastUsedAt: Date;
+  /** Количество использований */
+  useCount: number;
+  /** История использования для anomaly detection */
+  usageHistory: TokenUsageEvent[];
+}
+
+/**
+ * Событие использования токена
+ */
+interface TokenUsageEvent {
+  /** Время события */
+  timestamp: Date;
+  /** IP адрес */
+  ipAddress: string;
+  /** User-Agent */
+  userAgent: string;
+  /** Результат использования */
+  result: 'success' | 'failure' | 'blocked';
+  /** Причина блокировки если была */
+  blockReason?: string;
+}
+
+/**
+ * Данные для верификации refresh токена с fingerprint
+ */
+interface RefreshTokenVerificationContext {
+  /** IP адрес запроса */
+  ipAddress: string;
+  /** User-Agent запроса */
+  userAgent: string;
+  /** Device fingerprint если доступен */
+  deviceFingerprint?: string;
+  /** Geo location если доступен */
+  geoLocation?: string;
 }
 
 /**
@@ -131,6 +229,25 @@ export class JwtService {
   private activeSigningKeyId: string | null = null;
   private keyRotationInterval: NodeJS.Timeout | null = null;
   private blacklist: JWTBlacklist | null = null;
+  
+  /** Хранилище refresh token fingerprint для enhanced security */
+  private refreshTokensFingerprints: Map<string, RefreshTokenFingerprint> = new Map();
+  
+  /** Индекс для поиска fingerprint по jti токена */
+  private tokenJtiToFingerprint: Map<string, string> = new Map();
+  
+  /** Статистика безопасности для мониторинга атак */
+  private securityStats: {
+    replayAttacksDetected: number;
+    fingerprintMismatches: number;
+    anomalousUsageDetected: number;
+    tokensRevoked: number;
+  } = {
+    replayAttacksDetected: 0,
+    fingerprintMismatches: 0,
+    anomalousUsageDetected: 0,
+    tokensRevoked: 0,
+  };
 
   /**
    * Создает новый экземпляр JwtService
@@ -467,17 +584,26 @@ export class JwtService {
   }
 
   /**
-   * Создает refresh токен
+   * Создает refresh токен с enhanced security (fingerprinting + replay protection)
    * @param user - Пользователь
    * @param session - Сессия
    * @param refreshTokenFamily - Семейство токенов для rotation
-   * @returns Подписанный JWT
+   * @param verificationContext - Контекст верификации для fingerprinting
+   * @returns Подписанный JWT с metadata
    */
   public async createRefreshToken(
     user: Pick<IUser, 'id'>,
     session: ISession,
-    refreshTokenFamily: string
-  ): Promise<string> {
+    refreshTokenFamily: string,
+    verificationContext?: RefreshTokenVerificationContext
+  ): Promise<{
+    token: string;
+    fingerprintId?: string;
+    metadata: {
+      requiresFingerprintMatch: boolean;
+      maxUses: number;
+    };
+  }> {
     const keyPair = this.getActiveSigningKey();
     const now = Math.floor(Date.now() / 1000);
 
@@ -494,10 +620,30 @@ export class JwtService {
     };
 
     try {
-      return sign(payload, keyPair.config.privateKey, {
+      const token = sign(payload, keyPair.config.privateKey, {
         algorithm: keyPair.config.algorithm,
         keyid: keyPair.config.kid,
       });
+
+      // Создаем fingerprint если включена защита
+      let fingerprintId: string | undefined;
+      const securityConfig = this.config.refreshTokenSecurity;
+      
+      if (securityConfig?.enableFingerprinting && verificationContext) {
+        fingerprintId = this.createRefreshTokenFingerprint(
+          payload.jti,
+          verificationContext
+        );
+      }
+
+      return {
+        token,
+        fingerprintId,
+        metadata: {
+          requiresFingerprintMatch: securityConfig?.enableFingerprinting ?? false,
+          maxUses: securityConfig?.maxTokenUses ?? 1,
+        },
+      };
     } catch (error) {
       throw new AuthError(
         `Ошибка создания refresh токена: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -505,6 +651,50 @@ export class JwtService {
         500
       );
     }
+  }
+
+  /**
+   * Создает fingerprint для refresh токена
+   * @private
+   */
+  private createRefreshTokenFingerprint(
+    tokenJti: string,
+    context: RefreshTokenVerificationContext
+  ): string {
+    const fingerprintId = uuidv4();
+    const fingerprintData = JSON.stringify({
+      ip: context.ipAddress,
+      ua: context.userAgent,
+      device: context.deviceFingerprint,
+      geo: context.geoLocation,
+      jti: tokenJti,
+    });
+    
+    const fingerprintHash = createHash('sha256').update(fingerprintData).digest('hex');
+    
+    const fingerprint: RefreshTokenFingerprint = {
+      fingerprintId,
+      fingerprintHash,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      deviceFingerprint: context.deviceFingerprint,
+      geoLocation: context.geoLocation,
+      createdAt: new Date(),
+      lastUsedAt: new Date(),
+      useCount: 0,
+      usageHistory: [],
+    };
+    
+    this.refreshTokensFingerprints.set(fingerprintId, fingerprint);
+    this.tokenJtiToFingerprint.set(tokenJti, fingerprintId);
+    
+    logger.info('[JwtService] Создан fingerprint для refresh токена', {
+      fingerprintId,
+      tokenJti,
+      hasDeviceFingerprint: !!context.deviceFingerprint,
+    });
+    
+    return fingerprintId;
   }
 
   /**
@@ -820,62 +1010,544 @@ export class JwtService {
 
   /**
    * =============================================================================
-   * ROTATION REFRESH TOKENS
+   * ROTATION REFRESH TOKENS С ENHANCED SECURITY
    * =============================================================================
    */
 
   /**
-   * Создает новый refresh токен при rotation
+   * Создает новый refresh токен при rotation с enhanced security
    * @param oldToken - Старый refresh токен
    * @param session - Сессия
    * @param refreshTokenFamily - Семейство токенов
-   * @returns Новый refresh токен
+   * @param verificationContext - Контекст для fingerprint verification
+   * @returns Новый refresh токен с metadata
    */
   public async rotateRefreshToken(
     oldToken: string,
     session: ISession,
-    refreshTokenFamily: string
-  ): Promise<string> {
-    // Верифицируем старый токен
-    const payload = await this.verifyToken<RefreshTokenPayload>(oldToken, {
-      tokenType: 'refresh',
-    });
+    refreshTokenFamily: string,
+    verificationContext?: RefreshTokenVerificationContext
+  ): Promise<{
+    success: boolean;
+    newToken?: string;
+    newFingerprintId?: string;
+    error?: string;
+    securityEvents: {
+      replayAttackDetected: boolean;
+      fingerprintMismatch: boolean;
+      anomalyDetected: boolean;
+    };
+  }> {
+    const securityEvents = {
+      replayAttackDetected: false,
+      fingerprintMismatch: false,
+      anomalyDetected: false,
+    };
 
-    // Проверяем семейство токенов
-    if (payload.rtf !== refreshTokenFamily) {
-      throw new AuthError(
-        'Несоответствие семейства токенов - возможная атака',
-        AuthErrorCode.TOKEN_REVOKED,
-        401
-      );
-    }
+    try {
+      // Верифицируем старый токен
+      const payload = await this.verifyToken<RefreshTokenPayload>(oldToken, {
+        tokenType: 'refresh',
+        checkRevocation: true,
+      });
 
-    // Отзываем старый токен (добавляем в blacklist)
-    // Это предотвращает повторное использование старого refresh токена
-    if (this.blacklist) {
-      const oldTokenJti = payload.jti;
-      const remainingTtl = (payload.exp || 0) - Math.floor(Date.now() / 1000);
-      
-      if (remainingTtl > 0) {
-        try {
+      // ПРОВЕРКА 1: Replay attack detection
+      // Проверяем не был ли токен уже использован
+      if (this.config.refreshTokenSecurity?.enableReplayProtection) {
+        const isReplay = await this.detectReplayAttack(payload.jti, verificationContext);
+        
+        if (isReplay) {
+          securityEvents.replayAttackDetected = true;
+          this.securityStats.replayAttacksDetected++;
+          
+          // КРИТИЧЕСКАЯ АТАКА - отзываем ВСЕ токены пользователя
+          await this.emergencyRevokeUserTokens(payload.sub, 'Replay attack detected');
+          
+          logger.error('[JwtService] DETECTED REPLAY ATTACK', {
+            userId: payload.sub,
+            tokenJti: payload.jti,
+            sessionId: session.id,
+            ip: verificationContext?.ipAddress,
+          });
+          
+          return {
+            success: false,
+            error: 'Replay attack detected - all tokens revoked',
+            securityEvents,
+          };
+        }
+      }
+
+      // ПРОВЕРКА 2: Fingerprint matching
+      if (this.config.refreshTokenSecurity?.enableFingerprinting && verificationContext) {
+        const fingerprintMatch = await this.verifyRefreshTokenFingerprint(
+          payload.jti,
+          verificationContext
+        );
+        
+        if (!fingerprintMatch.valid) {
+          securityEvents.fingerprintMismatch = true;
+          this.securityStats.fingerprintMismatches++;
+          
+          logger.warn('[JwtService] Refresh token fingerprint mismatch', {
+            userId: payload.sub,
+            tokenJti: payload.jti,
+            reason: fingerprintMatch.reason,
+            matchScore: fingerprintMatch.matchScore,
+          });
+          
+          // Проверяем порог совпадения
+          const threshold = this.config.refreshTokenSecurity.fingerprintMatchThreshold ?? 85;
+          if (fingerprintMatch.matchScore < threshold) {
+            // Подозрительная активность - возможная кража токена
+            await this.recordSecurityIncident(payload.sub, 'Fingerprint mismatch', verificationContext);
+            
+            return {
+              success: false,
+              error: `Fingerprint mismatch (score: ${fingerprintMatch.matchScore}%, required: ${threshold}%)`,
+              securityEvents,
+            };
+          }
+        }
+      }
+
+      // ПРОВЕРКА 3: Anomaly detection
+      if (this.config.refreshTokenSecurity?.enableAnomalyDetection) {
+        const anomalyResult = await this.detectTokenUsageAnomaly(payload.jti, verificationContext);
+        
+        if (anomalyResult.isAnomalous) {
+          securityEvents.anomalyDetected = true;
+          this.securityStats.anomalousUsageDetected++;
+          
+          logger.warn('[JwtService] Anomalous token usage detected', {
+            userId: payload.sub,
+            tokenJti: payload.jti,
+            reasons: anomalyResult.reasons,
+          });
+        }
+      }
+
+      // Проверяем семейство токенов
+      if (payload.rtf !== refreshTokenFamily) {
+        logger.error('[JwtService] Token family mismatch - possible attack', {
+          expected: refreshTokenFamily,
+          received: payload.rtf,
+          userId: payload.sub,
+        });
+        
+        return {
+          success: false,
+          error: 'Token family mismatch - possible attack',
+          securityEvents,
+        };
+      }
+
+      // Отзываем старый токен (добавляем в blacklist)
+      if (this.blacklist) {
+        const oldTokenJti = payload.jti;
+        const remainingTtl = (payload.exp || 0) - Math.floor(Date.now() / 1000);
+
+        if (remainingTtl > 0) {
           await this.blacklist.revokeToken(oldTokenJti, remainingTtl, {
             sessionId: session.id,
             userId: payload.sub,
-            reason: 'Refresh token rotation',
+            reason: 'Refresh token rotation - single use token',
           });
-        } catch (error) {
-          logger.error('[JwtService] Ошибка добавления токена в blacklist при rotation', { error });
-          // Не блокируем rotation при ошибке blacklist
+        }
+      }
+
+      // Создаем новый токен с новым fingerprint
+      const newTokenResult = await this.createRefreshToken(
+        { id: payload.sub },
+        session,
+        refreshTokenFamily,
+        verificationContext
+      );
+
+      logger.info('[JwtService] Refresh token successfully rotated', {
+        userId: payload.sub,
+        newFingerprintId: newTokenResult.fingerprintId,
+      });
+
+      return {
+        success: true,
+        newToken: newTokenResult.token,
+        newFingerprintId: newTokenResult.fingerprintId,
+        securityEvents,
+      };
+    } catch (error) {
+      logger.error('[JwtService] Error during refresh token rotation', { error });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        securityEvents,
+      };
+    }
+  }
+
+  /**
+   * Детекция replay attack
+   * @private
+   */
+  private async detectReplayAttack(
+    tokenJti: string,
+    context?: RefreshTokenVerificationContext
+  ): Promise<boolean> {
+    // Проверяем был ли токен уже использован
+    const fingerprintId = this.tokenJtiToFingerprint.get(tokenJti);
+    
+    if (!fingerprintId) {
+      return false; // Нет данных fingerprint, не можем проверить
+    }
+    
+    const fingerprint = this.refreshTokensFingerprints.get(fingerprintId);
+    
+    if (!fingerprint) {
+      return false;
+    }
+    
+    // Если токен уже был использован (useCount > 0), это replay attack
+    // так как refresh токены должны быть одноразовыми
+    if (fingerprint.useCount > 0) {
+      // Проверяем не было ли это в рамках очень короткого окна (race condition)
+      const timeSinceLastUse = Date.now() - fingerprint.lastUsedAt.getTime();
+      
+      if (timeSinceLastUse < 1000) { // Менее 1 секунды
+        logger.warn('[JwtService] Possible race condition on token use', {
+          tokenJti,
+          timeSinceLastUse,
+        });
+        return false; // Возможно это легитимное повторное использование
+      }
+      
+      return true; // Точно replay attack
+    }
+    
+    return false;
+  }
+
+  /**
+   * Верификация fingerprint refresh токена
+   * @private
+   */
+  private async verifyRefreshTokenFingerprint(
+    tokenJti: string,
+    context: RefreshTokenVerificationContext
+  ): Promise<{
+    valid: boolean;
+    reason?: string;
+    matchScore: number;
+  }> {
+    const fingerprintId = this.tokenJtiToFingerprint.get(tokenJti);
+    
+    if (!fingerprintId) {
+      return { valid: true, matchScore: 100 }; // Нет fingerprint, пропускаем
+    }
+    
+    const fingerprint = this.refreshTokensFingerprints.get(fingerprintId);
+    
+    if (!fingerprint) {
+      return { valid: true, matchScore: 100 };
+    }
+    
+    let matchScore = 100;
+    const mismatches: string[] = [];
+    
+    // Проверяем IP адрес (частичное совпадение для NAT)
+    if (context.ipAddress !== fingerprint.ipAddress) {
+      const ipMatch = this.compareIpAddresses(context.ipAddress, fingerprint.ipAddress);
+      if (!ipMatch) {
+        matchScore -= 30;
+        mismatches.push('IP address mismatch');
+      }
+    }
+    
+    // Проверяем User-Agent (должен совпадать)
+    if (context.userAgent !== fingerprint.userAgent) {
+      const uaSimilarity = this.calculateUserAgentSimilarity(
+        context.userAgent,
+        fingerprint.userAgent
+      );
+      
+      if (uaSimilarity < 0.9) {
+        matchScore -= 40;
+        mismatches.push(`User-Agent mismatch (similarity: ${uaSimilarity})`);
+      }
+    }
+    
+    // Проверяем device fingerprint (если доступен)
+    if (context.deviceFingerprint && fingerprint.deviceFingerprint) {
+      if (context.deviceFingerprint !== fingerprint.deviceFingerprint) {
+        matchScore -= 50; // Критичное несоответствие
+        mismatches.push('Device fingerprint mismatch');
+      }
+    }
+    
+    // Обновляем статистику использования
+    fingerprint.useCount++;
+    fingerprint.lastUsedAt = new Date();
+    fingerprint.usageHistory.push({
+      timestamp: new Date(),
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      result: matchScore >= (this.config.refreshTokenSecurity?.fingerprintMatchThreshold ?? 85)
+        ? 'success'
+        : 'failure',
+    });
+    
+    this.refreshTokensFingerprints.set(fingerprintId, fingerprint);
+    
+    return {
+      valid: matchScore >= (this.config.refreshTokenSecurity?.fingerprintMatchThreshold ?? 85),
+      reason: mismatches.length > 0 ? mismatches.join('; ') : undefined,
+      matchScore,
+    };
+  }
+
+  /**
+   * Детекция аномалий использования токена
+   * @private
+   */
+  private async detectTokenUsageAnomaly(
+    tokenJti: string,
+    context?: RefreshTokenVerificationContext
+  ): Promise<{
+    isAnomalous: boolean;
+    reasons: string[];
+  }> {
+    const fingerprintId = this.tokenJtiToFingerprint.get(tokenJti);
+    
+    if (!fingerprintId) {
+      return { isAnomalous: false, reasons: [] };
+    }
+    
+    const fingerprint = this.refreshTokensFingerprints.get(fingerprintId);
+    
+    if (!fingerprint || fingerprint.usageHistory.length < 3) {
+      return { isAnomalous: false, reasons: [] };
+    }
+    
+    const reasons: string[] = [];
+    
+    // Аномалия 1: Необычное время использования
+    const currentHour = new Date().getHours();
+    const usageHours = fingerprint.usageHistory.map(e => new Date(e.timestamp).getHours());
+    const avgUsageHour = usageHours.reduce((a, b) => a + b, 0) / usageHours.length;
+    const hourDiff = Math.abs(currentHour - avgUsageHour);
+    
+    if (hourDiff > 6) { // Более 6 часов отклонения
+      reasons.push(`Unusual usage time (current: ${currentHour}, avg: ${avgUsageHour.toFixed(1)})`);
+    }
+    
+    // Аномалия 2: Географическая невозможность
+    if (context?.geoLocation && fingerprint.geoLocation) {
+      const distance = this.calculateDistance(
+        fingerprint.geoLocation,
+        context.geoLocation
+      );
+      
+      const timeSinceLastUse = Date.now() - fingerprint.lastUsedAt.getTime();
+      const hoursSinceLastUse = timeSinceLastUse / (1000 * 60 * 60);
+      
+      // Если расстояние большое, а время маленькое - это невозможно
+      const maxPossibleSpeed = 900; // 900 км/ч (максимум для коммерческих рейсов)
+      const maxPossibleDistance = maxPossibleSpeed * hoursSinceLastUse;
+      
+      if (distance > maxPossibleDistance * 1.5) { // 50% запас
+        reasons.push(`Impossible travel (distance: ${distance.toFixed(0)}km, max possible: ${maxPossibleDistance.toFixed(0)}km)`);
+      }
+    }
+    
+    // Аномалия 3: Частое использование
+    const recentUses = fingerprint.usageHistory.filter(
+      e => Date.now() - new Date(e.timestamp).getTime() < 3600000 // 1 час
+    );
+    
+    if (recentUses.length > 10) {
+      reasons.push(`High frequency usage (${recentUses.length} times in 1 hour)`);
+    }
+    
+    return {
+      isAnomalous: reasons.length > 0,
+      reasons,
+    };
+  }
+
+  /**
+   * Экстренный отзыв всех токенов пользователя
+   * @private
+   */
+  private async emergencyRevokeUserTokens(
+    userId: string,
+    reason: string
+  ): Promise<void> {
+    if (!this.blacklist) {
+      return;
+    }
+    
+    try {
+      await this.blacklist.revokeUserTokens(userId, this.config.refreshTokenLifetime, reason);
+      this.securityStats.tokensRevoked++;
+      
+      logger.error('[JwtService] EMERGENCY TOKEN REVOCATION', {
+        userId,
+        reason,
+        action: 'All user tokens revoked due to security incident',
+      });
+    } catch (error) {
+      logger.error('[JwtService] Error during emergency revocation', { error });
+    }
+  }
+
+  /**
+   * Запись security incident
+   * @private
+   */
+  private async recordSecurityIncident(
+    userId: string,
+    incidentType: string,
+    context?: RefreshTokenVerificationContext
+  ): Promise<void> {
+    logger.error('[JwtService] SECURITY INCIDENT RECORDED', {
+      userId,
+      incidentType,
+      context: {
+        ip: context?.ipAddress,
+        hasDeviceFingerprint: !!context?.deviceFingerprint,
+        geoLocation: context?.geoLocation,
+      },
+      timestamp: new Date().toISOString(),
+    });
+    
+    // В реальной реализации здесь была бы отправка в SIEM
+    this.emit('security:incident', {
+      userId,
+      incidentType,
+      timestamp: new Date(),
+      context,
+    });
+  }
+
+  /**
+   * Сравнение IP адресов (с учетом NAT)
+   * @private
+   */
+  private compareIpAddresses(ip1: string, ip2: string): boolean {
+    // Точное совпадение
+    if (ip1 === ip2) {
+      return true;
+    }
+    
+    // Проверяем совпадение по /24 subnet (для NAT)
+    const parts1 = ip1.split('.');
+    const parts2 = ip2.split('.');
+    
+    if (parts1.length === 4 && parts2.length === 4) {
+      // Совпадение первых 3 октетов (/24 subnet)
+      return parts1[0] === parts2[0] &&
+             parts1[1] === parts2[1] &&
+             parts1[2] === parts2[2];
+    }
+    
+    return false;
+  }
+
+  /**
+   * Вычисление схожести User-Agent
+   * @private
+   */
+  private calculateUserAgentSimilarity(ua1: string, ua2: string): number {
+    // Простая эвристика: сравнение по основным компонентам
+    const extractBrowser = (ua: string) => {
+      const match = ua.match(/(Chrome|Firefox|Safari|Edge|Opera)[\/\s](\d+)/i);
+      return match ? `${match[1]}${match[2]}` : ua;
+    };
+    
+    const browser1 = extractBrowser(ua1);
+    const browser2 = extractBrowser(ua2);
+    
+    if (browser1 === browser2) {
+      return 1.0;
+    }
+    
+    // Проверяем совпадение OS
+    const extractOS = (ua: string) => {
+      const match = ua.match(/(Windows|Mac OS|Linux|Android|iOS)[\s\/]?(\d+[\._]?\d*)?/i);
+      return match ? match[1] : '';
+    };
+    
+    const os1 = extractOS(ua1);
+    const os2 = extractOS(ua2);
+    
+    if (os1 === os2 && os1 !== '') {
+      return 0.7; // Та же OS, другой браузер
+    }
+    
+    return 0;
+  }
+
+  /**
+   * Вычисление расстояния между geo locations (Haversine formula)
+   * @private
+   */
+  private calculateDistance(loc1: string, loc2: string): number {
+    try {
+      const [lat1, lon1] = loc1.split(',').map(Number);
+      const [lat2, lon2] = loc2.split(',').map(Number);
+      
+      const R = 6371; // Радиус Земли в км
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+      
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      
+      return distance;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Получение статистики безопасности
+   */
+  public getSecurityStats(): typeof this.securityStats {
+    return { ...this.securityStats };
+  }
+
+  /**
+   * Очистка старых fingerprint данных
+   */
+  public cleanupOldFingerprints(maxAgeHours: number = 24): void {
+    const now = Date.now();
+    const maxAge = maxAgeHours * 60 * 60 * 1000;
+    
+    for (const [fingerprintId, fingerprint] of this.refreshTokensFingerprints.entries()) {
+      const age = now - fingerprint.lastUsedAt.getTime();
+      
+      if (age > maxAge) {
+        this.refreshTokensFingerprints.delete(fingerprintId);
+        
+        // Находим и удаляем соответствующий JTI
+        for (const [jti, fpId] of this.tokenJtiToFingerprint.entries()) {
+          if (fpId === fingerprintId) {
+            this.tokenJtiToFingerprint.delete(jti);
+            break;
+          }
         }
       }
     }
-
-    // Создаем новый токен с новым jti
-    return this.createRefreshToken(
-      { id: payload.sub },
-      session,
-      refreshTokenFamily
-    );
+    
+    logger.info('[JwtService] Cleanup old fingerprints completed', {
+      remainingCount: this.refreshTokensFingerprints.size,
+    });
   }
 
   /**

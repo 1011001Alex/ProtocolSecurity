@@ -339,7 +339,12 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
     }
     
     if (!this.primaryBackend) {
-      throw new SecretConfigError('Не удалось инициализировать ни один бэкенд');
+      // В development mode允许没有 backend (только кэш)
+      if (this.mode === 'development') {
+        logger.warn('[SecretsManager] Бэкенд не инициализирован, работа только с кэшем');
+      } else {
+        throw new SecretConfigError('Не удалось инициализировать ни один бэкенд');
+      }
     }
   }
 
@@ -1041,7 +1046,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
 
   /**
    * Проверить доступ
-   * 
+   *
    * @param action - Действие
    * @param resource - Ресурс
    * @param context - Контекст
@@ -1052,7 +1057,8 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
     resource: string,
     context: AccessContext
   ): Promise<boolean> {
-    return await this.policyManager.checkAccess(action, resource, context);
+    const decision = await this.policyManager.checkAccess(action, resource, context);
+    return decision.allowed;
   }
 
   /**

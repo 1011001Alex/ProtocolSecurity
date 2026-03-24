@@ -225,8 +225,8 @@ export class KeyManager extends EventEmitter {
       
       const entry: KeyEntry = {
         metadata,
-        keyMaterial: keyMaterial ? Buffer.from(keyMaterial) : null,
-        publicKey: publicKey ? Buffer.from(publicKey.export({ format: 'der', type: 'spki' })) : null,
+        keyMaterial: keyMaterial ? (typeof keyMaterial === 'string' ? keyMaterial : Buffer.from(keyMaterial)) : null,
+        publicKey: publicKey ? (typeof publicKey === 'string' ? Buffer.from(publicKey) : Buffer.from(publicKey.export({ format: 'der', type: 'spki' }))) : null,
         createdAt: createdAt.getTime(),
         lastUsedAt: null,
         useCount: 0,
@@ -725,40 +725,40 @@ export class KeyManager extends EventEmitter {
         modulusLength: keySize,
         publicKeyEncoding: {
           type: 'spki',
-          format: 'der',
+          format: 'pem',
         },
         privateKeyEncoding: {
           type: 'pkcs8',
-          format: 'der',
+          format: 'pem',
         },
       });
     }
-    
+
     if (algorithm.includes('ECDSA') || algorithm.includes('ECDH')) {
       const namedCurve = this.getNamedCurve(algorithm);
       return crypto.generateKeyPairSync('ec', {
         namedCurve,
         publicKeyEncoding: {
           type: 'spki',
-          format: 'der',
+          format: 'pem',
         },
         privateKeyEncoding: {
           type: 'pkcs8',
-          format: 'der',
+          format: 'pem',
         },
       });
     }
-    
+
     if (algorithm.includes('Ed25519') || algorithm.includes('Ed448')) {
       const type = algorithm.includes('Ed448') ? 'ed448' : 'ed25519';
       return crypto.generateKeyPairSync(type as any, {
         publicKeyEncoding: {
           type: 'spki',
-          format: 'der',
+          format: 'pem',
         },
         privateKeyEncoding: {
           type: 'pkcs8',
-          format: 'der',
+          format: 'pem',
         },
       });
     }

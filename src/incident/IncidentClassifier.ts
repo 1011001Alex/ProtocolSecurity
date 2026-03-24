@@ -1230,13 +1230,13 @@ export class IncidentClassifier {
       .sort((a, b) => b.weightedScore - a.weightedScore)
       .slice(0, 5);
 
-    const rationale = `Общая оценка: ${totalScore}/100\n\nКлючевые факторы:\n`;
+    let rationaleText = `Общая оценка: ${totalScore}/100\n\nКлючевые факторы:\n`;
 
     topFactors.forEach((factor, index) => {
-      rationale += `${index + 1}. ${factor.description} (взвешенный балл: ${factor.weightedScore.toFixed(1)})\n`;
+      rationaleText += `${index + 1}. ${factor.description} (взвешенный балл: ${factor.weightedScore.toFixed(1)})\n`;
     });
 
-    return rationale.trim();
+    return rationaleText.trim();
   }
 
   /**

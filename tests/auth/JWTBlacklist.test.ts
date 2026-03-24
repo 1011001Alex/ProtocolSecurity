@@ -11,19 +11,55 @@
 import { JWTBlacklist, createJWTBlacklist, RevokedTokenInfo } from '../../src/auth/JWTBlacklist';
 import { AuthError } from '../../src/types/auth.types';
 
-// Mock для Redis
+// Mock для Redis с хранением состояния
+const mockRedisStorage = new Map<string, string>();
+
 const mockRedis = {
-  setex: jest.fn().mockResolvedValue('OK'),
-  get: jest.fn().mockResolvedValue(null),
-  del: jest.fn().mockResolvedValue(1),
-  sadd: jest.fn().mockResolvedValue(1),
-  smembers: jest.fn().mockResolvedValue([]),
-  srem: jest.fn().mockResolvedValue(1),
-  expire: jest.fn().mockResolvedValue(1),
-  ttl: jest.fn().mockResolvedValue(-1),
+  setex: jest.fn().mockImplementation(async (key: string, ttl: number, value: string) => {
+    mockRedisStorage.set(key, value);
+    return 'OK';
+  }),
+  get: jest.fn().mockImplementation(async (key: string) => {
+    const value = mockRedisStorage.get(key);
+    return value !== undefined ? value : null;
+  }),
+  del: jest.fn().mockImplementation(async (key: string) => {
+    mockRedisStorage.delete(key);
+    return 1;
+  }),
+  sadd: jest.fn().mockImplementation(async (key: string, value: string) => {
+    const current = mockRedisStorage.get(key);
+    const set = current ? new Set(current.split(',')) : new Set();
+    set.add(value);
+    mockRedisStorage.set(key, Array.from(set).join(','));
+    return 1;
+  }),
+  smembers: jest.fn().mockImplementation(async (key: string) => {
+    const current = mockRedisStorage.get(key);
+    if (!current) return [];
+    return current.split(',').filter(Boolean);
+  }),
+  srem: jest.fn().mockImplementation(async (key: string, value: string) => {
+    const current = mockRedisStorage.get(key);
+    if (!current) return 0;
+    const set = new Set(current.split(','));
+    set.delete(value);
+    mockRedisStorage.set(key, Array.from(set).join(','));
+    return 1;
+  }),
+  expire: jest.fn().mockImplementation(async (key: string, ttl: number) => {
+    // Симулируем установку TTL - в реальном тесте просто возвращаем успех
+    return 1;
+  }),
+  ttl: jest.fn().mockImplementation(async (key: string) => {
+    if (mockRedisStorage.has(key)) {
+      return 3600; // Возвращаем положительный TTL для существующих ключей
+    }
+    return -2; // Key does not exist
+  }),
   scanStream: jest.fn().mockReturnValue({
     [Symbol.asyncIterator]: async function* () {
-      yield [];
+      yield Array.from(mockRedisStorage.keys());
     },
   }),
   on: jest.fn(),
@@ -40,8 +76,7 @@ describe('JWTBlacklist', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRedis.get.mockResolvedValue(null);
-    mockRedis.smembers.mockResolvedValue([]);
+    mockRedisStorage.clear();
     blacklist = createJWTBlacklist({
       enabled: true,
       redis: {
@@ -102,11 +137,12 @@ describe('JWTBlacklist', () => {
       });
 
       await cleanupBlacklist.initialize();
-      const status = cleanupBlacklist.getStatus();
+      let status = cleanupBlacklist.getStatus();
 
       expect(status.cleanupRunning).toBe(true);
 
       await cleanupBlacklist.destroy();
+      status = cleanupBlacklist.getStatus();
       expect(status.cleanupRunning).toBe(false);
     });
   });
@@ -327,6 +363,9 @@ describe('JWTBlacklist', () => {
     });
 
     it('должен выбрасывать ошибку при недоступном Redis', async () => {
+      // Переопределяем mock для симуляции недоступного Redis
+      mockRedis.ping.mockRejectedValueOnce(new Error('Redis unavailable'));
+      
       const noRedisBlacklist = createJWTBlacklist({
         enabled: true,
         redis: { host: 'invalid', port: 9999 },
@@ -337,6 +376,9 @@ describe('JWTBlacklist', () => {
       await expect(noRedisBlacklist.revokeUserTokens('user', 3600)).rejects.toThrow(AuthError);
 
       await noRedisBlacklist.destroy();
+      
+      // Восстанавливаем mock
+      mockRedis.ping.mockResolvedValue('PONG');
     });
 
     it('должен очищать индекс пользователя после revocation', async () => {
@@ -422,6 +464,9 @@ describe('JWTBlacklist', () => {
     });
 
     it('должен возвращать 0 если Redis недоступен', async () => {
+      // Переопределяем mock для симуляции недоступного Redis
+      mockRedis.ping.mockRejectedValueOnce(new Error('Redis unavailable'));
+      
       const noRedisBlacklist = createJWTBlacklist({
         enabled: true,
         redis: { host: 'invalid', port: 9999 },
@@ -436,6 +481,9 @@ describe('JWTBlacklist', () => {
       expect(result.cleanedDeviceIndexes).toBe(0);
 
       await noRedisBlacklist.destroy();
+      
+      // Восстанавливаем mock
+      mockRedis.ping.mockResolvedValue('PONG');
     });
   });
 
@@ -465,6 +513,9 @@ describe('JWTBlacklist', () => {
     });
 
     it('должен возвращать метрики с redisConnected=false если Redis недоступен', async () => {
+      // Переопределяем mock для симуляции недоступного Redis
+      mockRedis.ping.mockRejectedValueOnce(new Error('Redis unavailable'));
+      
       const noRedisBlacklist = createJWTBlacklist({
         enabled: true,
         redis: { host: 'invalid', port: 9999 },
@@ -477,6 +528,9 @@ describe('JWTBlacklist', () => {
       expect(metrics.redisConnected).toBe(false);
 
       await noRedisBlacklist.destroy();
+      
+      // Восстанавливаем mock
+      mockRedis.ping.mockResolvedValue('PONG');
     });
   });
 

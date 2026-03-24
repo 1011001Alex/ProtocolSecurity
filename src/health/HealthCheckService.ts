@@ -40,6 +40,25 @@ import {
 import { CircuitBreaker, CircuitBreakerManager, CircuitState } from '../utils/CircuitBreaker';
 import { PerformanceMonitor, getPerformanceMonitor } from '../utils/PerformanceMonitor';
 
+// Ре-экспорт типов для тестов
+export {
+  HealthStatus,
+  ComponentType,
+  HealthCheckConfig,
+  HealthCheckResult,
+  ComponentHealthStatus,
+  DEFAULT_HEALTH_CHECK_CONFIG,
+  HealthCheckOptions,
+  DEFAULT_HEALTH_CHECK_OPTIONS,
+  CircuitBreakerHealthStatus,
+  RedisHealthStatus,
+  DatabaseHealthStatus,
+  ExternalApiHealthStatus,
+  MemoryHealthStatus,
+  CPUHealthStatus,
+  PrometheusMetrics
+};
+
 /**
  * Health Check Service
  */
@@ -58,6 +77,9 @@ export class HealthCheckService extends EventEmitter {
   
   /** Таймер периодической проверки */
   private checkTimer: NodeJS.Timeout | null = null;
+
+  /** Флаг остановки */
+  private isStopping: boolean = false;
   
   /** Кэш Redis клиента (инжектируется извне) */
   private redisClient?: unknown;
@@ -204,21 +226,28 @@ export class HealthCheckService extends EventEmitter {
     if (this.checkTimer) {
       return;
     }
-    
+
     this.log('START', 'Запуск Health Check Service');
-    
+    this.isStopping = false;
+
     // Немедленная первая проверка
-    this.performHealthCheck().catch(err => {
+    this.performHealthCheck().then(result => {
+      this.lastCheckResult = result;
+    }).catch(err => {
       this.log('ERROR', `Ошибка первой проверки: ${err.message}`);
     });
-    
+
     // Периодические проверки
     this.checkTimer = setInterval(() => {
-      this.performHealthCheck().catch(err => {
-        this.log('ERROR', `Ошибка периодической проверки: ${err.message}`);
-      });
+      if (!this.isStopping) {
+        this.performHealthCheck().then(result => {
+          this.lastCheckResult = result;
+        }).catch(err => {
+          this.log('ERROR', `Ошибка периодической проверки: ${err.message}`);
+        });
+      }
     }, this.config.checkInterval);
-    
+
     this.emit('started');
   }
 
@@ -230,7 +259,8 @@ export class HealthCheckService extends EventEmitter {
       clearInterval(this.checkTimer);
       this.checkTimer = null;
     }
-    
+
+    this.isStopping = true;
     this.log('STOP', 'Остановка Health Check Service');
     this.emit('stopped');
   }
@@ -1065,19 +1095,40 @@ export class HealthCheckService extends EventEmitter {
    */
   private calculateOverallStatus(components: Record<string, ComponentHealthStatus>): HealthStatus {
     const statuses = Object.values(components).map(c => c.status);
-    
+
+    // UNHEALTHY компоненты всегда делают статус unhealthy
     if (statuses.some(s => s === HealthStatus.UNHEALTHY)) {
       return HealthStatus.UNHEALTHY;
     }
-    
-    if (statuses.some(s => s === HealthStatus.WARNING)) {
+
+    // WARNING от критических компонентов (redis, database, application) влияет на статус
+    const criticalComponents = ['redis', 'database', 'application'];
+    const criticalStatuses = Object.entries(components)
+      .filter(([name]) => criticalComponents.includes(name))
+      .map(([, c]) => c.status);
+
+    if (criticalStatuses.some(s => s === HealthStatus.WARNING)) {
       return HealthStatus.WARNING;
     }
+
+    // WARNING от опциональных компонентов (vault, elasticsearch) не влияет на общий статус
+    // если только все компоненты не в warning
+    const nonCriticalStatuses = Object.entries(components)
+      .filter(([name]) => !criticalComponents.includes(name))
+      .map(([, c]) => c.status);
+
+    if (nonCriticalStatuses.length > 0 && nonCriticalStatuses.every(s => s === HealthStatus.WARNING)) {
+      return HealthStatus.WARNING;
+    }
+
+    // UNKNOWN возвращаем только если нет healthy компонентов
+    const healthyCount = statuses.filter(s => s === HealthStatus.HEALTHY).length;
+    const unknownCount = statuses.filter(s => s === HealthStatus.UNKNOWN).length;
     
-    if (statuses.some(s => s === HealthStatus.UNKNOWN)) {
+    if (healthyCount === 0 && unknownCount > 0) {
       return HealthStatus.UNKNOWN;
     }
-    
+
     return HealthStatus.HEALTHY;
   }
 

@@ -31,6 +31,7 @@ module.exports = {
   moduleNameMapper: {
     '^@integrity/(.*)$': '<rootDir>/src/integrity/$1',
     '^@types/(.*)$': '<rootDir>/src/types/$1',
-    '^@utils/(.*)$': '<rootDir>/src/utils/$1'
+    '^@utils/(.*)$': '<rootDir>/src/utils/$1',
+    '^@tensorflow/tfjs-node$': '<rootDir>/tests/__mocks__/@tensorflow/tfjs-node.ts'
   }
 };

@@ -149,7 +149,7 @@ describe('SecureLogger', () => {
       expect(logger.isEnabled()).toBe(true);
     });
     
-    it('should log at different levels', () => {
+    it('should log at different levels', async () => {
       const emergencyLog = logger.emergency('Emergency message');
       const alertLog = logger.alert('Alert message');
       const criticalLog = logger.critical('Critical message');
@@ -159,63 +159,63 @@ describe('SecureLogger', () => {
       const infoLog = logger.info('Info message');
       const debugLog = logger.debug('Debug message');
       const traceLog = logger.trace('Trace message');
-      
-      expect(emergencyLog?.level).toBe(LogLevel.EMERGENCY);
-      expect(alertLog?.level).toBe(LogLevel.ALERT);
-      expect(criticalLog?.level).toBe(LogLevel.CRITICAL);
-      expect(errorLog?.level).toBe(LogLevel.ERROR);
-      expect(warningLog?.level).toBe(LogLevel.WARNING);
-      expect(noticeLog?.level).toBe(LogLevel.NOTICE);
-      expect(infoLog?.level).toBe(LogLevel.INFO);
-      expect(debugLog?.level).toBe(LogLevel.DEBUG);
-      expect(traceLog?.level).toBe(LogLevel.TRACE);
+
+      expect((await emergencyLog)?.level).toBe(LogLevel.EMERGENCY);
+      expect((await alertLog)?.level).toBe(LogLevel.ALERT);
+      expect((await criticalLog)?.level).toBe(LogLevel.CRITICAL);
+      expect((await errorLog)?.level).toBe(LogLevel.ERROR);
+      expect((await warningLog)?.level).toBe(LogLevel.WARNING);
+      expect((await noticeLog)?.level).toBe(LogLevel.NOTICE);
+      expect((await infoLog)?.level).toBe(LogLevel.INFO);
+      expect((await debugLog)?.level).toBe(LogLevel.DEBUG);
+      expect((await traceLog)?.level).toBe(LogLevel.TRACE);
     });
-    
-    it('should include context in logs', () => {
+
+    it('should include context in logs', async () => {
       const context: LogContext = {
         userId: 'user-123',
         clientIp: '10.0.0.1',
         sessionId: 'session-456',
         requestId: 'req-789'
       };
-      
-      const log = logger.info('Message with context', LogSource.APPLICATION, 'test', context);
-      
+
+      const log = await logger.info('Message with context', LogSource.APPLICATION, 'test', context);
+
       expect(log?.context.userId).toBe('user-123');
       expect(log?.context.clientIp).toBe('10.0.0.1');
       expect(log?.context.sessionId).toBe('session-456');
       expect(log?.context.requestId).toBe('req-789');
     });
-    
-    it('should sanitize messages to prevent log injection', () => {
+
+    it('should sanitize messages to prevent log injection', async () => {
       const maliciousMessage = 'Normal message\r\nInjected: fake log entry';
-      const log = logger.info(maliciousMessage);
-      
+      const log = await logger.info(maliciousMessage);
+
       expect(log?.message).not.toContain('\r\n');
       expect(log?.message).not.toContain('\n');
     });
-    
-    it('should compute content hash for integrity', () => {
-      const log = logger.info('Test message');
-      
+
+    it('should compute content hash for integrity', async () => {
+      const log = await logger.info('Test message');
+
       expect(log?.contentHash).toBeDefined();
       expect(log?.contentHash?.length).toBe(64); // SHA-256 hex
     });
   });
-  
+
   describe('Security Events', () => {
-    it('should log authentication events', () => {
-      const loginSuccess = logger.authEvent('login_success', 'user-123', '192.168.1.1');
-      const loginFailure = logger.authEvent('login_failure', 'user-123', '192.168.1.1');
-      
+    it('should log authentication events', async () => {
+      const loginSuccess = await logger.authEvent('login_success', 'user-123', '192.168.1.1');
+      const loginFailure = await logger.authEvent('login_failure', 'user-123', '192.168.1.1');
+
       expect(loginSuccess?.source).toBe(LogSource.AUTH);
       expect(loginFailure?.source).toBe(LogSource.AUTH);
       expect(loginSuccess?.level).toBe(LogLevel.INFO);
       expect(loginFailure?.level).toBe(LogLevel.WARNING);
     });
-    
-    it('should log data access events', () => {
-      const log = logger.dataAccessEvent(
+
+    it('should log data access events', async () => {
+      const log = await logger.dataAccessEvent(
         'user-123',
         'customer_data',
         'record-456',
@@ -228,56 +228,56 @@ describe('SecureLogger', () => {
       expect(log?.fields?.resourceType).toBe('customer_data');
       expect(log?.fields?.action).toBe('read');
     });
-    
-    it('should log configuration change events', () => {
-      const log = logger.configChangeEvent(
+
+    it('should log configuration change events', async () => {
+      const log = await logger.configChangeEvent(
         'admin-user',
         '/app/settings/security',
         { oldValue: 'old' },
         { newValue: 'new' },
         '192.168.1.1'
       );
-      
+
       expect(log?.source).toBe(LogSource.AUDIT);
       expect(log?.fields?.configPath).toBe('/app/settings/security');
     });
   });
-  
+
   describe('Rate Limiting', () => {
-    it('should respect rate limits', () => {
+    it('should respect rate limits', async () => {
       // Enable rate limiting
       logger.enable();
-      
+
       const logs: (LogEntry | null)[] = [];
       for (let i = 0; i < 1000; i++) {
-        logs.push(logger.info(`Message ${i}`));
+        logs.push(await logger.info(`Message ${i}`));
       }
-      
+
       const successfulLogs = logs.filter(l => l !== null).length;
       // Some logs should be rate limited
       expect(successfulLogs).toBeLessThan(1000);
     });
   });
-  
+
   describe('Logger Management', () => {
-    it('should change log level', () => {
+    it('should change log level', async () => {
       logger.setLevel(LogLevel.WARNING);
       expect(logger.getLevel()).toBe(LogLevel.WARNING);
-      
-      const debugLog = logger.debug('This should not be logged');
-      const errorLog = logger.error('This should be logged');
-      
+
+      const debugLog = await logger.debug('This should not be logged');
+      const errorLog = await logger.error('This should be logged');
+
       expect(debugLog).toBeNull();
       expect(errorLog).not.toBeNull();
     });
-    
-    it('should enable and disable logging', () => {
+
+    it('should enable and disable logging', async () => {
       logger.disable();
       expect(logger.isEnabled()).toBe(false);
-      
-      const disabledLog = logger.info('Disabled message');
+
+      const disabledLog = await logger.info('Disabled message');
       expect(disabledLog).toBeNull();
-      
+
       logger.enable();
       expect(logger.isEnabled()).toBe(true);
     });
