@@ -12,10 +12,24 @@
 .env.*.local
 .env.development
 .env.production
+.env.test
+.env.staging
 *.env
 
 # Exceptions: .env.example is safe to commit (contains only placeholders)
 !.env.example
+
+# Explicitly ignore all secret-related files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.secret
+*-secret.yaml
+*-secret.yml
+secrets.yaml
+secrets.yml
 
 # =============================================================================
 # Dependencies
