@@ -2,14 +2,13 @@
  * ============================================================================
  * FINANCE SECURITY MODULE - ГЛАВНЫЙ МОДУЛЬ
  * ============================================================================
- * 
+ *
  * Центральный модуль управления безопасностью финансовых приложений
- * 
+ *
  * @package protocol/finance-security
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/StubLogger';
 import { FinanceSecurityConfig, TransactionData, FraudScore, AMLCheckResult } from '../types/finance.types';
 import { PaymentCardEncryption } from './payment/PaymentCardEncryption';
 import { TokenizationService } from './payment/TokenizationService';
@@ -17,6 +16,14 @@ import { FraudDetectionEngine } from './fraud/FraudDetectionEngine';
 import { TransactionMonitoring } from './fraud/TransactionMonitoring';
 import { AMLChecker } from './aml/AMLChecker';
 import { HSMIntegration } from './hsm/HSMIntegration';
+
+// Logger для совместимости
+const logger = {
+  info: (msg: string, data?: any) => console.log('[FinanceSecurity]', msg, data),
+  warn: (msg: string, data?: any) => console.warn('[FinanceSecurity]', msg, data),
+  error: (msg: string, data?: any) => console.error('[FinanceSecurity]', msg, data),
+  debug: (msg: string, data?: any) => console.debug('[FinanceSecurity]', msg, data)
+};
 
 /**
  * Finance Security Module

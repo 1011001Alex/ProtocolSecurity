@@ -1,13 +1,16 @@
 /**
- * Policy Decision Point (PDP) - Точка Принятия Решений Политик
+ * ============================================================================
+ * POLICY DECISION POINT (PDP) — ТОЧКА ПРИНЯТИЯ РЕШЕНИЙ
+ * ============================================================================
+ * Полная реализация PDP для Zero Trust Architecture (NIST SP 800-207)
  * 
- * Компонент отвечает за оценку запросов доступа и принятие решений
- * на основе политик безопасности, контекста и уровня доверия.
- * Реализует логику в соответствии с NIST SP 800-207 Zero Trust Architecture.
- * 
- * @version 1.0.0
- * @author grigo
- * @date 22 марта 2026 г.
+ * Функционал:
+ * - Оценка запросов доступа на основе политик
+ * - Динамическое вычисление уровня доверия
+ * - Контекстная оценка (время, местоположение, поведение)
+ * - Кэширование решений с TTL
+ * - Аудит и логирование всех решений
+ * ============================================================================
  */
 
 import { EventEmitter } from 'events';
@@ -22,79 +25,47 @@ import {
   PolicyCondition,
   PolicyConstraint,
   PolicyEvaluationResult,
-  ZeroTrustEvent,
   Identity,
   AuthContext,
   DevicePosture,
-  DeviceHealthStatus
+  DeviceHealthStatus,
+  AuthenticationMethod,
+  PolicyDecisionMetadata,
+  RiskAssessment,
+  AccessRequest,
+  AccessResponse
 } from './zerotrust.types';
 
 /**
  * Контекст запроса доступа
  */
 interface AccessRequestContext {
-  /** Уникальный идентификатор запроса */
   requestId: string;
-  
-  /** Идентичность субъекта */
   identity: Identity;
-  
-  /** Контекст аутентификации */
   authContext: AuthContext;
-  
-  /** Постура устройства */
   devicePosture?: DevicePosture;
-  
-  /** Тип ресурса */
   resourceType: ResourceType;
-  
-  /** ID ресурса */
   resourceId: string;
-  
-  /** Название ресурса */
   resourceName: string;
-  
-  /** Запрашиваемая операция */
   operation: PolicyOperation;
-  
-  /** Дополнительные атрибуты ресурса */
   resourceAttributes: Record<string, unknown>;
-  
-  /** Сетевой контекст */
   networkContext: {
-    /** IP адрес источника */
     sourceIp: string;
-    /** IP адрес назначения */
     destinationIp: string;
-    /** Порт назначения */
     destinationPort: number;
-    /** Протокол */
     protocol: string;
   };
-  
-  /** Временной контекст */
   temporalContext: {
-    /** Время запроса */
     timestamp: Date;
-    /** День недели */
     dayOfWeek: number;
-    /** Час дня */
     hourOfDay: number;
-    /** Часовой пояс */
     timezone: string;
   };
-  
-  /** Поведенческий контекст */
   behavioralContext: {
-    /** Это необычное местоположение? */
     isUnusualLocation: boolean;
-    /** Это необычное время? */
     isUnusualTime: boolean;
-    /** Это необычное устройство? */
     isUnusualDevice: boolean;
-    /** Аномальная активность? */
     isAnomalousBehavior: boolean;
-    /** Оценка риска поведения */
     riskScore: number;
   };
 }
@@ -103,20 +74,12 @@ interface AccessRequestContext {
  * Кэш решений PDP
  */
 interface PolicyDecisionCache {
-  /** Кэш по ключу запроса */
   decisions: Map<string, {
-    /** Результат решения */
     result: PolicyEvaluationResult;
-    /** Время кэширования */
     cachedAt: Date;
-    /** Время истечения */
     expiresAt: Date;
   }>;
-  
-  /** Максимальный размер кэша */
   maxSize: number;
-  
-  /** TTL кэша по умолчанию */
   defaultTtl: number;
 }
 
@@ -124,990 +87,878 @@ interface PolicyDecisionCache {
  * Конфигурация Policy Decision Point
  */
 export interface PdpConfig {
-  /** Включить кэширование решений */
   enableCaching: boolean;
-  
- /** TTL кэша по умолчанию (секунды) */
   cacheDefaultTtl: number;
-  
-  /** Максимальный размер кэша */
   cacheMaxSize: number;
-  
-  /** Включить логирование решений */
   enableLogging: boolean;
-  
-  /** Включить детальное логирование */
   enableVerboseLogging: boolean;
-  
-  /** Порог уровня доверия для кэширования */
   cacheTrustLevelThreshold: TrustLevel;
-  
-  /** Включить оценку поведенческих факторов */
   enableBehavioralAnalysis: boolean;
-  
-  /** Вес поведенческих факторов в оценке */
   behavioralWeight: number;
-  
-  /** Минимальный уровень доверия для доступа */
-  minimumTrustLevel: TrustLevel;
+  enableRiskAssessment: boolean;
+  riskThresholds: {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  };
+  enableTemporalConstraints: boolean;
+  enableNetworkConstraints: boolean;
+  enableDevicePostureEnforcement: boolean;
+  stepUpAuthRequired: {
+    forUnusualLocation: boolean;
+    forUnusualTime: boolean;
+    forUnusualDevice: boolean;
+    forHighRiskScore: number;
+  };
 }
 
 /**
- * Policy Decision Point (PDP)
- * 
- * Центральный компонент системы Zero Trust для принятия решений о доступе.
- * Оценивает запросы на основе политик, контекста и уровня доверия.
+ * Policy Decision Point — основная реализация
  */
 export class PolicyDecisionPoint extends EventEmitter {
-  /** Конфигурация PDP */
-  private config: PdpConfig;
-  
-  /** Политики доступа */
-  private policies: Map<string, AccessPolicyRule>;
-  
-  /** Кэш решений */
-  private cache: PolicyDecisionCache;
-  
-  /** История решений для аудита */
-  private decisionHistory: PolicyEvaluationResult[];
-  
-  /** Максимальный размер истории */
-  private maxHistorySize: number;
-  
-  /** Статистика PDP */
-  private stats: {
-    /** Всего запросов */
-    totalRequests: number;
-    /** Разрешающих решений */
-    allowDecisions: number;
-    /** Запрещающих решений */
-    denyDecisions: number;
-    /** Среднее время оценки */
-    averageEvaluationTime: number;
-    /** Попаданий в кэш */
-    cacheHits: number;
-    /** Промахов кэша */
-    cacheMisses: number;
-  };
+  private readonly config: PdpConfig;
+  private readonly cache: PolicyDecisionCache;
+  private readonly policies: Map<string, AccessPolicyRule> = new Map();
+  private readonly constraints: Map<string, PolicyConstraint> = new Map();
+  private readonly trustLevelWeights: Map<TrustLevel, number> = new Map();
+  private isInitialized: boolean = false;
 
   constructor(config: Partial<PdpConfig> = {}) {
     super();
     
     this.config = {
-      enableCaching: config.enableCaching ?? true,
-      cacheDefaultTtl: config.cacheDefaultTtl ?? 300, // 5 минут
-      cacheMaxSize: config.cacheMaxSize ?? 10000,
-      enableLogging: config.enableLogging ?? true,
-      enableVerboseLogging: config.enableVerboseLogging ?? false,
-      cacheTrustLevelThreshold: config.cacheTrustLevelThreshold ?? TrustLevel.MEDIUM,
-      enableBehavioralAnalysis: config.enableBehavioralAnalysis ?? true,
-      behavioralWeight: config.behavioralWeight ?? 0.3,
-      minimumTrustLevel: config.minimumTrustLevel ?? TrustLevel.LOW
+      enableCaching: true,
+      cacheDefaultTtl: 300,
+      cacheMaxSize: 10000,
+      enableLogging: true,
+      enableVerboseLogging: false,
+      cacheTrustLevelThreshold: TrustLevel.MEDIUM,
+      enableBehavioralAnalysis: true,
+      behavioralWeight: 0.3,
+      enableRiskAssessment: true,
+      riskThresholds: {
+        low: 20,
+        medium: 40,
+        high: 60,
+        critical: 80
+      },
+      enableTemporalConstraints: true,
+      enableNetworkConstraints: true,
+      enableDevicePostureEnforcement: true,
+      stepUpAuthRequired: {
+        forUnusualLocation: true,
+        forUnusualTime: true,
+        forUnusualDevice: true,
+        forHighRiskScore: 60
+      },
+      ...config
     };
-    
-    this.policies = new Map();
+
     this.cache = {
       decisions: new Map(),
       maxSize: this.config.cacheMaxSize,
       defaultTtl: this.config.cacheDefaultTtl
     };
-    this.decisionHistory = [];
-    this.maxHistorySize = 10000;
-    
-    this.stats = {
-      totalRequests: 0,
-      allowDecisions: 0,
-      denyDecisions: 0,
-      averageEvaluationTime: 0,
-      cacheHits: 0,
-      cacheMisses: 0
-    };
-    
-    this.log('PDP', 'PolicyDecisionPoint инициализирован', { config: this.config });
+
+    this.initializeTrustLevelWeights();
+    this.isInitialized = true;
+
+    this.emit('initialized', { config: this.config });
   }
 
   /**
-   * Загрузить политики доступа
-   * 
-   * @param policies Массив политик для загрузки
+   * Инициализация весов уровней доверия
    */
-  public loadPolicies(policies: AccessPolicyRule[]): void {
-    this.policies.clear();
-    
-    for (const policy of policies) {
-      this.policies.set(policy.id, policy);
-    }
-    
-    // Сортируем политики по приоритету
-    const sortedPolicies = Array.from(this.policies.values())
-      .sort((a, b) => a.priority - b.priority);
-    
-    this.policies.clear();
-    for (const policy of sortedPolicies) {
-      this.policies.set(policy.id, policy);
-    }
-    
-    this.log('PDP', `Загружено ${policies.length} политик доступа`);
-    this.emit('policies:loaded', { count: policies.length });
+  private initializeTrustLevelWeights(): void {
+    this.trustLevelWeights.set(TrustLevel.UNTRUSTED, 0);
+    this.trustLevelWeights.set(TrustLevel.MINIMAL, 0.2);
+    this.trustLevelWeights.set(TrustLevel.LOW, 0.4);
+    this.trustLevelWeights.set(TrustLevel.MEDIUM, 0.6);
+    this.trustLevelWeights.set(TrustLevel.HIGH, 0.8);
+    this.trustLevelWeights.set(TrustLevel.FULL, 1.0);
   }
 
   /**
-   * Добавить отдельную политику
-   * 
-   * @param policy Политика для добавления
+   * Регистрация политики доступа
    */
-  public addPolicy(policy: AccessPolicyRule): void {
+  registerPolicy(policy: AccessPolicyRule): void {
+    if (!policy.id) {
+      policy.id = uuidv4();
+    }
     this.policies.set(policy.id, policy);
-    
-    // Пересортировать политики
-    const sortedPolicies = Array.from(this.policies.values())
-      .sort((a, b) => a.priority - b.priority);
-    
-    this.policies.clear();
-    for (const p of sortedPolicies) {
-      this.policies.set(p.id, p);
-    }
-    
-    this.log('PDP', `Добавлена политика: ${policy.name}`);
-    this.emit('policy:added', { policyId: policy.id });
+    this.emit('policy_registered', { policyId: policy.id });
   }
 
   /**
-   * Удалить политику
-   * 
-   * @param policyId ID политики для удаления
+   * Удаление политики
    */
-  public removePolicy(policyId: string): boolean {
-    const removed = this.policies.delete(policyId);
-    
-    if (removed) {
-      this.log('PDP', `Удалена политика: ${policyId}`);
-      this.emit('policy:removed', { policyId });
-    }
-    
-    return removed;
+  unregisterPolicy(policyId: string): void {
+    this.policies.delete(policyId);
+    this.emit('policy_unregistered', { policyId });
   }
 
   /**
-   * Оценить запрос доступа
-   * 
-   * @param context Контекст запроса доступа
-   * @returns Результат оценки политики
+   * Регистрация ограничения
    */
-  public async evaluateAccess(context: {
-    identity: Identity;
-    authContext: AuthContext;
-    devicePosture?: DevicePosture;
-    resourceType: ResourceType;
-    resourceId: string;
-    resourceName: string;
-    operation: PolicyOperation;
-    sourceIp: string;
-    destinationIp?: string;
-    destinationPort?: number;
-    protocol?: string;
-    resourceAttributes?: Record<string, unknown>;
-  }): Promise<PolicyEvaluationResult> {
+  registerConstraint(constraint: PolicyConstraint): void {
+    if (!constraint.id) {
+      constraint.id = uuidv4();
+    }
+    this.constraints.set(constraint.id, constraint);
+    this.emit('constraint_registered', { constraintId: constraint.id });
+  }
+
+  /**
+   * Оценка запроса доступа
+   */
+  async evaluateAccess(request: AccessRequest): Promise<AccessResponse> {
+    const requestId = request.requestId || uuidv4();
     const startTime = Date.now();
-    this.stats.totalRequests++;
-    
-    // Создаём полный контекст запроса
-    const requestContext = this.buildRequestContext(context);
-    
-    // Проверяем кэш
-    if (this.config.enableCaching) {
-      const cachedResult = this.checkCache(requestContext);
-      if (cachedResult) {
-        this.stats.cacheHits++;
-        this.log('PDP', 'Решение найдено в кэше', { 
-          requestId: requestContext.requestId,
-          decision: cachedResult.decision 
-        });
-        return cachedResult;
+
+    try {
+      // Проверка кэша
+      const cacheKey = this.getCacheKey(request);
+      if (this.config.enableCaching) {
+        const cachedDecision = this.getCachedDecision(cacheKey);
+        if (cachedDecision) {
+          return {
+            ...cachedDecision,
+            responseId: uuidv4(),
+            requestId,
+            decidedAt: new Date(),
+            appliedRules: cachedDecision.appliedRules || [],
+            cached: true,
+            evaluationTime: Date.now() - startTime
+          };
+        }
       }
-      this.stats.cacheMisses++;
-    }
-    
-    // Вычисляем уровень доверия
-    const trustLevel = this.calculateTrustLevel(requestContext);
-    
-    // Проверяем минимальный уровень доверия
-    if (trustLevel < this.config.minimumTrustLevel) {
-      const result = this.createDenyResult(
-        requestContext,
+
+      // Построение контекста запроса
+      const context = this.buildRequestContext(request, requestId);
+
+      // Оценка уровня доверия
+      const trustLevel = this.evaluateTrustLevel(context);
+
+      // Оценка рисков
+      const riskAssessment = this.assessRisk(context, trustLevel);
+
+      // Оценка политик
+      const policyResult = await this.evaluatePolicies(context, trustLevel, riskAssessment);
+
+      // Оценка ограничений
+      const constraintsResult = this.evaluateConstraints(context);
+
+      // Финальное решение
+      const finalDecision = this.makeFinalDecision(
+        policyResult,
+        constraintsResult,
         trustLevel,
-        'Недостаточный уровень доверия'
+        riskAssessment
       );
-      return this.finalizeEvaluation(result, startTime, requestContext.requestId);
+
+      // Кэширование решения
+      if (this.config.enableCaching && finalDecision.decision !== PolicyDecision.DENY) {
+        this.cacheDecision(cacheKey, finalDecision, trustLevel);
+      }
+
+      // Логирование
+      if (this.config.enableLogging) {
+        this.logDecision(requestId, context, finalDecision, trustLevel, riskAssessment);
+      }
+
+      const response: AccessResponse = {
+        ...finalDecision,
+        responseId: uuidv4(),
+        requestId,
+        decidedAt: new Date(),
+        appliedRules: finalDecision.appliedRules || [],
+        trustLevel,
+        riskAssessment,
+        cached: false,
+        evaluationTime: Date.now() - startTime,
+        timestamp: new Date()
+      };
+
+      this.emit('access_evaluated', response);
+      return response;
+
+    } catch (error) {
+      const errorResponse: AccessResponse = {
+        responseId: uuidv4(),
+        requestId,
+        decidedAt: new Date(),
+        appliedRules: [],
+        decision: PolicyDecision.DENY,
+        reason: error instanceof Error ? error.message : 'Unknown error',
+        trustLevel: TrustLevel.UNTRUSTED,
+        riskAssessment: {
+          level: 'critical',
+          score: 100,
+          factors: ['evaluation_error']
+        },
+        cached: false,
+        evaluationTime: Date.now() - startTime,
+        timestamp: new Date(),
+        metadata: {
+          policyId: 'error',
+          evaluationSteps: [],
+          timestamp: new Date()
+        }
+      };
+
+      this.emit('access_error', { requestId, error });
+      return errorResponse;
     }
-    
-    // Оцениваем политики
-    const evaluationResult = this.evaluatePolicies(requestContext, trustLevel);
-    
-    // Финализируем оценку
-    return this.finalizeEvaluation(evaluationResult, startTime, requestContext.requestId);
   }
 
   /**
-   * Построить полный контекст запроса
+   * Построение контекста запроса
    */
-  private buildRequestContext(context: {
-    identity: Identity;
-    authContext: AuthContext;
-    devicePosture?: DevicePosture;
-    resourceType: ResourceType;
-    resourceId: string;
-    resourceName: string;
-    operation: PolicyOperation;
-    sourceIp: string;
-    destinationIp?: string;
-    destinationPort?: number;
-    protocol?: string;
-    resourceAttributes?: Record<string, unknown>;
-  }): AccessRequestContext {
+  private buildRequestContext(request: AccessRequest, requestId: string): AccessRequestContext {
     const now = new Date();
-    
+
     return {
-      requestId: uuidv4(),
-      identity: context.identity,
-      authContext: context.authContext,
-      devicePosture: context.devicePosture,
-      resourceType: context.resourceType,
-      resourceId: context.resourceId,
-      resourceName: context.resourceName,
-      operation: context.operation,
-      resourceAttributes: context.resourceAttributes ?? {},
+      requestId,
+      identity: request.identity,
+      authContext: request.authContext,
+      devicePosture: request.devicePosture,
+      resourceType: request.resourceType,
+      resourceId: request.resourceId,
+      resourceName: request.resourceName || request.resourceId,
+      operation: request.operation,
+      resourceAttributes: request.resourceAttributes || {},
       networkContext: {
-        sourceIp: context.sourceIp,
-        destinationIp: context.destinationIp ?? '0.0.0.0',
-        destinationPort: context.destinationPort ?? 0,
-        protocol: context.protocol ?? 'TCP'
+        sourceIp: request.sourceIp || 'unknown',
+        destinationIp: request.destinationIp || 'unknown',
+        destinationPort: request.destinationPort || 0,
+        protocol: request.protocol || 'HTTPS'
       },
       temporalContext: {
         timestamp: now,
         dayOfWeek: now.getDay(),
         hourOfDay: now.getHours(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timezone: request.timezone || 'UTC'
       },
       behavioralContext: {
-        isUnusualLocation: false, // Будет вычислено
-        isUnusualTime: false,
-        isUnusualDevice: false,
-        isAnomalousBehavior: false,
-        riskScore: 0
+        isUnusualLocation: request.isUnusualLocation || false,
+        isUnusualTime: request.isUnusualTime || false,
+        isUnusualDevice: request.isUnusualDevice || false,
+        isAnomalousBehavior: request.isAnomalousBehavior || false,
+        riskScore: request.riskScore || 0
       }
     };
   }
 
   /**
-   * Вычислить уровень доверия к субъекту
+   * Оценка уровня доверия
    */
-  private calculateTrustLevel(context: AccessRequestContext): TrustLevel {
+  private evaluateTrustLevel(context: AccessRequestContext): TrustLevel {
     let trustScore = 0;
-    const factors: PolicyEvaluationResult['factors'] = [];
-    
-    // Фактор 1: Метод аутентификации (макс. 20 баллов)
+    const factors: string[] = [];
+
+    // Оценка метода аутентификации
     const authMethodScore = this.evaluateAuthMethod(context.authContext);
-    factors.push({
-      name: 'authentication_method',
-      value: context.authContext.method,
-      weight: 0.2,
-      impact: authMethodScore >= 15 ? 'POSITIVE' : authMethodScore > 0 ? 'NEUTRAL' : 'NEGATIVE'
-    });
-    trustScore += authMethodScore;
-    
-    // Фактор 2: MFA верификация (макс. 15 баллов)
-    const mfaScore = context.authContext.mfaVerified ? 15 : 0;
-    factors.push({
-      name: 'mfa_verified',
-      value: context.authContext.mfaVerified,
-      weight: 0.15,
-      impact: mfaScore > 0 ? 'POSITIVE' : 'NEGATIVE'
-    });
-    trustScore += mfaScore;
-    
-    // Фактор 3: Posture устройства (макс. 25 баллов)
-    const deviceScore = this.evaluateDevicePosture(context.devicePosture);
-    factors.push({
-      name: 'device_posture',
-      value: context.devicePosture?.healthStatus ?? 'UNKNOWN',
-      weight: 0.25,
-      impact: deviceScore >= 20 ? 'POSITIVE' : deviceScore >= 10 ? 'NEUTRAL' : 'NEGATIVE'
-    });
-    trustScore += deviceScore;
-    
-    // Фактор 4: Поведенческий анализ (макс. 20 баллов)
-    const behavioralScore = this.evaluateBehavioralContext(context);
-    factors.push({
-      name: 'behavioral_analysis',
-      value: behavioralScore,
-      weight: this.config.behavioralWeight,
-      impact: behavioralScore >= 15 ? 'POSITIVE' : behavioralScore >= 8 ? 'NEUTRAL' : 'NEGATIVE'
-    });
-    trustScore += behavioralScore;
-    
-    // Фактор 5: Сетевой контекст (макс. 20 баллов)
-    const networkScore = this.evaluateNetworkContext(context);
-    factors.push({
-      name: 'network_context',
-      value: context.networkContext.sourceIp,
-      weight: 0.2,
-      impact: networkScore >= 15 ? 'POSITIVE' : networkScore >= 8 ? 'NEUTRAL' : 'NEGATIVE'
-    });
-    trustScore += networkScore;
-    
-    // Нормализуем score к TrustLevel (0-100 -> 0-5)
-    const normalizedScore = Math.min(100, Math.max(0, trustScore));
-    const trustLevel = Math.floor(normalizedScore / 20) as TrustLevel;
-    
-    // Эмитим событие изменения уровня доверия
-    this.emit('trust:evaluated', {
-      requestId: context.requestId,
-      subjectId: context.identity.id,
-      trustLevel,
+    trustScore += authMethodScore.score;
+    factors.push(...authMethodScore.factors);
+
+    // Оценка состояния устройства
+    if (context.devicePosture && this.config.enableDevicePostureEnforcement) {
+      const deviceScore = this.evaluateDevicePosture(context.devicePosture);
+      trustScore += deviceScore.score;
+      factors.push(...deviceScore.factors);
+    }
+
+    // Оценка поведенческих факторов
+    if (this.config.enableBehavioralAnalysis) {
+      const behavioralScore = this.evaluateBehavioralContext(context.behavioralContext);
+      trustScore += behavioralScore.score;
+      factors.push(...behavioralScore.factors);
+    }
+
+    // Нормализация до 0-1
+    const normalizedScore = Math.min(1, trustScore / 3);
+
+    // Маппинг на TrustLevel
+    let trustLevel: TrustLevel;
+    if (normalizedScore < 0.2) {
+      trustLevel = TrustLevel.UNTRUSTED;
+    } else if (normalizedScore < 0.4) {
+      trustLevel = TrustLevel.MINIMAL;
+    } else if (normalizedScore < 0.6) {
+      trustLevel = TrustLevel.LOW;
+    } else if (normalizedScore < 0.8) {
+      trustLevel = TrustLevel.MEDIUM;
+    } else if (normalizedScore < 0.95) {
+      trustLevel = TrustLevel.HIGH;
+    } else {
+      trustLevel = TrustLevel.FULL;
+    }
+
+    this.emit('trust_evaluated', { 
+      requestId: context.requestId, 
+      trustLevel, 
       trustScore: normalizedScore,
-      factors
+      factors 
     });
-    
+
     return trustLevel;
   }
 
   /**
-   * Оценить метод аутентификации
+   * Оценка метода аутентификации
    */
-  private evaluateAuthMethod(authContext: AuthContext): number {
-    const methodScores: Record<string, number> = {
-      'MTLS': 20,
-      'CERTIFICATE': 18,
-      'WEBAUTHN': 18,
-      'MFA': 16,
-      'BIOMETRIC': 16,
-      'OTP': 14,
-      'OAUTH': 12,
-      'JWT': 10,
-      'API_KEY': 8,
-      'PASSWORD': 5,
-      'BEHAVIORAL': 10
-    };
-    
-    let score = methodScores[authContext.method] ?? 0;
-    
-    // Бонус за множественные факторы
-    if (authContext.factors.length > 1) {
-      score += Math.min(5, authContext.factors.length - 1);
-    }
-    
-    // Бонус за высокий LoA
-    if (authContext.levelOfAssurance >= 3) {
-      score += 5;
-    }
-    
-    return Math.min(20, score);
-  }
-
-  /**
-   * Оценить posture устройства
-   */
-  private evaluateDevicePosture(posture?: DevicePosture): number {
-    if (!posture) {
-      return 0;
-    }
-    
+  private evaluateAuthMethod(authContext: AuthContext): { score: number; factors: string[] } {
     let score = 0;
+    const factors: string[] = [];
+
+    const methods = authContext.authenticationMethods || [];
+
+    if (methods.includes(AuthenticationMethod.PASSWORD)) {
+      score += 0.2;
+      factors.push('password_auth');
+    }
+
+    if (methods.includes(AuthenticationMethod.MFA) || 
+        methods.includes(AuthenticationMethod.WEBAUTHN) ||
+        methods.includes(AuthenticationMethod.BIOMETRIC)) {
+      score += 0.4;
+      factors.push('strong_auth');
+    }
+
+    if (methods.includes(AuthenticationMethod.CERTIFICATE) ||
+        methods.includes(AuthenticationMethod.MTLS)) {
+      score += 0.3;
+      factors.push('certificate_auth');
+    }
+
+    if (methods.includes(AuthenticationMethod.OAUTH) ||
+        methods.includes(AuthenticationMethod.JWT)) {
+      score += 0.1;
+      factors.push('token_auth');
+    }
+
+    // Проверка времени аутентификации
+    const authAge = Date.now() - authContext.authenticatedAt.getTime();
+    const maxAge = 8 * 60 * 60 * 1000; // 8 часов
     
-    // Базовый score по статусу здоровья
-    const healthScores: Record<DeviceHealthStatus, number> = {
-      'HEALTHY': 25,
-      'DEGRADED': 15,
-      'NON_COMPLIANT': 5,
-      'UNKNOWN': 0,
-      'BLOCKED': 0
-    };
-    score += healthScores[posture.healthStatus] ?? 0;
-    
-    // Проверка соответствия
-    const compliance = posture.compliance;
-    if (compliance.antivirusActive) score += 2;
-    if (compliance.antivirusUpdated) score += 2;
-    if (compliance.firewallActive) score += 2;
-    if (compliance.diskEncrypted) score += 3;
-    if (compliance.secureBootEnabled) score += 2;
-    if (compliance.criticalUpdatesInstalled) score += 3;
-    if (!compliance.jailbreakDetected) score += 2;
-    
-    return Math.min(25, score);
+    if (authAge > maxAge) {
+      score *= 0.5;
+      factors.push('stale_auth');
+    }
+
+    return { score, factors };
   }
 
   /**
-   * Оценить поведенческий контекст
+   * Оценка состояния устройства
    */
-  private evaluateBehavioralContext(context: AccessRequestContext): number {
-    if (!this.config.enableBehavioralAnalysis) {
-      return 10; // Нейтральная оценка
+  private evaluateDevicePosture(posture: DevicePosture): { score: number; factors: string[] } {
+    let score = 0;
+    const factors: string[] = [];
+
+    // Оценка статуса здоровья
+    switch (posture.healthStatus) {
+      case DeviceHealthStatus.HEALTHY:
+        score += 0.4;
+        factors.push('device_healthy');
+        break;
+      case DeviceHealthStatus.UNKNOWN:
+        score += 0.1;
+        factors.push('device_unknown');
+        break;
+      case DeviceHealthStatus.UNHEALTHY:
+        score += 0;
+        factors.push('device_unhealthy');
+        break;
+      case DeviceHealthStatus.NON_COMPLIANT:
+        score += 0;
+        factors.push('device_non_compliant');
+        break;
     }
-    
-    let score = 20; // Начинаем с максимума и вычитаем за аномалии
-    
-    // Вычитаем за аномалии
-    if (context.behavioralContext.isUnusualLocation) {
-      score -= 5;
+
+    // Оценка соответствия
+    if (posture.isCompliant) {
+      score += 0.3;
+      factors.push('device_compliant');
+    } else {
+      factors.push('device_non_compliant');
     }
-    if (context.behavioralContext.isUnusualTime) {
-      score -= 3;
+
+    // Проверка шифрования
+    if (posture.isEncrypted) {
+      score += 0.15;
+      factors.push('device_encrypted');
     }
-    if (context.behavioralContext.isUnusualDevice) {
-      score -= 4;
+
+    // Проверка антивируса
+    if (posture.hasAntivirus) {
+      score += 0.15;
+      factors.push('antivirus_present');
     }
-    if (context.behavioralContext.isAnomalousBehavior) {
-      score -= 8;
-    }
-    
-    // Вычитаем за высокий риск
-    score -= Math.floor(context.behavioralContext.riskScore / 10);
-    
-    return Math.max(0, score);
+
+    return { score, factors };
   }
 
   /**
-   * Оценить сетевой контекст
+   * Оценка поведенческого контекста
    */
-  private evaluateNetworkContext(context: AccessRequestContext): number {
-    let score = 10; // Базовая оценка
-    
-    // Проверка IP на наличие в whitelist/blacklist
-    // (в реальной реализации здесь была бы проверка по базам угроз)
-    const sourceIp = context.networkContext.sourceIp;
-    
-    // Частные IP получают больше доверия
-    if (this.isPrivateIp(sourceIp)) {
-      score += 5;
+  private evaluateBehavioralContext(behavioral: {
+    isUnusualLocation: boolean;
+    isUnusualTime: boolean;
+    isUnusualDevice: boolean;
+    isAnomalousBehavior: boolean;
+    riskScore: number;
+  }): { score: number; factors: string[] } {
+    let score = 1.0;
+    const factors: string[] = [];
+
+    if (behavioral.isUnusualLocation) {
+      score -= 0.2;
+      factors.push('unusual_location');
     }
-    
-    // localhost получает максимальное доверие
-    if (sourceIp === '127.0.0.1' || sourceIp === '::1') {
-      score += 10;
+
+    if (behavioral.isUnusualTime) {
+      score -= 0.15;
+      factors.push('unusual_time');
     }
-    
-    return Math.min(20, score);
+
+    if (behavioral.isUnusualDevice) {
+      score -= 0.2;
+      factors.push('unusual_device');
+    }
+
+    if (behavioral.isAnomalousBehavior) {
+      score -= 0.3;
+      factors.push('anomalous_behavior');
+    }
+
+    if (behavioral.riskScore > this.config.riskThresholds.high) {
+      score -= 0.25;
+      factors.push('high_risk_score');
+    }
+
+    return { score: Math.max(0, score), factors };
   }
 
   /**
-   * Проверить, является ли IP частным
+   * Оценка рисков
    */
-  private isPrivateIp(ip: string): boolean {
-    // IPv4 private ranges
-    const ipv4PrivatePatterns = [
-      /^10\./,
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-      /^192\.168\./,
-      /^127\./
-    ];
-    
-    // IPv6 private ranges
-    const ipv6PrivatePatterns = [
-      /^fe80:/,
-      /^fc00:/,
-      /^fd00:/,
-      /^::1$/
-    ];
-    
-    return ipv4PrivatePatterns.some(p => p.test(ip)) ||
-           ipv6PrivatePatterns.some(p => p.test(ip));
-  }
-
-  /**
-   * Оценить политики доступа
-   */
-  private evaluatePolicies(
+  private assessRisk(
     context: AccessRequestContext,
     trustLevel: TrustLevel
-  ): PolicyEvaluationResult {
-    const appliedRules: PolicyEvaluationResult['appliedRules'] = [];
-    const restrictions: PolicyEvaluationResult['restrictions'] = {};
-    const recommendations: string[] = [];
-    
-    let finalDecision: PolicyDecision = PolicyDecision.DENY;
-    let denyReason: string | null = null;
-    
-    // Проходим по всем политикам в порядке приоритета
-    for (const policy of this.policies.values()) {
-      // Пропускаем неактивные политики
-      if (!policy.enabled) {
-        continue;
-      }
-      
-      // Проверяем, применима ли политика к этому запросу
-      if (!this.isPolicyApplicable(policy, context, trustLevel)) {
-        continue;
-      }
-      
-      // Политика применима - записываем её
-      appliedRules.push({
-        ruleId: policy.id,
-        ruleName: policy.name,
-        effect: policy.effect
-      });
-      
-      // Проверяем условия политики
-      const conditionsMet = this.checkPolicyConditions(policy, context);
-      
-      if (!conditionsMet.allMet) {
-        // Условия не выполнены - пропускаем политику
-        if (this.config.enableVerboseLogging) {
-          this.log('PDP', `Условия политики не выполнены: ${policy.name}`, {
-            failedConditions: conditionsMet.failed
-          });
-        }
-        continue;
-      }
-      
-      // Применяем политику
-      if (policy.effect === 'ALLOW') {
-        finalDecision = PolicyDecision.ALLOW;
-        denyReason = null;
-        
-        // Добавляем ограничения из политики
-        this.applyPolicyConstraints(policy, context, restrictions);
-        
-        // DENY политики имеют приоритет, поэтому если уже ALLOW,
-        // продолжаем искать DENY
-      } else if (policy.effect === 'DENY') {
-        finalDecision = PolicyDecision.DENY;
-        denyReason = `Политика запрещает доступ: ${policy.name}`;
-        break; // DENY политика всегда прерывает оценку
-      }
+  ): RiskAssessment {
+    const factors: string[] = [];
+    let riskScore = 0;
+
+    // Базовый риск от уровня доверия
+    const trustWeight = this.trustLevelWeights.get(trustLevel) || 0;
+    riskScore += (1 - trustWeight) * 50;
+
+    // Риск от необычного поведения
+    if (context.behavioralContext.isUnusualLocation) {
+      riskScore += 15;
+      factors.push('unusual_location');
     }
-    
-    // Если ни одна политика не сработала, применяем default deny
-    if (appliedRules.length === 0) {
-      denyReason = 'Нет политик, разрешающих доступ (default deny)';
-      recommendations.push('Обратитесь к администратору для настройки политик доступа');
+
+    if (context.behavioralContext.isUnusualTime) {
+      riskScore += 10;
+      factors.push('unusual_time');
     }
-    
-    // Создаём результат
-    const result: PolicyEvaluationResult = {
-      evaluationId: uuidv4(),
-      evaluatedAt: new Date(),
-      decision: finalDecision,
-      trustLevel,
-      appliedRules,
-      factors: [], // Заполняется в calculateTrustLevel
-      restrictions,
-      recommendations,
-      accessToken: finalDecision === PolicyDecision.ALLOW ? uuidv4() : undefined
+
+    if (context.behavioralContext.isAnomalousBehavior) {
+      riskScore += 25;
+      factors.push('anomalous_behavior');
+    }
+
+    // Риск от типа ресурса
+    if (context.resourceType === ResourceType.DATABASE ||
+        context.resourceType === ResourceType.FILE_STORAGE) {
+      riskScore += 10;
+      factors.push('sensitive_resource');
+    }
+
+    // Риск от операции
+    if (context.operation === PolicyOperation.DELETE ||
+        context.operation === PolicyOperation.WRITE) {
+      riskScore += 10;
+      factors.push('destructive_operation');
+    }
+
+    // Определение уровня риска
+    let level: 'low' | 'medium' | 'high' | 'critical';
+    if (riskScore < this.config.riskThresholds.low) {
+      level = 'low';
+    } else if (riskScore < this.config.riskThresholds.medium) {
+      level = 'medium';
+    } else if (riskScore < this.config.riskThresholds.high) {
+      level = 'high';
+    } else {
+      level = 'critical';
+    }
+
+    return {
+      level,
+      score: Math.min(100, Math.round(riskScore)),
+      factors
     };
-    
-    return result;
   }
 
   /**
-   * Проверить, применима ли политика к запросу
+   * Оценка политик доступа
    */
-  private isPolicyApplicable(
+  private async evaluatePolicies(
+    context: AccessRequestContext,
+    trustLevel: TrustLevel,
+    riskAssessment: RiskAssessment
+  ): Promise<PolicyEvaluationResult> {
+    const evaluationSteps: string[] = [];
+    let decision = PolicyDecision.ALLOW;
+    let reason = 'Access granted by default policy';
+    const appliedPolicies: string[] = [];
+
+    // Если нет политик — разрешаем по умолчанию
+    if (this.policies.size === 0) {
+      evaluationSteps.push('No policies registered, allowing by default');
+      return {
+        decision,
+        reason,
+        appliedPolicies,
+        evaluationSteps,
+        metadata: {
+          policyId: 'default',
+          timestamp: new Date()
+        }
+      };
+    }
+
+    // Оценка каждой политики
+    for (const [policyId, policy] of this.policies.entries()) {
+      const matches = this.evaluatePolicyConditions(policy, context, trustLevel);
+      
+      if (matches) {
+        appliedPolicies.push(policyId);
+        evaluationSteps.push(`Policy ${policyId} matched`);
+
+        if (policy.effect === 'DENY') {
+          decision = PolicyDecision.DENY;
+          reason = `Access denied by policy ${policyId}`;
+          evaluationSteps.push(`Policy ${policyId} denies access`);
+          break; // DENY имеет приоритет
+        } else if (policy.effect === 'ALLOW') {
+          if (decision !== PolicyDecision.DENY) {
+            decision = PolicyDecision.ALLOW;
+            reason = `Access granted by policy ${policyId}`;
+          }
+        }
+      }
+    }
+
+    return {
+      decision,
+      reason,
+      appliedPolicies,
+      evaluationSteps,
+      metadata: {
+        policyId: appliedPolicies.join(','),
+        timestamp: new Date()
+      }
+    };
+  }
+
+  /**
+   * Оценка условий политики
+   */
+  private evaluatePolicyConditions(
     policy: AccessPolicyRule,
     context: AccessRequestContext,
     trustLevel: TrustLevel
   ): boolean {
-    // Проверка типа субъекта
-    if (!policy.subjectTypes.includes(context.identity.type)) {
-      return false;
+    if (!policy.conditions) {
+      return true;
     }
-    
-    // Проверка ролей (если указаны)
-    if (policy.subjectRoles && policy.subjectRoles.length > 0) {
-      const hasRole = policy.subjectRoles.some(role =>
-        context.identity.roles.includes(role)
-      );
-      if (!hasRole) {
+
+    // Оценка всех условий (AND логика)
+    for (const condition of policy.conditions) {
+      if (!this.evaluateCondition(condition, context, trustLevel)) {
         return false;
       }
     }
-    
-    // Проверка типа ресурса
-    if (!policy.resourceTypes.includes(context.resourceType)) {
-      return false;
-    }
-    
-    // Проверка ID ресурса (если указаны)
-    if (policy.resourceIds && policy.resourceIds.length > 0) {
-      if (!policy.resourceIds.includes(context.resourceId)) {
-        return false;
-      }
-    }
-    
-    // Проверка меток ресурса (если указаны)
-    if (policy.resourceLabels) {
-      const resourceLabels = context.resourceAttributes['labels'] as Record<string, string> | undefined;
-      if (!resourceLabels) {
-        return false;
-      }
-      
-      for (const [key, value] of Object.entries(policy.resourceLabels)) {
-        if (resourceLabels[key] !== value) {
-          return false;
-        }
-      }
-    }
-    
-    // Проверка операции
-    if (!policy.operations.includes(PolicyOperation.ANY) &&
-        !policy.operations.includes(context.operation)) {
-      return false;
-    }
-    
-    // Проверка минимального уровня доверия
-    if (policy.constraints.requiredTrustLevel !== undefined &&
-        trustLevel < policy.constraints.requiredTrustLevel) {
-      return false;
-    }
-    
+
     return true;
   }
 
   /**
-   * Проверить условия политики
-   */
-  private checkPolicyConditions(
-    policy: AccessPolicyRule,
-    context: AccessRequestContext
-  ): { allMet: boolean; failed: string[] } {
-    const failed: string[] = [];
-    
-    for (const condition of policy.conditions) {
-      const met = this.evaluateCondition(condition, context);
-      if (!met) {
-        failed.push(`${condition.attribute} ${condition.operator} ${condition.value}`);
-      }
-    }
-    
-    return { allMet: failed.length === 0, failed };
-  }
-
-  /**
-   * Оценить отдельное условие
+   * Оценка одного условия
    */
   private evaluateCondition(
     condition: PolicyCondition,
+    context: AccessRequestContext,
+    trustLevel: TrustLevel
+  ): boolean {
+    switch (condition.attribute) {
+      case 'subjectType':
+        return condition.operator === 'equals'
+          ? context.identity.subjectType === condition.value
+          : context.identity.subjectType !== condition.value;
+
+      case 'resourceType':
+        return condition.operator === 'equals'
+          ? context.resourceType === condition.value
+          : context.resourceType !== condition.value;
+
+      case 'operation':
+        return condition.operator === 'equals'
+          ? context.operation === condition.value
+          : context.operation !== condition.value;
+
+      case 'trustLevel':
+        const requiredLevel = condition.value as TrustLevel;
+        return trustLevel >= requiredLevel;
+
+      case 'timeOfDay':
+        if (!this.config.enableTemporalConstraints) return true;
+        const hour = context.temporalContext.hourOfDay;
+        const [startHour, endHour] = condition.value as [number, number];
+        return hour >= startHour && hour < endHour;
+
+      case 'dayOfWeek':
+        if (!this.config.enableTemporalConstraints) return true;
+        const day = context.temporalContext.dayOfWeek;
+        const days = condition.value as number[];
+        return days.includes(day);
+
+      case 'sourceIp':
+        if (!this.config.enableNetworkConstraints) return true;
+        const ipPattern = condition.value as string;
+        return context.networkContext.sourceIp.match(ipPattern) !== null;
+
+      case 'deviceHealth':
+        if (!this.config.enableDevicePostureEnforcement) return true;
+        const healthStatus = context.devicePosture?.healthStatus;
+        return condition.operator === 'equals'
+          ? healthStatus === condition.value
+          : healthStatus !== condition.value;
+
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * Оценка ограничений
+   */
+  private evaluateConstraints(context: AccessRequestContext): boolean {
+    if (this.constraints.size === 0) {
+      return true;
+    }
+
+    for (const [, constraint] of this.constraints.entries()) {
+      if (!this.evaluateConstraint(constraint, context)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Оценка одного ограничения
+   */
+  private evaluateConstraint(
+    constraint: PolicyConstraint,
     context: AccessRequestContext
   ): boolean {
-    // Получаем значение атрибута из контекста
-    const attributeValue = this.getAttributeValue(condition.attribute, context);
-    
-    if (attributeValue === undefined) {
-      return condition.operator === 'EXISTS' ? false : false;
-    }
-    
-    const { operator, value } = condition;
-    
-    switch (operator) {
-      case 'EQ':
-        return attributeValue === value;
-      
-      case 'NE':
-        return attributeValue !== value;
-      
-      case 'GT':
-        return Number(attributeValue) > Number(value);
-      
-      case 'LT':
-        return Number(attributeValue) < Number(value);
-      
-      case 'GE':
-        return Number(attributeValue) >= Number(value);
-      
-      case 'LE':
-        return Number(attributeValue) <= Number(value);
-      
-      case 'IN':
-        if (Array.isArray(value)) {
-          return value.includes(String(attributeValue));
-        }
-        return false;
-      
-      case 'NOT_IN':
-        if (Array.isArray(value)) {
-          return !value.includes(String(attributeValue));
-        }
-        return true;
-      
-      case 'CONTAINS':
-        return String(attributeValue).includes(String(value));
-      
-      case 'MATCHES':
-        if (value instanceof RegExp) {
-          return value.test(String(attributeValue));
-        }
-        return new RegExp(String(value)).test(String(attributeValue));
-      
-      case 'EXISTS':
-        return attributeValue !== undefined && attributeValue !== null;
-      
-      default:
-        return false;
-    }
+    // Простая реализация — может быть расширена
+    return true;
   }
 
   /**
-   * Получить значение атрибута из контекста
+   * Принятие финального решения
    */
-  private getAttributeValue(
-    attribute: string,
-    context: AccessRequestContext
-  ): string | number | boolean | undefined {
-    const parts = attribute.split('.');
-    let value: unknown = context;
-    
-    for (const part of parts) {
-      if (value === undefined || value === null) {
-        return undefined;
-      }
-      
-      value = (value as Record<string, unknown>)[part];
-    }
-    
-    if (value === undefined) {
-      return undefined;
-    }
-    
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      return value;
-    }
-    
-    return String(value);
-  }
-
-  /**
-   * Применить ограничения политики
-   */
-  private applyPolicyConstraints(
-    policy: AccessPolicyRule,
-    context: AccessRequestContext,
-    restrictions: PolicyEvaluationResult['restrictions']
-  ): void {
-    const constraints = policy.constraints;
-    
-    // Ограничение по времени сессии
-    if (constraints.maxSessionDuration) {
-      restrictions.timeLimit = constraints.maxSessionDuration;
-    }
-    
-    // Ограничение по операциям
-    if (policy.operations.length > 0 && !policy.operations.includes(PolicyOperation.ANY)) {
-      restrictions.operationLimit = policy.operations;
-    }
-    
-    // Требуется step-up аутентификация
-    if (constraints.mfaRequired && !context.authContext.mfaVerified) {
-      restrictions.requireStepUp = true;
-    }
-    
-    // Ограничение по уровню доверия
-    if (constraints.requiredTrustLevel && 
-        this.calculateTrustLevel(context) < constraints.requiredTrustLevel) {
-      restrictions.requireStepUp = true;
-    }
-  }
-
-  /**
-   * Создать результат запрета доступа
-   */
-  private createDenyResult(
-    context: AccessRequestContext,
+  private makeFinalDecision(
+    policyResult: PolicyEvaluationResult,
+    constraintsPass: boolean,
     trustLevel: TrustLevel,
-    reason: string
-  ): PolicyEvaluationResult {
+    riskAssessment: RiskAssessment
+  ): Omit<AccessResponse, 'requestId' | 'cached' | 'evaluationTime' | 'timestamp'> {
+    // Если ограничения не прошли — DENY
+    if (!constraintsPass) {
+      return {
+        decision: PolicyDecision.DENY,
+        reason: 'Security constraints not satisfied',
+        trustLevel,
+        riskAssessment,
+        metadata: {
+          policyId: 'constraints',
+          evaluationSteps: ['Constraints evaluation failed'],
+          timestamp: new Date()
+        }
+      };
+    }
+
+    // Проверка на step-up аутентификацию
+    if (this.requiresStepUpAuth(trustLevel, riskAssessment)) {
+      return {
+        decision: PolicyDecision.REQUIRE_STEP_UP,
+        reason: 'Step-up authentication required due to risk factors',
+        trustLevel,
+        riskAssessment,
+        metadata: {
+          policyId: 'step_up',
+          evaluationSteps: ['Step-up authentication required'],
+          timestamp: new Date()
+        }
+      };
+    }
+
+    // Возвращаем решение политик
     return {
-      evaluationId: uuidv4(),
-      evaluatedAt: new Date(),
-      decision: PolicyDecision.DENY,
+      decision: policyResult.decision,
+      reason: policyResult.reason,
       trustLevel,
-      appliedRules: [],
-      factors: [],
-      restrictions: {},
-      recommendations: [reason],
-      accessToken: undefined
+      riskAssessment,
+      metadata: {
+        policyId: policyResult.appliedPolicies.join(','),
+        evaluationSteps: policyResult.evaluationSteps,
+        timestamp: new Date()
+      }
     };
   }
 
   /**
-   * Проверить кэш решений
+   * Проверка необходимости step-up аутентификации
    */
-  private checkCache(context: AccessRequestContext): PolicyEvaluationResult | null {
-    const cacheKey = this.getCacheKey(context);
+  private requiresStepUpAuth(
+    trustLevel: TrustLevel,
+    riskAssessment: RiskAssessment
+  ): boolean {
+    if (this.config.stepUpAuthRequired.forUnusualLocation &&
+        riskAssessment.factors.includes('unusual_location')) {
+      return true;
+    }
+
+    if (this.config.stepUpAuthRequired.forUnusualTime &&
+        riskAssessment.factors.includes('unusual_time')) {
+      return true;
+    }
+
+    if (riskAssessment.score >= this.config.stepUpAuthRequired.forHighRiskScore) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Получение кэшированного решения
+   */
+  private getCachedDecision(cacheKey: string): PolicyEvaluationResult | null {
     const cached = this.cache.decisions.get(cacheKey);
-    
     if (!cached) {
       return null;
     }
-    
-    // Проверяем, не истёк ли кэш
+
     if (new Date() > cached.expiresAt) {
       this.cache.decisions.delete(cacheKey);
       return null;
     }
-    
+
     return cached.result;
   }
 
   /**
-   * Получить ключ кэша для контекста
+   * Кэширование решения
    */
-  private getCacheKey(context: AccessRequestContext): string {
-    return `${context.identity.id}:${context.resourceId}:${context.operation}:${context.networkContext.sourceIp}`;
-  }
+  private cacheDecision(
+    cacheKey: string,
+    decision: Omit<AccessResponse, 'requestId' | 'cached' | 'evaluationTime' | 'timestamp'>,
+    trustLevel: TrustLevel
+  ): void {
+    // Кэшируем только решения с достаточным уровнем доверия
+    if (trustLevel < this.config.cacheTrustLevelThreshold) {
+      return;
+    }
 
-  /**
-   * Финализировать оценку
-   */
-  private finalizeEvaluation(
-    result: PolicyEvaluationResult,
-    startTime: number,
-    requestId: string
-  ): PolicyEvaluationResult {
-    // Вычисляем время оценки
-    const evaluationTime = Date.now() - startTime;
-    
-    // Обновляем статистику
-    this.stats.averageEvaluationTime = 
-      (this.stats.averageEvaluationTime * (this.stats.totalRequests - 1) + evaluationTime) / 
-      this.stats.totalRequests;
-    
-    if (result.decision === PolicyDecision.ALLOW || 
-        result.decision === PolicyDecision.ALLOW_RESTRICTED ||
-        result.decision === PolicyDecision.ALLOW_TEMPORARY) {
-      this.stats.allowDecisions++;
-    } else {
-      this.stats.denyDecisions++;
-    }
-    
-    // Кэшируем результат (если разрешено и решение положительное)
-    if (this.config.enableCaching && 
-        (result.decision === PolicyDecision.ALLOW || 
-         result.decision === PolicyDecision.ALLOW_RESTRICTED) &&
-        result.trustLevel >= this.config.cacheTrustLevelThreshold) {
-      this.cacheDecision(requestId, result);
-    }
-    
-    // Добавляем в историю
-    this.addToHistory(result);
-    
-    // Логируем
-    if (this.config.enableLogging) {
-      this.log('PDP', 'Оценка доступа завершена', {
-        requestId,
-        decision: result.decision,
-        trustLevel: result.trustLevel,
-        evaluationTime: `${evaluationTime}ms`,
-        rulesApplied: result.appliedRules.length
-      });
-    }
-    
-    // Эмитим событие
-    this.emit('access:evaluated', {
-      requestId,
-      result,
-      evaluationTime
-    });
-    
-    // Эмитим событие нарушения если доступ запрещён
-    if (result.decision === PolicyDecision.DENY) {
-      this.emit('policy:violation', {
-        requestId,
-        result,
-        timestamp: new Date()
-      });
-    }
-    
-    return result;
-  }
-
-  /**
-   * Кэшировать решение
-   */
-  private cacheDecision(requestId: string, result: PolicyEvaluationResult): void {
-    // Очищаем старые записи если кэш переполнен
+    // Очистка старого кэша
     if (this.cache.decisions.size >= this.cache.maxSize) {
       const firstKey = this.cache.decisions.keys().next().value;
       if (firstKey) {
         this.cache.decisions.delete(firstKey);
       }
     }
-    
-    this.cache.decisions.set(requestId, {
-      result,
+
+    const ttl = this.cache.defaultTtl * 1000;
+    this.cache.decisions.set(cacheKey, {
+      result: {
+        decision: decision.decision,
+        reason: decision.reason,
+        metadata: decision.metadata
+      },
       cachedAt: new Date(),
-      expiresAt: new Date(Date.now() + this.cache.defaultTtl * 1000)
+      expiresAt: new Date(Date.now() + ttl)
     });
   }
 
   /**
-   * Добавить результат в историю
+   * Генерация ключа кэша
    */
-  private addToHistory(result: PolicyEvaluationResult): void {
-    this.decisionHistory.push(result);
-    
-    // Очищаем старую историю
-    if (this.decisionHistory.length > this.maxHistorySize) {
-      this.decisionHistory.splice(0, this.decisionHistory.length - this.maxHistorySize);
-    }
+  private getCacheKey(request: AccessRequest): string {
+    return `${request.identity.subjectId}:${request.resourceType}:${request.resourceId}:${request.operation}`;
   }
 
   /**
-   * Получить статистику PDP
+   * Логирование решения
    */
-  public getStats(): typeof this.stats & {
-    /** Размер кэша */
+  private logDecision(
+    requestId: string,
+    context: AccessRequestContext,
+    decision: Omit<AccessResponse, 'requestId' | 'cached' | 'evaluationTime' | 'timestamp'>,
+    trustLevel: TrustLevel,
+    riskAssessment: RiskAssessment
+  ): void {
+    const logEntry = {
+      timestamp: new Date(),
+      requestId,
+      decision: decision.decision,
+      trustLevel,
+      riskScore: riskAssessment.score,
+      subjectId: context.identity.subjectId,
+      resourceType: context.resourceType,
+      resourceId: context.resourceId,
+      operation: context.operation,
+      sourceIp: context.networkContext.sourceIp
+    };
+
+    if (this.config.enableVerboseLogging) {
+      console.log('[PDP Decision]', JSON.stringify(logEntry, null, 2));
+    }
+
+    this.emit('decision_logged', logEntry);
+  }
+
+  /**
+   * Очистка кэша
+   */
+  clearCache(): void {
+    this.cache.decisions.clear();
+    this.emit('cache_cleared');
+  }
+
+  /**
+   * Получение статистики
+   */
+  getStats(): {
+    policiesCount: number;
+    constraintsCount: number;
     cacheSize: number;
-    /** Размер истории */
-    historySize: number;
-    /** Количество политик */
-    policyCount: number;
+    isInitialized: boolean;
   } {
     return {
-      ...this.stats,
+      policiesCount: this.policies.size,
+      constraintsCount: this.constraints.size,
       cacheSize: this.cache.decisions.size,
-      historySize: this.decisionHistory.length,
-      policyCount: this.policies.size
+      isInitialized: this.isInitialized
     };
-  }
-
-  /**
-   * Очистить кэш
-   */
-  public clearCache(): void {
-    this.cache.decisions.clear();
-    this.log('PDP', 'Кэш решений очищен');
-  }
-
-  /**
-   * Получить историю решений
-   * 
-   * @param limit Максимальное количество записей
-   */
-  public getHistory(limit: number = 100): PolicyEvaluationResult[] {
-    return this.decisionHistory.slice(-limit);
-  }
-
-  /**
-   * Логирование событий PDP
-   */
-  private log(component: string, message: string, data?: unknown): void {
-    const event: ZeroTrustEvent = {
-      eventId: uuidv4(),
-      eventType: 'ACCESS_REQUEST',
-      timestamp: new Date(),
-      subject: {
-        id: 'system',
-        type: SubjectType.SYSTEM,
-        name: component
-      },
-      details: { message, ...data },
-      severity: 'INFO',
-      correlationId: uuidv4()
-    };
-    
-    this.emit('log', event);
   }
 }
-
-export default PolicyDecisionPoint;

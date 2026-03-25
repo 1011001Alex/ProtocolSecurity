@@ -126,13 +126,13 @@ export interface CircuitBreakerStats {
 export class CircuitBreakerError extends Error {
   /** Код ошибки */
   public readonly code: string;
-  
+
   /** Состояние circuit breaker */
   public readonly state: CircuitState;
-  
+
   /** Оригинальная ошибка */
   public readonly cause?: Error;
-  
+
   constructor(
     message: string,
     code: string,
@@ -144,10 +144,14 @@ export class CircuitBreakerError extends Error {
     this.code = code;
     this.state = state;
     this.cause = cause;
-    
+
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, CircuitBreakerError);
     }
+  }
+
+  public override get stack(): string {
+    return super.stack;
   }
 }
 

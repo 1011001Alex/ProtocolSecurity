@@ -9,7 +9,14 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/StubLogger';
+
+// Logger для совместимости
+const logger = {
+  info: (msg: string, data?: any) => console.log('[HealthcareSecurity]', msg, data),
+  warn: (msg: string, data?: any) => console.warn('[HealthcareSecurity]', msg, data),
+  error: (msg: string, data?: any) => console.error('[HealthcareSecurity]', msg, data),
+  debug: (msg: string, data?: any) => console.debug('[HealthcareSecurity]', msg, data)
+};
 import { HealthcareSecurityConfig } from './types/healthcare.types';
 import { PHIProtection } from './phi/PHIProtection';
 import { PatientConsentManager } from './consent/PatientConsentManager';

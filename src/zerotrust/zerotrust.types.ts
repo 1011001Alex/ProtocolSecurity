@@ -162,31 +162,37 @@ export enum AuthenticationMethod {
 export interface Identity {
   /** Уникальный идентификатор субъекта */
   id: string;
-  
+
+  /** Уникальный идентификатор субъекта (алиас для id) */
+  subjectId: string;
+
   /** Тип субъекта */
   type: SubjectType;
-  
+
+  /** Тип субъекта (строка, алиас для type) */
+  subjectType: string;
+
   /** Отображаемое имя */
   displayName: string;
-  
+
   /** Роли субъекта */
   roles: string[];
-  
+
   /** Прямые разрешения */
   permissions: string[];
-  
+
   /** Группы членства */
   groups: string[];
-  
+
   /** Метки атрибутов (labels) */
   labels: Record<string, string>;
-  
+
   /** Домен или арендатор */
   domain?: string;
-  
+
   /** Время создания идентичности */
   createdAt: Date;
-  
+
   /** Время последнего обновления */
   updatedAt: Date;
 }
@@ -197,30 +203,36 @@ export interface Identity {
 export interface AuthContext {
   /** Используемый метод аутентификации */
   method: AuthenticationMethod;
-  
+
   /** Время успешной аутентификации */
   authenticatedAt: Date;
-  
+
   /** Время истечения сессии */
   expiresAt: Date;
-  
+
   /** Уровень аутентификации (LoA) */
   levelOfAssurance: number;
-  
+
   /** Факторы аутентификации */
   factors: AuthenticationMethod[];
-  
+
   /** ID сессии */
   sessionId: string;
-  
+
   /** Refresh token ID */
   refreshTokenId?: string;
-  
+
   /** Была ли пройдена MFA */
   mfaVerified: boolean;
-  
+
   /** Методы MFA */
   mfaMethods: AuthenticationMethod[];
+
+  /** Методы аутентификации (алиас для factors) */
+  authenticationMethods: AuthenticationMethod[];
+
+  /** Claims из токена */
+  tokenClaims?: Record<string, any>;
 }
 
 // ============================================================================
@@ -233,18 +245,21 @@ export interface AuthContext {
 export enum DeviceHealthStatus {
   /** Устройство полностью соответствует политикам */
   HEALTHY = 'HEALTHY',
-  
+
   /** Устройство имеет незначительные отклонения */
   DEGRADED = 'DEGRADED',
-  
+
   /** Устройство не соответствует критическим политикам */
   NON_COMPLIANT = 'NON_COMPLIANT',
-  
+
   /** Статус устройства неизвестен */
   UNKNOWN = 'UNKNOWN',
-  
+
   /** Устройство заблокировано */
-  BLOCKED = 'BLOCKED'
+  BLOCKED = 'BLOCKED',
+
+  /** Устройство нездорово (алиас для NON_COMPLIANT) */
+  UNHEALTHY = 'NON_COMPLIANT'
 }
 
 /**
@@ -279,10 +294,10 @@ export enum DeviceType {
 export interface DevicePosture {
   /** Уникальный идентификатор устройства */
   deviceId: string;
-  
+
   /** Тип устройства */
   deviceType: DeviceType;
-  
+
   /** Операционная система */
   operatingSystem: {
     name: string;
@@ -290,10 +305,10 @@ export interface DevicePosture {
     build: string;
     patchLevel: string;
   };
-  
+
   /** Статус здоровья */
   healthStatus: DeviceHealthStatus;
-  
+
   /** Соответствие политикам безопасности */
   compliance: {
     /** Антивирус активен */
@@ -315,7 +330,13 @@ export interface DevicePosture {
     /** Jailbreak/Rootkit обнаружен */
     jailbreakDetected: boolean;
   };
-  
+
+  /** Устройство соответствует политикам (вычисляемое поле) */
+  isCompliant: boolean;
+
+  /** Диск зашифрован (алиас для compliance.diskEncrypted) */
+  isEncrypted: boolean;
+
   /** Сетевая информация */
   network: {
     /** IP адрес */
@@ -329,7 +350,7 @@ export interface DevicePosture {
     /** Домен сети */
     networkDomain?: string;
   };
-  
+
   /** Географическое положение */
   location?: {
     /** Страна */
@@ -341,13 +362,13 @@ export interface DevicePosture {
     /** Часовой пояс */
     timezone: string;
   };
-  
+
   /** Время последней проверки */
   lastCheckedAt: Date;
-  
+
   /** Время следующей проверки */
   nextCheckAt: Date;
-  
+
   /** Оценка риска устройства (0-100) */
   riskScore: number;
 }
@@ -1321,7 +1342,7 @@ export interface ZeroTrustEvent {
   };
   
   /** Контекст */
-  context: {
+  context?: {
     /** IP адрес */
     ipAddress: string;
     /** User agent */
@@ -1345,26 +1366,139 @@ export interface ZeroTrustEvent {
 }
 
 // ============================================================================
-// ЭКСПОРТЫ
+// ТИПЫ ЗАПРОСОВ И ОТВЕТОВ ДОСТУПА
 // ============================================================================
 
-export type {
-  Identity,
-  AuthContext,
-  DevicePosture,
-  PolicyCondition,
-  PolicyConstraint,
-  AccessPolicyRule,
-  MicroSegmentationRule,
-  NetworkSegment,
-  SdpClientConfig,
-  SdpSession,
-  MtlsCertificate,
-  ServiceMeshConfig,
-  JitAccessRequest,
-  EgressFilterRule,
-  DlpEvent,
-  TlsConfiguration,
-  PolicyEvaluationResult,
-  ZeroTrustEvent
-};
+/**
+ * Запрос доступа к ресурсу
+ */
+export interface AccessRequest {
+  /** Уникальный идентификатор запроса */
+  requestId: string;
+
+  /** Идентичность субъекта */
+  identity: Identity;
+
+  /** Контекст аутентификации */
+  authContext: AuthContext;
+
+  /** Состояние устройства */
+  devicePosture?: DevicePosture;
+
+  /** Тип ресурса */
+  resourceType: ResourceType;
+
+  /** ID ресурса */
+  resourceId: string;
+
+  /** Запрошенная операция */
+  operation: PolicyOperation;
+
+  /** IP адрес источника */
+  sourceIp: string;
+
+  /** IP адрес назначения */
+  destinationIp?: string;
+
+  /** Порт назначения */
+  destinationPort?: number;
+
+  /** Протокол */
+  protocol?: string;
+
+  /** Дополнительные метаданные */
+  metadata?: Record<string, unknown>;
+
+  /** Имя ресурса */
+  resourceName?: string;
+
+  /** Атрибуты ресурса */
+  resourceAttributes?: Record<string, unknown>;
+
+  /** Часовой пояс */
+  timezone?: string;
+
+  /** Необычное ли местоположение */
+  isUnusualLocation?: boolean;
+
+  /** Необычное ли время */
+  isUnusualTime?: boolean;
+
+  /** Необычное ли устройство */
+  isUnusualDevice?: boolean;
+
+  /** Аномальное ли поведение */
+  isAnomalousBehavior?: boolean;
+
+  /** Оценка риска */
+  riskScore?: number;
+}
+
+/**
+ * Ответ на запрос доступа
+ */
+export interface AccessResponse {
+  /** Уникальный идентификатор ответа */
+  responseId: string;
+
+  /** ID запроса */
+  requestId: string;
+
+  /** Решение */
+  decision: PolicyDecision;
+
+  /** Уровень доверия */
+  trustLevel: TrustLevel;
+
+  /** Время принятия решения */
+  decidedAt: Date;
+
+  /** Применённые правила */
+  appliedRules: {
+    ruleId: string;
+    ruleName: string;
+    effect: 'ALLOW' | 'DENY';
+  }[];
+
+  /** Ограничения доступа */
+  restrictions?: {
+    timeLimit?: number;
+    operationLimit?: PolicyOperation[];
+    dataLimit?: string[];
+    requireStepUp?: boolean;
+  };
+
+  /** Токен доступа (если разрешено) */
+  accessToken?: string;
+
+  /** Время истечения доступа */
+  expiresAt?: Date;
+
+  /** Причина отказа (если отказано) */
+  denialReason?: string;
+
+  /** Причина решения */
+  reason?: string;
+
+  /** Рекомендации */
+  recommendations?: string[];
+
+  /** Оценка риска */
+  riskAssessment?: {
+    level: string;
+    score: number;
+    factors: string[];
+  };
+
+  /** Метаданные */
+  metadata?: Record<string, unknown>;
+
+  /** Кэшировано ли решение */
+  cached?: boolean;
+
+  /** Время оценки (мс) */
+  evaluationTime?: number;
+
+  /** Timestamp */
+  timestamp?: Date;
+}

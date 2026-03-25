@@ -20,18 +20,18 @@
 
 import express, { Application, Request, Response, NextFunction } from 'express';
 import { createCORS, CORSPresets, validateCORSConfig, CORSConfig } from './middleware/CORSMiddleware';
-import { createSecurityHeadersMiddleware, SecurityHeadersMiddleware } from './middleware/SecurityHeadersMiddleware';
-import { RateLimiter, createRateLimiter, createMemoryStore, createPerIPRule, createAPIRule } from './middleware/RateLimitMiddleware';
-import { createInputValidationMiddleware, ValidationPresets, ValidationType } from './middleware/InputValidationMiddleware';
-import { EnvironmentValidator, validateEnvironmentQuick } from './utils/EnvironmentValidator';
+import { createSecurityHeadersMiddleware } from './middleware/SecurityHeadersMiddleware';
+import { createRateLimiter, createMemoryStore, createPerIPRule, createAPIRule } from './middleware/RateLimitMiddleware';
+import { createInputValidationMiddleware, ValidationPresets } from './middleware/InputValidationMiddleware';
+import { EnvironmentValidator } from './utils/EnvironmentValidator';
 import {
   HealthCheckService,
   getHealthCheckService
 } from './health/HealthCheckService';
-import { HealthCheckConfig, HealthStatus } from './health/HealthCheckTypes';
+import { HealthStatus } from './health/HealthCheckTypes';
 import { CircuitBreakerManager } from './utils/CircuitBreaker';
 import { PerformanceMonitor, getPerformanceMonitor } from './utils/PerformanceMonitor';
-import { securityLogger, LogLevel } from './logging';
+import { securityLogger } from './logging';
 
 // =============================================================================
 // ENVIRONMENT CONFIGURATION
@@ -45,7 +45,7 @@ function validateEnvironmentOnStartup(): void {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isProduction = nodeEnv === 'production';
 
-  securityLogger.info(`Validation environnement (${nodeEnv})...`, { nodeEnv, phase: 'startup' });
+  securityLogger.info(`Validation environnement (${nodeEnv})...`, { nodeEnv });
 
   const validator = new EnvironmentValidator({
     nodeEnv,

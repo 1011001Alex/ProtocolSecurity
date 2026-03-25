@@ -55,6 +55,9 @@
     "snyk:monitor": "snyk monitor"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.450.0",
+    "@azure/keyvault-secrets": "^4.7.0",
+    "@google-cloud/secret-manager": "^4.0.0",
     "@tensorflow/tfjs": "^4.15.0",
     "@tensorflow/tfjs-node": "^4.15.0",
     "argon2": "^0.44.0",
@@ -64,6 +67,7 @@
     "elastic-apm-node": "^4.5.0",
     "lodash": "^4.17.21",
     "node-cache": "^5.1.2",
+    "otpauth": "^9.1.0",
     "stix": "^2.0.0",
     "uuid": "^9.0.0",
     "winston": "^3.11.0"

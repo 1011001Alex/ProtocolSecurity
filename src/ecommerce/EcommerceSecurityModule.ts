@@ -9,7 +9,6 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/StubLogger';
 import { EcommerceSecurityConfig } from './types/ecommerce.types';
 import { BotProtection } from './BotProtection';
 import { AccountTakeoverPrevention } from './AccountTakeoverPrevention';
@@ -19,6 +18,14 @@ import { ReviewFraudDetection } from './ReviewFraudDetection';
 import { InventoryFraud } from './InventoryFraud';
 import { CouponAbusePrevention } from './CouponAbusePrevention';
 import { MarketplaceSecurity } from './MarketplaceSecurity';
+
+// Logger для совместимости
+const logger = {
+  info: (msg: string, data?: any) => console.log('[EcommerceSecurity]', msg, data),
+  warn: (msg: string, data?: any) => console.warn('[EcommerceSecurity]', msg, data),
+  error: (msg: string, data?: any) => console.error('[EcommerceSecurity]', msg, data),
+  debug: (msg: string, data?: any) => console.debug('[EcommerceSecurity]', msg, data)
+};
 
 /**
  * E-commerce Security Module

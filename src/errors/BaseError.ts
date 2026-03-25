@@ -266,7 +266,7 @@ export class AuthenticationError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Invalid credentials';
   }
 }
@@ -288,7 +288,7 @@ export class AuthorizationError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'You do not have permission to access this resource';
   }
 }
@@ -305,7 +305,7 @@ export class SessionExpiredError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Your session has expired. Please log in again.';
   }
 }
@@ -322,7 +322,7 @@ export class MFARequiredError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Multi-factor authentication is required';
   }
 }
@@ -339,7 +339,7 @@ export class InvalidTokenError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Invalid or expired token';
   }
 }
@@ -359,7 +359,7 @@ export class AccountLockedError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Account temporarily locked. Please try again later.';
   }
 }
@@ -385,7 +385,7 @@ export class ValidationError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Invalid input provided';
   }
 }
@@ -405,7 +405,7 @@ export class InvalidInputError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Invalid input provided';
   }
 }
@@ -425,7 +425,7 @@ export class MissingParameterError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'A required parameter is missing';
   }
 }
@@ -449,7 +449,7 @@ export class NotFoundError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'The requested resource was not found';
   }
 }
@@ -473,7 +473,7 @@ export class RateLimitExceededError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Too many requests. Please try again later.';
   }
 }
@@ -499,7 +499,7 @@ export class DatabaseError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'A database error occurred. Please try again later.';
   }
 }
@@ -519,7 +519,7 @@ export class ConnectionError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'Unable to connect to the database. Please try again later.';
   }
 }
@@ -546,7 +546,7 @@ export class ExternalServiceError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'An external service is unavailable. Please try again later.';
   }
 }
@@ -567,7 +567,7 @@ export class TimeoutError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'The request timed out. Please try again.';
   }
 }
@@ -593,7 +593,7 @@ export class InternalError extends BaseError {
     );
   }
 
-  protected getSafeMessage(): string {
+  protected override getSafeMessage(): string {
     return 'An internal error occurred. Please try again later.';
   }
 }
@@ -657,24 +657,3 @@ export class ErrorFactory {
 // =============================================================================
 // ЭКСПОРТ
 // =============================================================================
-
-export type { SafeError, FullError };
-
-export {
-  AuthenticationError,
-  AuthorizationError,
-  SessionExpiredError,
-  MFARequiredError,
-  InvalidTokenError,
-  AccountLockedError,
-  ValidationError,
-  InvalidInputError,
-  MissingParameterError,
-  NotFoundError,
-  RateLimitExceededError,
-  DatabaseError,
-  ConnectionError,
-  ExternalServiceError,
-  TimeoutError,
-  InternalError
-};

@@ -1,756 +1,582 @@
 /**
- * Zero Trust Controller - Контроллер Zero Trust Архитектуры
+ * ============================================================================
+ * ZERO TRUST CONTROLLER — ОРКЕСТРАТОР ZERO TRUST ARCHITECTURE
+ * ============================================================================
+ * Центральный контроллер для управления всеми компонентами Zero Trust
  * 
- * Центральный компонент, объединяющий все элементы Zero Trust
- * Network Architecture в единую согласованную систему.
- * 
- * @version 1.0.0
- * @author grigo
- * @date 22 марта 2026 г.
+ * Функционал:
+ * - Оркестрация PDP, PEP, Trust Verifier
+ * - Управление сессиями и контекстами
+ * - Мониторинг и аудит
+ * - Динамическая адаптация политик
+ * ============================================================================
  */
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '../logging/Logger';
 import {
   Identity,
   AuthContext,
   DevicePosture,
-  PolicyEvaluationResult,
-  PolicyDecision,
-  ZeroTrustEvent,
-  SubjectType,
   ResourceType,
   PolicyOperation,
-  TrustLevel
+  TrustLevel,
+  PolicyDecision,
+  AccessResponse,
+  SubjectType
 } from './zerotrust.types';
 import { PolicyDecisionPoint, PdpConfig } from './PolicyDecisionPoint';
 import { PolicyEnforcementPoint, PepConfig } from './PolicyEnforcementPoint';
-import { DevicePostureChecker, DevicePostureCheckerConfig } from './DevicePostureChecker';
 import { TrustVerifier, TrustVerifierConfig } from './TrustVerifier';
-import { MicroSegmentation, MicroSegmentationConfig } from './MicroSegmentation';
-import { SoftwareDefinedPerimeter, SdpConfig } from './SoftwareDefinedPerimeter';
-import { IdentityAwareProxy, IdentityAwareProxyConfig } from './IdentityAwareProxy';
-import { ServiceMeshMTLS, ServiceMeshMtlsConfig } from './ServiceMeshMTLS';
-import { NetworkAccessControl, NetworkAccessControlConfig } from './NetworkAccessControl';
-import { JustInTimeAccess, JustInTimeAccessConfig } from './JustInTimeAccess';
-import { EgressFilter, EgressFilterConfig } from './EgressFilter';
-import { TlsEverywhere, TlsEverywhereConfig } from './TLSEverywhere';
-import { NetworkPolicyEngine, NetworkPolicyEngineConfig } from './NetworkPolicyEngine';
 
 /**
  * Конфигурация Zero Trust Controller
  */
-export interface ZeroTrustControllerConfig {
-  /** ID контроллера */
-  controllerId: string;
-  
-  /** Название */
-  name: string;
-  
+export interface ZeroTrustConfig {
+  /** ID инсталляции */
+  installationId: string;
+  /** Включить Zero Trust */
+  enabled: boolean;
+  /** Режим enforcement */
+  enforcementMode: 'strict' | 'balanced' | 'permissive' | 'audit';
   /** Конфигурация PDP */
-  pdp: Partial<PdpConfig>;
-  
+  pdpConfig: Partial<PdpConfig>;
   /** Конфигурация PEP */
-  pep: Partial<PepConfig>;
-  
-  /** Конфигурация Device Posture Checker */
-  devicePosture: Partial<DevicePostureCheckerConfig>;
-  
+  pepConfig: Partial<PepConfig>;
   /** Конфигурация Trust Verifier */
-  trustVerifier: Partial<TrustVerifierConfig>;
-  
-  /** Конфигурация Micro-Segmentation */
-  microSegmentation: Partial<MicroSegmentationConfig>;
-  
-  /** Конфигурация SDP */
-  sdp: Partial<SdpConfig>;
-  
-  /** Конфигурация Identity-Aware Proxy */
-  identityProxy: Partial<IdentityAwareProxyConfig>;
-  
-  /** Конфигурация Service Mesh mTLS */
-  serviceMesh: Partial<ServiceMeshMtlsConfig>;
-  
-  /** Конфигурация Network Access Control */
-  nac: Partial<NetworkAccessControlConfig>;
-  
-  /** Конфигурация JIT Access */
-  jitAccess: Partial<JustInTimeAccessConfig>;
-  
-  /** Конфигурация Egress Filter */
-  egressFilter: Partial<EgressFilterConfig>;
-  
-  /** Конфигурация TLS Everywhere */
-  tls: Partial<TlsEverywhereConfig>;
-  
-  /** Конфигурация Policy Engine */
-  policyEngine: Partial<NetworkPolicyEngineConfig>;
-  
-  /** Включить компоненты */
-  enableComponents: {
-    pdp: boolean;
-    pep: boolean;
-    devicePosture: boolean;
-    trustVerifier: boolean;
-    microSegmentation: boolean;
-    sdp: boolean;
-    identityProxy: boolean;
-    serviceMesh: boolean;
-    nac: boolean;
-    jitAccess: boolean;
-    egressFilter: boolean;
-    tls: boolean;
-    policyEngine: boolean;
-  };
-  
-  /** Включить детальное логирование */
-  enableVerboseLogging: boolean;
+  trustVerifierConfig: Partial<TrustVerifierConfig>;
+  /** Включить мониторинг */
+  enableMonitoring: boolean;
+  /** Включить аудит */
+  enableAudit: boolean;
+  /** Интервал отчётности (мс) */
+  reportingInterval: number;
 }
 
 /**
- * Состояние компонента
+ * Zero Trust сессия
  */
-interface ComponentState {
-  /** Название компонента */
-  name: string;
-  
-  /** Активен ли */
-  active: boolean;
-  
-  /** Статус */
-  status: 'INITIALIZING' | 'ACTIVE' | 'DEGRADED' | 'ERROR' | 'STOPPED';
-  
-  /** Последняя ошибка */
-  lastError?: string;
-  
-  /** Время запуска */
-  startedAt?: Date;
+interface ZeroTrustSession {
+  sessionId: string;
+  identity: Identity;
+  trustLevel: TrustLevel;
+  riskScore: number;
+  createdAt: Date;
+  lastActivity: Date;
+  accessCount: number;
+  deniedCount: number;
+  devicePosture?: DevicePosture;
 }
 
 /**
- * Zero Trust Controller
- * 
- * Главный контроллер, координирующий все компоненты Zero Trust.
+ * Zero Trust событие
+ */
+interface ZeroTrustEvent {
+  eventId: string;
+  timestamp: Date;
+  type: 'ACCESS_REQUEST' | 'ACCESS_GRANTED' | 'ACCESS_DENIED' | 'TRUST_CHANGE' | 'SESSION_CREATED' | 'SESSION_TERMINATED';
+  sessionId?: string;
+  identity?: Identity;
+  resourceId?: string;
+  decision?: AccessResponse;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Zero Trust Controller — основная реализация
  */
 export class ZeroTrustController extends EventEmitter {
-  /** Конфигурация */
-  private config: ZeroTrustControllerConfig;
-  
-  /** Компоненты */
-  private components: {
-    pdp: PolicyDecisionPoint | null;
-    pep: PolicyEnforcementPoint | null;
-    devicePosture: DevicePostureChecker | null;
-    trustVerifier: TrustVerifier | null;
-    microSegmentation: MicroSegmentation | null;
-    sdp: SoftwareDefinedPerimeter | null;
-    identityProxy: IdentityAwareProxy | null;
-    serviceMesh: ServiceMeshMTLS | null;
-    nac: NetworkAccessControl | null;
-    jitAccess: JustInTimeAccess | null;
-    egressFilter: EgressFilter | null;
-    tls: TlsEverywhere | null;
-    policyEngine: NetworkPolicyEngine | null;
-  };
-  
-  /** Состояния компонентов */
-  private componentStates: Map<string, ComponentState>;
-  
-  /** Активные сессии */
-  private activeSessions: Map<string, {
-    sessionId: string;
-    identity: Identity;
-    trustLevel: TrustLevel;
-    createdAt: Date;
-    lastActivity: Date;
-  }>;
-  
-  /** Статистика */
-  private stats: {
-    /** Всего запросов */
-    totalRequests: number;
-    /** Разрешено */
-    allowed: number;
-    /** Запрещено */
-    denied: number;
-    /** Активные сессии */
-    activeSessions: number;
-    /** Событий безопасности */
-    securityEvents: number;
-  };
+  private readonly config: ZeroTrustConfig;
+  private readonly pdp: PolicyDecisionPoint;
+  private readonly pep: PolicyEnforcementPoint;
+  private readonly trustVerifier: TrustVerifier;
+  private readonly sessions: Map<string, ZeroTrustSession> = new Map();
+  private readonly eventLog: ZeroTrustEvent[] = [];
+  private isRunning: boolean = false;
+  private reportingTimer?: NodeJS.Timeout;
 
-  constructor(config: Partial<ZeroTrustControllerConfig> = {}) {
+  constructor(config: Partial<ZeroTrustConfig> = {}) {
     super();
-    
+
     this.config = {
-      controllerId: config.controllerId ?? `zt-controller-${uuidv4().substring(0, 8)}`,
-      name: config.name ?? 'Zero Trust Controller',
-      pdp: config.pdp ?? {},
-      pep: config.pep ?? {},
-      devicePosture: config.devicePosture ?? {},
-      trustVerifier: config.trustVerifier ?? {},
-      microSegmentation: config.microSegmentation ?? {},
-      sdp: config.sdp ?? {},
-      identityProxy: config.identityProxy ?? {},
-      serviceMesh: config.serviceMesh ?? {},
-      nac: config.nac ?? {},
-      jitAccess: config.jitAccess ?? {},
-      egressFilter: config.egressFilter ?? {},
-      tls: config.tls ?? {},
-      policyEngine: config.policyEngine ?? {},
-      enableComponents: {
-        pdp: config.enableComponents?.pdp ?? true,
-        pep: config.enableComponents?.pep ?? true,
-        devicePosture: config.enableComponents?.devicePosture ?? true,
-        trustVerifier: config.enableComponents?.trustVerifier ?? true,
-        microSegmentation: config.enableComponents?.microSegmentation ?? true,
-        sdp: config.enableComponents?.sdp ?? true,
-        identityProxy: config.enableComponents?.identityProxy ?? true,
-        serviceMesh: config.enableComponents?.serviceMesh ?? true,
-        nac: config.enableComponents?.nac ?? true,
-        jitAccess: config.enableComponents?.jitAccess ?? true,
-        egressFilter: config.enableComponents?.egressFilter ?? true,
-        tls: config.enableComponents?.tls ?? true,
-        policyEngine: config.enableComponents?.policyEngine ?? true
-      },
-      enableVerboseLogging: config.enableVerboseLogging ?? false
+      installationId: config.installationId || uuidv4(),
+      enabled: config.enabled !== false,
+      enforcementMode: config.enforcementMode || 'balanced',
+      pdpConfig: config.pdpConfig || {},
+      pepConfig: config.pepConfig || {},
+      trustVerifierConfig: config.trustVerifierConfig || {},
+      enableMonitoring: config.enableMonitoring !== false,
+      enableAudit: config.enableAudit !== false,
+      reportingInterval: config.reportingInterval || 60000,
+      ...config
     };
-    
-    this.components = {
-      pdp: null,
-      pep: null,
-      devicePosture: null,
-      trustVerifier: null,
-      microSegmentation: null,
-      sdp: null,
-      identityProxy: null,
-      serviceMesh: null,
-      nac: null,
-      jitAccess: null,
-      egressFilter: null,
-      tls: null,
-      policyEngine: null
-    };
-    
-    this.componentStates = new Map();
-    this.activeSessions = new Map();
-    
-    this.stats = {
-      totalRequests: 0,
-      allowed: 0,
-      denied: 0,
-      activeSessions: 0,
-      securityEvents: 0
-    };
-    
-    this.initializeComponentStates();
-    this.log('ZTC', 'ZeroTrustController инициализирован', {
-      controllerId: this.config.controllerId
+
+    // Применение режима enforcement к конфигурации
+    const pepConfig = this.applyEnforcementMode(this.config.enforcementMode);
+
+    // Инициализация компонентов
+    this.pdp = new PolicyDecisionPoint(this.config.pdpConfig);
+    this.trustVerifier = new TrustVerifier(this.config.trustVerifierConfig);
+    this.pep = new PolicyEnforcementPoint(
+      { ...this.config.pepConfig, ...pepConfig },
+      this.pdp,
+      this.trustVerifier
+    );
+
+    // Подписка на события компонентов
+    this.subscribeToComponents();
+
+    this.emit('initialized', { 
+      installationId: this.config.installationId,
+      config: this.config 
     });
   }
 
   /**
-   * Инициализировать состояния компонентов
+   * Применение режима enforcement
    */
-  private initializeComponentStates(): void {
-    const componentNames = [
-      'pdp', 'pep', 'devicePosture', 'trustVerifier',
-      'microSegmentation', 'sdp', 'identityProxy', 'serviceMesh',
-      'nac', 'jitAccess', 'egressFilter', 'tls', 'policyEngine'
-    ];
-    
-    for (const name of componentNames) {
-      this.componentStates.set(name, {
-        name,
-        active: this.config.enableComponents[name as keyof typeof this.config.enableComponents],
-        status: 'INITIALIZING'
+  private applyEnforcementMode(mode: string): Partial<PepConfig> {
+    switch (mode) {
+      case 'strict':
+        return {
+          enableEnforcement: true,
+          auditOnlyMode: false,
+          onPdpUnavailable: 'DENY'
+        };
+      
+      case 'balanced':
+        return {
+          enableEnforcement: true,
+          auditOnlyMode: false,
+          onPdpUnavailable: 'DENY'
+        };
+      
+      case 'permissive':
+        return {
+          enableEnforcement: true,
+          auditOnlyMode: false,
+          onPdpUnavailable: 'ALLOW'
+        };
+      
+      case 'audit':
+        return {
+          enableEnforcement: false,
+          auditOnlyMode: true,
+          onPdpUnavailable: 'ALLOW'
+        };
+      
+      default:
+        return {};
+    }
+  }
+
+  /**
+   * Подписка на события компонентов
+   */
+  private subscribeToComponents(): void {
+    // PDP события
+    this.pdp.on('access_evaluated', (data) => {
+      this.logEvent({
+        eventId: uuidv4(),
+        timestamp: new Date(),
+        type: 'ACCESS_REQUEST',
+        identity: data.trustLevel ? undefined : { subjectId: 'unknown', subjectType: 'USER', id: 'unknown', type: SubjectType.USER, displayName: 'Unknown', roles: [], permissions: [], groups: [], labels: {}, createdAt: new Date(), updatedAt: new Date() } as Identity,
+        decision: data,
+        metadata: { component: 'PDP' }
       });
-    }
-  }
+    });
 
-  /**
-   * Инициализировать все компоненты
-   */
-  public async initialize(): Promise<void> {
-    this.log('ZTC', 'Инициализация компонентов Zero Trust');
-    
-    try {
-      // Инициализируем компоненты в правильном порядке
-      
-      // 1. TLS Everywhere (базовая инфраструктура)
-      if (this.config.enableComponents.tls) {
-        this.components.tls = new TlsEverywhere(this.config.tls);
-        this.updateComponentState('tls', 'ACTIVE');
-        this.log('ZTC', 'TLS Everywhere инициализирован');
-      }
-      
-      // 2. PDP (Policy Decision Point)
-      if (this.config.enableComponents.pdp) {
-        this.components.pdp = new PolicyDecisionPoint(this.config.pdp);
-        this.updateComponentState('pdp', 'ACTIVE');
-        this.log('ZTC', 'PDP инициализирован');
-      }
-      
-      // 3. Device Posture Checker
-      if (this.config.enableComponents.devicePosture) {
-        this.components.devicePosture = new DevicePostureChecker(this.config.devicePosture);
-        this.updateComponentState('devicePosture', 'ACTIVE');
-        this.log('ZTC', 'Device Posture Checker инициализирован');
-      }
-      
-      // 4. Trust Verifier
-      if (this.config.enableComponents.trustVerifier) {
-        this.components.trustVerifier = new TrustVerifier(this.config.trustVerifier);
-        
-        // Подключаем Device Posture Checker
-        if (this.components.devicePosture) {
-          this.components.trustVerifier.setPostureChecker(this.components.devicePosture);
-        }
-        
-        this.updateComponentState('trustVerifier', 'ACTIVE');
-        this.log('ZTC', 'Trust Verifier инициализирован');
-      }
-      
-      // 5. PEP (Policy Enforcement Point)
-      if (this.config.enableComponents.pep) {
-        this.components.pep = new PolicyEnforcementPoint(this.config.pep);
-        
-        // Подключаем PDP
-        if (this.components.pdp) {
-          this.components.pep.setPdp(this.components.pdp);
-        }
-        
-        this.updateComponentState('pep', 'ACTIVE');
-        this.log('ZTC', 'PEP инициализирован');
-      }
-      
-      // 6. Micro-Segmentation
-      if (this.config.enableComponents.microSegmentation) {
-        this.components.microSegmentation = new MicroSegmentation(this.config.microSegmentation);
-        this.updateComponentState('microSegmentation', 'ACTIVE');
-        this.log('ZTC', 'Micro-Segmentation инициализирован');
-      }
-      
-      // 7. SDP
-      if (this.config.enableComponents.sdp) {
-        this.components.sdp = new SoftwareDefinedPerimeter(this.config.sdp);
-        
-        // Подключаем PDP и Trust Verifier
-        if (this.components.pdp) {
-          this.components.sdp.setPdp(this.components.pdp);
-        }
-        if (this.components.trustVerifier) {
-          this.components.sdp.setTrustVerifier(this.components.trustVerifier);
-        }
-        
-        this.updateComponentState('sdp', 'ACTIVE');
-        this.log('ZTC', 'SDP инициализирован');
-      }
-      
-      // 8. Network Access Control
-      if (this.config.enableComponents.nac) {
-        this.components.nac = new NetworkAccessControl(this.config.nac);
-        
-        // Подключаем PDP и Device Posture Checker
-        if (this.components.pdp) {
-          this.components.nac.setPdp(this.components.pdp);
-        }
-        if (this.components.devicePosture) {
-          this.components.nac.setPostureChecker(this.components.devicePosture);
-        }
-        
-        this.updateComponentState('nac', 'ACTIVE');
-        this.log('ZTC', 'NAC инициализирован');
-      }
-      
-      // 9. JIT Access
-      if (this.config.enableComponents.jitAccess) {
-        this.components.jitAccess = new JustInTimeAccess(this.config.jitAccess);
-        
-        // Подключаем PDP и Trust Verifier
-        if (this.components.pdp) {
-          this.components.jitAccess.setPdp(this.components.pdp);
-        }
-        if (this.components.trustVerifier) {
-          this.components.jitAccess.setTrustVerifier(this.components.trustVerifier);
-        }
-        
-        this.updateComponentState('jitAccess', 'ACTIVE');
-        this.log('ZTC', 'JIT Access инициализирован');
-      }
-      
-      // 10. Egress Filter
-      if (this.config.enableComponents.egressFilter) {
-        this.components.egressFilter = new EgressFilter(this.config.egressFilter);
-        this.updateComponentState('egressFilter', 'ACTIVE');
-        this.log('ZTC', 'Egress Filter инициализирован');
-      }
-      
-      // 11. Service Mesh mTLS
-      if (this.config.enableComponents.serviceMesh) {
-        this.components.serviceMesh = new ServiceMeshMTLS(this.config.serviceMesh);
-        this.updateComponentState('serviceMesh', 'ACTIVE');
-        this.log('ZTC', 'Service Mesh mTLS инициализирован');
-      }
-      
-      // 12. Identity-Aware Proxy
-      if (this.config.enableComponents.identityProxy) {
-        this.components.identityProxy = new IdentityAwareProxy(this.config.identityProxy);
-        
-        // Подключаем PEP и Trust Verifier
-        if (this.components.pep) {
-          this.components.identityProxy.setPep(this.components.pep);
-        }
-        if (this.components.trustVerifier) {
-          this.components.identityProxy.setTrustVerifier(this.components.trustVerifier);
-        }
-        
-        this.updateComponentState('identityProxy', 'ACTIVE');
-        this.log('ZTC', 'Identity-Aware Proxy инициализирован');
-      }
-      
-      // 13. Network Policy Engine
-      if (this.config.enableComponents.policyEngine) {
-        this.components.policyEngine = new NetworkPolicyEngine(this.config.policyEngine);
-        
-        // Подключаем все компоненты
-        if (this.components.pdp) {
-          this.components.policyEngine.setPdp(this.components.pdp);
-        }
-        if (this.components.microSegmentation) {
-          this.components.policyEngine.setMicroSegmentation(this.components.microSegmentation);
-        }
-        if (this.components.egressFilter) {
-          this.components.policyEngine.setEgressFilter(this.components.egressFilter);
-        }
-        
-        this.updateComponentState('policyEngine', 'ACTIVE');
-        this.log('ZTC', 'Network Policy Engine инициализирован');
-      }
-      
-      // Подключаем логирование от всех компонентов
-      this.connectComponentLogging();
-      
-      this.log('ZTC', 'Все компоненты успешно инициализированы');
-      this.emit('controller:initialized');
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.log('ZTC', 'Ошибка инициализации', { error: errorMessage });
-      this.emit('controller:error', { error: errorMessage });
-      throw error;
-    }
-  }
+    // PEP события
+    this.pep.on('access_denied', (data) => {
+      this.logEvent({
+        eventId: uuidv4(),
+        timestamp: new Date(),
+        type: 'ACCESS_DENIED',
+        identity: { subjectId: data.subjectId, subjectType: 'USER', id: data.subjectId, type: SubjectType.USER, displayName: data.subjectId, roles: [], permissions: [], groups: [], labels: {}, createdAt: new Date(), updatedAt: new Date() } as Identity,
+        resourceId: data.resource,
+        metadata: { component: 'PEP', reason: data.reason }
+      });
+    });
 
-  /**
-   * Подключить логирование от компонентов
-   */
-  private connectComponentLogging(): void {
-    const componentEntries = Object.entries(this.components);
-    
-    for (const [name, component] of componentEntries) {
-      if (component && 'on' in component) {
-        component.on('log', (event: ZeroTrustEvent) => {
-          event.details = {
-            ...event.details,
-            component: name
-          };
-          this.emit('log', event);
+    // Trust Verifier события
+    this.trustVerifier.on('trust_level_changed', (data) => {
+      this.logEvent({
+        eventId: uuidv4(),
+        timestamp: new Date(),
+        type: 'TRUST_CHANGE',
+        identity: { subjectId: data.subjectId, subjectType: 'USER', id: data.subjectId, type: SubjectType.USER, displayName: data.subjectId, roles: [], permissions: [], groups: [], labels: {}, createdAt: new Date(), updatedAt: new Date() } as Identity,
+        metadata: {
+          component: 'TrustVerifier',
+          previousLevel: data.previousLevel,
+          newLevel: data.newLevel,
+          riskScore: data.riskScore
+        }
+      });
+    });
+
+    this.trustVerifier.on('session_terminated', (data) => {
+      const session = this.sessions.get(data.subjectId);
+      if (session) {
+        this.sessions.delete(data.subjectId);
+        
+        this.logEvent({
+          eventId: uuidv4(),
+          timestamp: new Date(),
+          type: 'SESSION_TERMINATED',
+          sessionId: session.sessionId,
+          identity: session.identity,
+          metadata: { sessionDuration: data.sessionDuration }
         });
       }
-    }
-  }
-
-  /**
-   * Обновить состояние компонента
-   */
-  private updateComponentState(
-    name: string,
-    status: ComponentState['status']
-  ): void {
-    const state = this.componentStates.get(name);
-    
-    if (state) {
-      state.status = status;
-      state.active = status === 'ACTIVE';
-      
-      if (status === 'ACTIVE') {
-        state.startedAt = new Date();
-      }
-      
-      this.componentStates.set(name, state);
-    }
-  }
-
-  /**
-   * Обработать запрос доступа
-   */
-  public async handleAccessRequest(context: {
-    identity: Identity;
-    authContext: AuthContext;
-    devicePosture?: DevicePosture;
-    resourceType: ResourceType;
-    resourceId: string;
-    resourceName: string;
-    operation: PolicyOperation;
-    sourceIp: string;
-  }): Promise<PolicyEvaluationResult> {
-    this.stats.totalRequests++;
-    
-    this.log('ZTC', 'Запрос доступа', {
-      identityId: context.identity.id,
-      resource: context.resourceId,
-      operation: context.operation
     });
-    
-    let result: PolicyEvaluationResult;
-    
-    // Используем Policy Engine если доступен
-    if (this.components.policyEngine) {
-      result = await this.components.policyEngine.evaluateAccessRequest(context);
-    }
-    // Или PEP
-    else if (this.components.pep) {
-      const pepResult = await this.components.pep.enforceAccess(context);
-      result = pepResult.pdpResult || {
-        evaluationId: uuidv4(),
-        evaluatedAt: new Date(),
-        decision: pepResult.decision,
-        trustLevel: 0,
-        appliedRules: [],
-        factors: [],
-        restrictions: {},
-        recommendations: []
-      };
-    }
-    // Или PDP
-    else if (this.components.pdp) {
-      result = await this.components.pdp.evaluateAccess(context);
-    }
-    // Fallback
-    else {
-      result = {
-        evaluationId: uuidv4(),
-        evaluatedAt: new Date(),
-        decision: PolicyDecision.DENY,
-        trustLevel: 0,
-        appliedRules: [],
-        factors: [],
-        restrictions: {},
-        recommendations: ['No policy engine available']
-      };
-    }
-    
-    // Обновляем статистику
-    if (result.decision === PolicyDecision.ALLOW ||
-        result.decision === PolicyDecision.ALLOW_RESTRICTED ||
-        result.decision === PolicyDecision.ALLOW_TEMPORARY) {
-      this.stats.allowed++;
-    } else {
-      this.stats.denied++;
-    }
-    
-    // Обновляем сессию
-    this.updateSessionActivity(context.identity.id);
-    
-    this.log('ZTC', 'Решение о доступе', {
-      decision: result.decision,
-      trustLevel: result.trustLevel
-    });
-    
-    return result;
   }
 
   /**
-   * Создать сессию
+   * Запуск контроллера
    */
-  public async createSession(
+  start(): void {
+    if (this.isRunning) {
+      return;
+    }
+
+    this.isRunning = true;
+    this.trustVerifier.start();
+
+    // Запуск периодической отчётности
+    if (this.config.enableMonitoring) {
+      this.reportingTimer = setInterval(() => {
+        this.generateReport();
+      }, this.config.reportingInterval);
+    }
+
+    this.emit('started');
+  }
+
+  /**
+   * Остановка контроллера
+   */
+  stop(): void {
+    this.isRunning = false;
+    this.trustVerifier.stop();
+
+    if (this.reportingTimer) {
+      clearInterval(this.reportingTimer);
+      this.reportingTimer = undefined;
+    }
+
+    this.emit('stopped');
+  }
+
+  /**
+   * Создание новой сессии
+   */
+  async createSession(
     identity: Identity,
     authContext: AuthContext,
     devicePosture?: DevicePosture
-  ): Promise<string> {
+  ): Promise<ZeroTrustSession> {
     const sessionId = uuidv4();
-    const now = new Date();
-    
-    // Инициализируем Trust Verifier
-    let trustLevel = TrustLevel.LOW;
-    
-    if (this.components.trustVerifier) {
-      trustLevel = await this.components.trustVerifier.initializeTrust(
-        sessionId,
-        identity,
-        authContext,
-        devicePosture
-      );
-    }
-    
-    // Сохраняем сессию
-    this.activeSessions.set(sessionId, {
+
+    // Инициализация trust
+    await this.trustVerifier.initializeTrust(identity, authContext, devicePosture);
+
+    const session: ZeroTrustSession = {
       sessionId,
       identity,
-      trustLevel,
-      createdAt: now,
-      lastActivity: now
-    });
-    
-    this.stats.activeSessions = this.activeSessions.size;
-    
-    this.log('ZTC', 'Сессия создана', {
+      trustLevel: this.trustVerifier.getCurrentTrustLevel(identity.subjectId) || TrustLevel.MINIMAL,
+      riskScore: this.trustVerifier.getCurrentRiskScore(identity.subjectId) || 50,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      accessCount: 0,
+      deniedCount: 0,
+      devicePosture
+    };
+
+    this.sessions.set(identity.subjectId, session);
+
+    this.logEvent({
+      eventId: uuidv4(),
+      timestamp: new Date(),
+      type: 'SESSION_CREATED',
       sessionId,
-      identityId: identity.id,
-      trustLevel
-    });
-    
-    this.emit('session:created', { sessionId, identity, trustLevel });
-    
-    return sessionId;
-  }
-
-  /**
-   * Обновить активность сессии
-   */
-  private updateSessionActivity(identityId: string): void {
-    for (const session of this.activeSessions.values()) {
-      if (session.identity.id === identityId) {
-        session.lastActivity = new Date();
-        break;
+      identity,
+      metadata: {
+        trustLevel: session.trustLevel,
+        riskScore: session.riskScore
       }
+    });
+
+    this.emit('session_created', session);
+    return session;
+  }
+
+  /**
+   * Запрос доступа
+   */
+  async requestAccess(
+    subjectId: string,
+    resourceType: ResourceType,
+    resourceId: string,
+    operation: PolicyOperation,
+    context?: {
+      sourceIp?: string;
+      destinationIp?: string;
+      destinationPort?: number;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<AccessResponse> {
+    const session = this.sessions.get(subjectId);
+    
+    if (!session) {
+      throw new Error(`Session not found for subject: ${subjectId}`);
+    }
+
+    // Обновление активности
+    session.lastActivity = new Date();
+    session.accessCount++;
+
+    const trustContext = this.trustVerifier.getTrustContext(subjectId);
+
+    // Запрос к PEP
+    const decision = await this.pep.interceptRequest({
+      requestId: uuidv4(),
+      identity: session.identity,
+      authContext: trustContext?.authContext || {
+        authenticationMethods: ['JWT'],
+        authenticatedAt: new Date()
+      },
+      devicePosture: session.devicePosture,
+      resourceType,
+      resourceId,
+      operation,
+      sourceIp: context?.sourceIp || 'unknown',
+      destinationIp: context?.destinationIp,
+      destinationPort: context?.destinationPort,
+      protocol: 'HTTPS',
+      metadata: context?.metadata
+    });
+
+    // Обновление статистики сессии
+    if (decision.decision === PolicyDecision.DENY) {
+      session.deniedCount++;
+    }
+
+    // Обновление trust уровня сессии
+    session.trustLevel = decision.trustLevel;
+    session.riskScore = decision.riskAssessment?.score || 50;
+
+    this.emit('access_requested', { session, decision });
+    return decision;
+  }
+
+  /**
+   * Обновление активности
+   */
+  updateActivity(subjectId: string, event: {
+    type: string;
+    resource?: string;
+    operation?: string;
+    result: 'SUCCESS' | 'FAILURE' | 'DENIED';
+  }): void {
+    const session = this.sessions.get(subjectId);
+    if (!session) {
+      return;
+    }
+
+    session.lastActivity = new Date();
+
+    this.trustVerifier.updateActivity(subjectId, {
+      type: event.type,
+      timestamp: new Date(),
+      resource: event.resource,
+      operation: event.operation,
+      result: event.result,
+      context: {}
+    });
+
+    // Обновление risk score сессии
+    session.riskScore = this.trustVerifier.getCurrentRiskScore(subjectId) || session.riskScore;
+  }
+
+  /**
+   * Завершение сессии
+   */
+  terminateSession(subjectId: string): void {
+    this.trustVerifier.terminateSession(subjectId);
+    this.sessions.delete(subjectId);
+  }
+
+  /**
+   * Логирование события
+   */
+  private logEvent(event: ZeroTrustEvent): void {
+    if (!this.config.enableAudit) {
+      return;
+    }
+
+    this.eventLog.push(event);
+
+    // Ограничение размера лога
+    if (this.eventLog.length > 10000) {
+      this.eventLog.shift();
+    }
+
+    this.emit('event_logged', event);
+  }
+
+  /**
+   * Генерация отчёта
+   */
+  private generateReport(): void {
+    const report = {
+      timestamp: new Date(),
+      installationId: this.config.installationId,
+      activeSessions: this.sessions.size,
+      trustLevelDistribution: this.getTrustLevelDistribution(),
+      totalAccessRequests: Array.from(this.sessions.values())
+        .reduce((sum, s) => sum + s.accessCount, 0),
+      totalDenied: Array.from(this.sessions.values())
+        .reduce((sum, s) => sum + s.deniedCount, 0),
+      averageRiskScore: this.getAverageRiskScore(),
+      recentEvents: this.eventLog.slice(-100)
+    };
+
+    this.emit('report_generated', report);
+
+    if (this.config.enableMonitoring) {
+      console.log('[ZeroTrust Report]', JSON.stringify(report, null, 2));
     }
   }
 
   /**
-   * Завершить сессию
+   * Распределение уровней доверия
    */
-  public terminateSession(sessionId: string): boolean {
-    const removed = this.activeSessions.delete(sessionId);
-    
-    if (removed) {
-      this.stats.activeSessions = this.activeSessions.size;
-      this.log('ZTC', 'Сессия завершена', { sessionId });
-      this.emit('session:terminated', { sessionId });
+  private getTrustLevelDistribution(): Record<TrustLevel, number> {
+    const distribution: Record<TrustLevel, number> = {
+      [TrustLevel.UNTRUSTED]: 0,
+      [TrustLevel.MINIMAL]: 0,
+      [TrustLevel.LOW]: 0,
+      [TrustLevel.MEDIUM]: 0,
+      [TrustLevel.HIGH]: 0,
+      [TrustLevel.FULL]: 0
+    };
+
+    for (const session of this.sessions.values()) {
+      distribution[session.trustLevel]++;
     }
-    
-    // Очищаем в Trust Verifier
-    if (this.components.trustVerifier) {
-      this.components.trustVerifier.cleanupSession(sessionId);
+
+    return distribution;
+  }
+
+  /**
+   * Средний risk score
+   */
+  private getAverageRiskScore(): number {
+    if (this.sessions.size === 0) {
+      return 0;
     }
+
+    const total = Array.from(this.sessions.values())
+      .reduce((sum, s) => sum + s.riskScore, 0);
     
-    return removed;
+    return Math.round(total / this.sessions.size);
   }
 
   /**
-   * Получить состояние компонентов
+   * Получение сессии
    */
-  public getComponentStates(): Map<string, ComponentState> {
-    return new Map(this.componentStates);
+  getSession(subjectId: string): ZeroTrustSession | undefined {
+    return this.sessions.get(subjectId);
   }
 
   /**
-   * Получить компонент
+   * Получение всех сессий
    */
-  public getComponent<T extends keyof typeof this.components>(name: T): typeof this.components[T] {
-    return this.components[name];
+  getAllSessions(): ZeroTrustSession[] {
+    return Array.from(this.sessions.values());
   }
 
   /**
-   * Получить статистику
+   * Получение событий
    */
-  public getStats(): typeof this.stats & {
-    /** Компоненты активны */
-    activeComponents: number;
-    /** Компоненты всего */
-    totalComponents: number;
+  getEvents(limit: number = 100): ZeroTrustEvent[] {
+    return this.eventLog.slice(-limit);
+  }
+
+  /**
+   * Получение статистики
+   */
+  getStats(): {
+    installationId: string;
+    isRunning: boolean;
+    activeSessions: number;
+    trustLevelDistribution: Record<TrustLevel, number>;
+    averageRiskScore: number;
+    eventLogSize: number;
+    pdpStats: any;
+    pepStats: any;
+    trustVerifierStats: any;
   } {
-    const activeCount = Array.from(this.componentStates.values())
-      .filter(s => s.active).length;
-    
     return {
-      ...this.stats,
-      activeComponents: activeCount,
-      totalComponents: this.componentStates.size
+      installationId: this.config.installationId,
+      isRunning: this.isRunning,
+      activeSessions: this.sessions.size,
+      trustLevelDistribution: this.getTrustLevelDistribution(),
+      averageRiskScore: this.getAverageRiskScore(),
+      eventLogSize: this.eventLog.length,
+      pdpStats: this.pdp.getStats(),
+      pepStats: this.pep.getStats(),
+      trustVerifierStats: this.trustVerifier.getStats()
     };
   }
 
   /**
-   * Получить конфигурацию
+   * Экспорт конфигурации
    */
-  public getConfig(): ZeroTrustControllerConfig {
+  exportConfig(): ZeroTrustConfig {
     return { ...this.config };
   }
 
   /**
-   * Экспорт конфигурации Zero Trust
+   * Получение PDP
    */
-  public exportConfig(): {
-    version: string;
-    controllerId: string;
-    exportedAt: Date;
-    components: Record<string, boolean>;
-    policies?: unknown;
-  } {
-    const exportData = {
-      version: '1.0',
-      controllerId: this.config.controllerId,
-      exportedAt: new Date(),
-      components: Object.fromEntries(
-        Array.from(this.componentStates.entries())
-          .map(([name, state]) => [name, state.active])
-      ),
-      policies: this.components.policyEngine?.exportPolicies()
-    };
-    
-    return exportData;
+  getPdp(): PolicyDecisionPoint {
+    return this.pdp;
   }
 
   /**
-   * Остановить контроллер
+   * Получение PEP
    */
-  public async shutdown(): Promise<void> {
-    this.log('ZTC', 'Остановка Zero Trust Controller');
-    
-    // Останавливаем компоненты
-    if (this.components.identityProxy) {
-      await this.components.identityProxy.stop();
-    }
-    
-    if (this.components.devicePosture) {
-      this.components.devicePosture.stopAllMonitoring();
-    }
-    
-    // Обновляем состояния
-    for (const [name] of this.componentStates) {
-      this.updateComponentState(name, 'STOPPED');
-    }
-    
-    this.emit('controller:shutdown');
-    this.log('ZTC', 'Zero Trust Controller остановлен');
+  getPep(): PolicyEnforcementPoint {
+    return this.pep;
   }
 
   /**
-   * Логирование
+   * Получение Trust Verifier
    */
-  private log(component: string, message: string, data?: unknown): void {
-    const event: ZeroTrustEvent = {
-      eventId: uuidv4(),
-      eventType: 'ACCESS_REQUEST',
-      timestamp: new Date(),
-      subject: {
-        id: this.config.controllerId,
-        type: SubjectType.SYSTEM,
-        name: component
-      },
-      details: { message, ...data },
-      severity: 'INFO',
-      correlationId: uuidv4()
-    };
-    
-    this.emit('log', event);
-
-    if (this.config.enableVerboseLogging) {
-      logger.debug(`[ZTC] ${message}`, { timestamp: new Date().toISOString(), ...data });
-    }
+  getTrustVerifier(): TrustVerifier {
+    return this.trustVerifier;
   }
 }
 
-export default ZeroTrustController;
+/**
+ * Factory функция для создания ZeroTrustController
+ */
+export function createZeroTrustController(config: Partial<ZeroTrustConfig>): ZeroTrustController {
+  return new ZeroTrustController(config);
+}
+
+/**
+ * Singleton instance
+ */
+let singletonInstance: ZeroTrustController | null = null;
+
+/**
+ * Получение singleton instance
+ */
+export function getZeroTrustController(config?: Partial<ZeroTrustConfig>): ZeroTrustController {
+  if (!singletonInstance) {
+    singletonInstance = new ZeroTrustController(config);
+  }
+  return singletonInstance;
+}

@@ -1037,35 +1037,3 @@ export class SecretConfigError extends SecretError {
     this.name = 'SecretConfigError';
   }
 }
-
-// ============================================================================
-// ЭКСПОРТ ВСЕХ ТИПОВ
-// ============================================================================
-
-export type {
-  SecretOperationResult,
-  SecretVersion,
-  RollbackInfo,
-  SecretLease,
-  LeaseConfig,
-  RotationConfig,
-  RotationStatus,
-  DynamicSecretConfig,
-  GeneratedDynamicSecret,
-  AccessPolicyRule,
-  AccessPolicy,
-  AccessContext,
-  PolicyCondition,
-  AuditLogEntry,
-  AuditLogFilters,
-  LeakDetection,
-  ScannerConfig,
-  CacheConfig,
-  CachedSecret,
-  BackendConfig,
-  BackendSecret,
-  ISecretBackend,
-  SecretsManagerConfig,
-  SecretsManagerEvents,
-  ISecretsManager
-};

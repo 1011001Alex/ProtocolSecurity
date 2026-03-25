@@ -737,6 +737,69 @@ export class DevicePostureChecker extends EventEmitter {
   }
 
   /**
+   * Проверить здоровье устройства
+   *
+   * @param posture Состояние устройства для проверки
+   * @returns true если устройство здорово, false если нет
+   */
+  public async checkHealth(posture: DevicePosture): Promise<boolean> {
+    this.log('DPC', 'Проверка здоровья устройства', {
+      deviceId: posture.deviceId,
+      currentHealthStatus: posture.healthStatus
+    });
+
+    // Устройство считается здоровым если:
+    // 1. healthStatus === HEALTHY
+    // 2. riskScore ниже порога предупреждения
+    // 3. Все критические проверки пройдены
+
+    if (posture.healthStatus !== DeviceHealthStatus.HEALTHY) {
+      this.log('DPC', 'Устройство нездорово', {
+        deviceId: posture.deviceId,
+        healthStatus: posture.healthStatus
+      });
+      return false;
+    }
+
+    if (posture.riskScore >= this.config.warningRiskThreshold) {
+      this.log('DPC', 'Риск устройства превышает порог', {
+        deviceId: posture.deviceId,
+        riskScore: posture.riskScore,
+        threshold: this.config.warningRiskThreshold
+      });
+      return false;
+    }
+
+    // Проверка критических параметров
+    const criticalChecks = [
+      posture.compliance.antivirusActive,
+      posture.compliance.firewallActive,
+      !posture.compliance.jailbreakDetected
+    ];
+
+    const allCriticalPassed = criticalChecks.every(check => check === true);
+
+    if (!allCriticalPassed) {
+      this.log('DPC', 'Критическая проверка не пройдена', {
+        deviceId: posture.deviceId,
+        criticalChecks: {
+          antivirusActive: posture.compliance.antivirusActive,
+          firewallActive: posture.compliance.firewallActive,
+          jailbreakDetected: posture.compliance.jailbreakDetected
+        }
+      });
+      return false;
+    }
+
+    this.log('DPC', 'Устройство здорово', {
+      deviceId: posture.deviceId,
+      riskScore: posture.riskScore
+    });
+
+    return true;
+  }
+
+  /**
    * Получить статистику
    */
   public getStats(): typeof this.stats & {

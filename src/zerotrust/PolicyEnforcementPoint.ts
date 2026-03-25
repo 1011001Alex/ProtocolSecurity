@@ -1,983 +1,730 @@
 /**
- * Policy Enforcement Point (PEP) - Точка Принудительного Применения Политик
+ * ============================================================================
+ * POLICY ENFORCEMENT POINT (PEP) — ТОЧКА ПРИНУДИТЕЛЬНОГО ПРИМЕНЕНИЯ ПОЛИТИК
+ * ============================================================================
+ * Полная реализация PEP для Zero Trust Architecture
  * 
- * Компонент отвечает за перехват запросов доступа, взаимодействие с PDP
- * и принудительное применение решений о доступе. Реализует паттерн
- * Request-Response с кэшированием и circuit breaker.
- * 
- * @version 1.0.0
- * @author grigo
- * @date 22 марта 2026 г.
+ * Функционал:
+ * - Перехват и проверка всех запросов доступа
+ * - Применение решений PDP
+ * - Enforcement ограничений и условий доступа
+ * - Логирование всех попыток доступа
+ * - Интеграция с Trust Verifier
+ * ============================================================================
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../logging/Logger';
+import { IncomingMessage, ServerResponse } from 'http';
 import { v4 as uuidv4 } from 'uuid';
 import {
   PolicyDecision,
-  PolicyEvaluationResult,
+  TrustLevel,
+  AccessRequest,
+  AccessResponse,
   Identity,
   AuthContext,
   DevicePosture,
   ResourceType,
-  PolicyOperation,
-  ZeroTrustEvent,
-  SubjectType,
-  TrustLevel
+  PolicyOperation
 } from './zerotrust.types';
 import { PolicyDecisionPoint } from './PolicyDecisionPoint';
+import { TrustVerifier } from './TrustVerifier';
 
 /**
- * Конфигурация Circuit Breaker
- */
-interface CircuitBreakerConfig {
-  /** Порог ошибок для открытия circuit */
-  failureThreshold: number;
-  
-  /** Таймаут для полуоткрытого состояния */
-  resetTimeout: number;
-  
-  /** Таймаут между попытками */
-  retryTimeout: number;
-}
-
-/**
- * Состояние Circuit Breaker
- */
-enum CircuitState {
-  /** Circuit закрыт - нормальная работа */
-  CLOSED = 'CLOSED',
-  
-  /** Circuit открыт - запросы блокируются */
-  OPEN = 'OPEN',
-  
-  /** Circuit полуоткрыт - тестовые запросы */
-  HALF_OPEN = 'HALF_OPEN'
-}
-
-/**
- * Конфигурация Policy Enforcement Point
+ * Конфигурация PEP
  */
 export interface PepConfig {
-  /** Режим применения политик */
-  enforcementMode: 'ENFORCE' | 'MONITOR' | 'DISABLE';
-  
-  /** Включить кэширование решений PDP */
-  enableCaching: boolean;
-  
-  /** TTL кэша PEP (секунды) */
-  cacheTtl: number;
-  
-  /** Включить circuit breaker */
-  enableCircuitBreaker: boolean;
-  
-  /** Конфигурация circuit breaker */
-  circuitBreaker: CircuitBreakerConfig;
-  
-  /** Таймаут запроса к PDP (мс) */
-  pdpTimeout: number;
-  
-  /** Действие при недоступности PDP */
-  onPdpUnavailable: 'DENY' | 'ALLOW' | 'CACHE_ONLY';
-  
+  /** Включить enforcement */
+  enableEnforcement: boolean;
+  /** Режим только для аудита (без блокировки) */
+  auditOnlyMode: boolean;
   /** Включить детальное логирование */
   enableVerboseLogging: boolean;
-  
-  /** Включить аудит всех запросов */
-  enableAudit: boolean;
-  
-  /** Максимальное количество одновременных запросов */
-  maxConcurrentRequests: number;
-  
-  /** Rate limiting */
-  rateLimit: {
-    /** Включить rate limiting */
-    enabled: boolean;
-    /** Максимум запросов в секунду */
-    requestsPerSecond: number;
-    /** Burst размер */
-    burstSize: number;
-  };
+  /** Таймаут ожидания решения PDP */
+  pdpTimeout: number;
+  /** Действие при недоступности PDP */
+  onPdpUnavailable: 'DENY' | 'ALLOW' | 'DEFER';
+  /** Включить кэширование решений */
+  enableDecisionCaching: boolean;
+  /** TTL кэша решений */
+  cacheTtl: number;
+  /** Включить rate limiting для denied запросов */
+  enableDeniedRateLimit: boolean;
+  /** Максимум denied запросов в минуту */
+  maxDeniedPerMinute: number;
 }
 
 /**
- * Контекст запроса к PEP
+ * Запрос к PEP
  */
-export interface PepRequestContext {
-  /** Уникальный идентификатор запроса */
+interface PepRequest {
   requestId: string;
-  
-  /** Идентичность субъекта */
   identity: Identity;
-  
-  /** Контекст аутентификации */
   authContext: AuthContext;
-  
-  /** Posture устройства (опционально) */
   devicePosture?: DevicePosture;
-  
-  /** Тип ресурса */
   resourceType: ResourceType;
-  
-  /** ID ресурса */
   resourceId: string;
-  
-  /** Название ресурса */
-  resourceName: string;
-  
-  /** Запрашиваемая операция */
   operation: PolicyOperation;
-  
-  /** IP адрес источника */
   sourceIp: string;
-  
-  /** IP адрес назначения */
   destinationIp?: string;
-  
-  /** Порт назначения */
   destinationPort?: number;
-  
-  /** Протокол */
   protocol?: string;
-  
-  /** Дополнительные атрибуты ресурса */
-  resourceAttributes?: Record<string, unknown>;
-  
-  /** Время начала запроса */
-  startTime: Date;
-}
-
-/**
- * Результат применения политики
- */
-export interface PepEnforcementResult {
-  /** Уникальный идентификатор результата */
-  resultId: string;
-  
-  /** ID запроса */
-  requestId: string;
-  
-  /** Решение PDP */
-  decision: PolicyDecision;
-  
-  /** Было ли решение применено */
-  enforced: boolean;
-  
-  /** Метод применения */
-  enforcementMethod: 'INTERCEPT' | 'PROXY' | 'GATEWAY' | 'SIDECAR';
-  
-  /** Результат оценки PDP */
-  pdpResult?: PolicyEvaluationResult;
-  
-  /** Ошибка (если была) */
-  error?: string;
-  
-  /** Время применения */
-  enforcedAt: Date;
-  
-  /** Применённые ограничения */
-  appliedRestrictions: {
-    /** Ограничение по времени */
-    timeLimit?: number;
-    /** Ограничение по операциям */
-    operationLimit?: PolicyOperation[];
-    /** Требуется step-up */
-    requireStepUp?: boolean;
+  metadata?: Record<string, unknown>;
+  httpContext?: {
+    request: IncomingMessage;
+    response?: ServerResponse;
   };
 }
 
 /**
- * Кэш решений PEP
+ * Кэш решений
  */
-interface PepDecisionCache {
-  /** Кэш по ключу */
-  entries: Map<string, {
-    /** Результат */
-    result: PolicyEvaluationResult;
-    /** Время кэширования */
-    cachedAt: Date;
-    /** Время истечения */
-    expiresAt: Date;
-    /** Количество использований */
-    hitCount: number;
-  }>;
-  
-  /** Максимальный размер */
-  maxSize: number;
+interface DecisionCache {
+  decision: AccessResponse;
+  cachedAt: Date;
+  expiresAt: Date;
 }
 
 /**
- * Policy Enforcement Point (PEP)
- * 
- * Компонент для перехвата запросов и принудительного применения
- * решений Policy Decision Point.
+ * Rate limiter для denied запросов
+ */
+interface DeniedRateLimit {
+  count: number;
+  windowStart: Date;
+  blocked: boolean;
+}
+
+/**
+ * Policy Enforcement Point — основная реализация
  */
 export class PolicyEnforcementPoint extends EventEmitter {
-  /** Конфигурация PEP */
-  private config: PepConfig;
-  
-  /** Ссылка на PDP */
-  private pdp: PolicyDecisionPoint | null;
-  
-  /** Кэш решений */
-  private cache: PepDecisionCache;
-  
-  /** Состояние circuit breaker */
-  private circuitState: CircuitState;
-  
-  /** Счётчик ошибок circuit breaker */
-  private circuitFailureCount: number;
-  
-  /** Время последнего сброса circuit breaker */
-  private circuitLastReset: Date;
-  
-  /** Текущие активные запросы */
-  private activeRequests: Set<string>;
-  
-  /** Rate limiter счётчик */
-  private rateLimiter: {
-    /** Токены */
-    tokens: number;
-    /** Последнее обновление */
-    lastUpdate: Date;
-  };
-  
-  /** Статистика PEP */
-  private stats: {
-    /** Всего запросов */
-    totalRequests: number;
-    /** Разрешено */
-    allowed: number;
-    /** Запрещено */
-    denied: number;
-    /** Ошибки */
-    errors: number;
-    /** Попаданий в кэш */
-    cacheHits: number;
-    /** Circuit breaker срабатываний */
-    circuitBreakerTrips: number;
-    /** Rate limit срабатываний */
-    rateLimitHits: number;
-    /** Среднее время обработки */
-    averageProcessingTime: number;
-  };
+  private readonly config: PepConfig;
+  private readonly pdp: PolicyDecisionPoint;
+  private readonly trustVerifier: TrustVerifier;
+  private readonly decisionCache: Map<string, DecisionCache> = new Map();
+  private readonly deniedRateLimits: Map<string, DeniedRateLimit> = new Map();
+  private isInitialized: boolean = false;
 
-  constructor(config: Partial<PepConfig> = {}) {
+  constructor(
+    config: Partial<PepConfig> = {},
+    pdp?: PolicyDecisionPoint,
+    trustVerifier?: TrustVerifier
+  ) {
     super();
-    
+
     this.config = {
-      enforcementMode: config.enforcementMode ?? 'ENFORCE',
-      enableCaching: config.enableCaching ?? true,
-      cacheTtl: config.cacheTtl ?? 300,
-      enableCircuitBreaker: config.enableCircuitBreaker ?? true,
-      circuitBreaker: {
-        failureThreshold: config.circuitBreaker?.failureThreshold ?? 5,
-        resetTimeout: config.circuitBreaker?.resetTimeout ?? 30000,
-        retryTimeout: config.circuitBreaker?.retryTimeout ?? 10000
-      },
-      pdpTimeout: config.pdpTimeout ?? 5000,
-      onPdpUnavailable: config.onPdpUnavailable ?? 'DENY',
-      enableVerboseLogging: config.enableVerboseLogging ?? false,
-      enableAudit: config.enableAudit ?? true,
-      maxConcurrentRequests: config.maxConcurrentRequests ?? 1000,
-      rateLimit: {
-        enabled: config.rateLimit?.enabled ?? true,
-        requestsPerSecond: config.rateLimit?.requestsPerSecond ?? 100,
-        burstSize: config.rateLimit?.burstSize ?? 200
+      enableEnforcement: true,
+      auditOnlyMode: false,
+      enableVerboseLogging: false,
+      pdpTimeout: 5000,
+      onPdpUnavailable: 'DENY',
+      enableDecisionCaching: true,
+      cacheTtl: 60000,
+      enableDeniedRateLimit: true,
+      maxDeniedPerMinute: 10,
+      ...config
+    };
+
+    this.pdp = pdp || new PolicyDecisionPoint();
+    this.trustVerifier = trustVerifier || new TrustVerifier();
+
+    this.isInitialized = true;
+    this.emit('initialized', { config: this.config });
+  }
+
+  /**
+   * Перехват и проверка запроса
+   */
+  async interceptRequest(request: PepRequest): Promise<AccessResponse> {
+    const requestId = request.requestId || uuidv4();
+    const startTime = Date.now();
+
+    try {
+      this.emit('request_intercepted', { requestId, identity: request.identity });
+
+      // Проверка rate limiting для denied
+      if (this.config.enableDeniedRateLimit) {
+        const rateLimitResult = this.checkDeniedRateLimit(request.identity.subjectId);
+        if (rateLimitResult.blocked) {
+          return this.createDenyResponse(
+            requestId,
+            'Rate limit exceeded for denied requests',
+            startTime
+          );
+        }
+      }
+
+      // Проверка кэша
+      if (this.config.enableDecisionCaching) {
+        const cachedDecision = this.getCachedDecision(requestId);
+        if (cachedDecision) {
+          return {
+            ...cachedDecision.decision,
+            responseId: uuidv4(),
+            requestId,
+            decidedAt: new Date(),
+            cached: true,
+            evaluationTime: Date.now() - startTime
+          };
+        }
+      }
+
+      // Инициализация trust контекста если нужно
+      await this.ensureTrustContext(request);
+
+      // Построение запроса к PDP
+      const accessRequest: AccessRequest = {
+        requestId,
+        identity: request.identity,
+        authContext: request.authContext,
+        devicePosture: request.devicePosture,
+        resourceType: request.resourceType,
+        resourceId: request.resourceId,
+        operation: request.operation,
+        sourceIp: request.sourceIp,
+        destinationIp: request.destinationIp,
+        destinationPort: request.destinationPort,
+        protocol: request.protocol,
+        metadata: request.metadata,
+        isUnusualLocation: request.metadata?.isUnusualLocation as boolean || false,
+        isUnusualTime: request.metadata?.isUnusualTime as boolean || false,
+        isUnusualDevice: request.metadata?.isUnusualDevice as boolean || false,
+        isAnomalousBehavior: request.metadata?.isAnomalousBehavior as boolean || false,
+        riskScore: request.metadata?.riskScore as number || 0
+      };
+
+      // Запрос решения к PDP с таймаутом
+      const decision = await Promise.race([
+        this.pdp.evaluateAccess(accessRequest),
+        this.createPdpTimeoutResponse(requestId)
+      ]);
+
+      // Применение решения
+      const enforcedDecision = await this.enforceDecision(decision, request);
+
+      // Кэширование
+      if (this.config.enableDecisionCaching && decision.decision !== PolicyDecision.DENY) {
+        this.cacheDecision(requestId, enforcedDecision);
+      }
+
+      // Логирование denied запросов
+      if (decision.decision === PolicyDecision.DENY) {
+        this.trackDeniedRequest(request.identity.subjectId);
+      }
+
+      this.emit('request_processed', {
+        requestId,
+        decision: enforcedDecision.decision,
+        evaluationTime: Date.now() - startTime
+      });
+
+      return enforcedDecision;
+
+    } catch (error) {
+      this.emit('request_error', { requestId, error });
+
+      return this.createErrorResponse(
+        requestId,
+        error instanceof Error ? error.message : 'Unknown error',
+        startTime
+      );
+    }
+  }
+
+  /**
+   * Обеспечение trust контекста
+   */
+  private async ensureTrustContext(request: PepRequest): Promise<void> {
+    const subjectId = request.identity.subjectId;
+    const existingContext = this.trustVerifier.getTrustContext(subjectId);
+
+    if (!existingContext) {
+      await this.trustVerifier.initializeTrust(
+        request.identity,
+        request.authContext,
+        request.devicePosture
+      );
+    }
+  }
+
+  /**
+   * Применение решения
+   */
+  private async enforceDecision(
+    decision: AccessResponse,
+    request: PepRequest
+  ): Promise<AccessResponse> {
+    // В audit-only режиме просто логируем
+    if (this.config.auditOnlyMode) {
+      this.logEnforcement(request, decision, 'AUDIT_ONLY');
+      return decision;
+    }
+
+    // Если enforcement отключен
+    if (!this.config.enableEnforcement) {
+      return decision;
+    }
+
+    // Применение в зависимости от решения
+    switch (decision.decision) {
+      case PolicyDecision.ALLOW:
+      case PolicyDecision.ALLOW_TEMPORARY:
+        this.logEnforcement(request, decision, 'ALLOWED');
+        return decision;
+
+      case PolicyDecision.ALLOW_RESTRICTED:
+        // Применение ограничений
+        const restrictedDecision = await this.applyRestrictions(decision, request);
+        this.logEnforcement(request, restrictedDecision, 'ALLOWED_RESTRICTED');
+        return restrictedDecision;
+
+      case PolicyDecision.REQUIRE_STEP_UP:
+        this.logEnforcement(request, decision, 'STEP_UP_REQUIRED');
+        return decision;
+
+      case PolicyDecision.DENY:
+        await this.applyDeny(request, decision);
+        this.logEnforcement(request, decision, 'DENIED');
+        return decision;
+
+      case PolicyDecision.DEFERRED:
+        this.logEnforcement(request, decision, 'DEFERRED');
+        return decision;
+
+      default:
+        return decision;
+    }
+  }
+
+  /**
+   * Применение ограничений
+   */
+  private async applyRestrictions(
+    decision: AccessResponse,
+    request: PepRequest
+  ): Promise<AccessResponse> {
+    // Добавление ограничений в решение
+    const restrictions: string[] = [];
+
+    // Ограничение по времени
+    if (decision.metadata?.validUntil) {
+      restrictions.push(`time_limited:${decision.metadata.validUntil}`);
+    }
+
+    // Ограничение по операциям
+    if (request.operation !== PolicyOperation.READ) {
+      restrictions.push('read_only');
+    }
+
+    // Ограничение по объему данных
+    restrictions.push('data_limit:1000');
+
+    return {
+      ...decision,
+      reason: `${decision.reason} (restricted: ${restrictions.join(', ')})`,
+      metadata: {
+        ...decision.metadata,
+        restrictions
       }
     };
-    
-    this.pdp = null;
-    this.cache = {
-      entries: new Map(),
-      maxSize: 10000
-    };
-    this.circuitState = CircuitState.CLOSED;
-    this.circuitFailureCount = 0;
-    this.circuitLastReset = new Date();
-    this.activeRequests = new Set();
-    this.rateLimiter = {
-      tokens: this.config.rateLimit.burstSize,
-      lastUpdate: new Date()
-    };
-    
-    this.stats = {
-      totalRequests: 0,
-      allowed: 0,
-      denied: 0,
-      errors: 0,
-      cacheHits: 0,
-      circuitBreakerTrips: 0,
-      rateLimitHits: 0,
-      averageProcessingTime: 0
-    };
-    
-    this.log('PEP', 'PolicyEnforcementPoint инициализирован', { config: this.config });
   }
 
   /**
-   * Установить ссылку на PDP
-   * 
-   * @param pdp Экземпляр PolicyDecisionPoint
+   * Применение DENY решения
    */
-  public setPdp(pdp: PolicyDecisionPoint): void {
-    this.pdp = pdp;
-    this.log('PEP', 'PDP установлен', { pdpId: pdp.constructor.name });
+  private async applyDeny(
+    request: PepRequest,
+    decision: AccessResponse
+  ): Promise<void> {
+    // Логирование
+    this.emit('access_denied', {
+      requestId: request.requestId,
+      subjectId: request.identity.subjectId,
+      resource: request.resourceId,
+      reason: decision.reason
+    });
+
+    // Обновление trust score
+    const trustContext = this.trustVerifier.getTrustContext(request.identity.subjectId);
+    if (trustContext) {
+      this.trustVerifier.updateActivity(request.identity.subjectId, {
+        type: 'ACCESS_DENIED',
+        timestamp: new Date(),
+        resource: request.resourceId,
+        operation: request.operation,
+        result: 'DENIED',
+        context: { reason: decision.reason }
+      });
+    }
   }
 
   /**
-   * Получить текущий PDP
+   * Проверка rate limiting для denied
    */
-  public getPdp(): PolicyDecisionPoint | null {
+  private checkDeniedRateLimit(subjectId: string): { blocked: boolean; count: number } {
+    const now = new Date();
+    let rateLimit = this.deniedRateLimits.get(subjectId);
+
+    if (!rateLimit) {
+      return { blocked: false, count: 0 };
+    }
+
+    // Сброс окна если прошло больше минуты
+    const windowAge = now.getTime() - rateLimit.windowStart.getTime();
+    if (windowAge > 60000) {
+      rateLimit.count = 0;
+      rateLimit.windowStart = now;
+      rateLimit.blocked = false;
+    }
+
+    return {
+      blocked: rateLimit.blocked,
+      count: rateLimit.count
+    };
+  }
+
+  /**
+   * Отслеживание denied запроса
+   */
+  private trackDeniedRequest(subjectId: string): void {
+    const now = new Date();
+    let rateLimit = this.deniedRateLimits.get(subjectId);
+
+    if (!rateLimit) {
+      rateLimit = {
+        count: 0,
+        windowStart: now,
+        blocked: false
+      };
+      this.deniedRateLimits.set(subjectId, rateLimit);
+    }
+
+    // Сброс окна если прошло больше минуты
+    const windowAge = now.getTime() - rateLimit.windowStart.getTime();
+    if (windowAge > 60000) {
+      rateLimit.count = 0;
+      rateLimit.windowStart = now;
+    }
+
+    rateLimit.count++;
+
+    // Блокировка если превышен лимит
+    if (rateLimit.count > this.config.maxDeniedPerMinute) {
+      rateLimit.blocked = true;
+      this.emit('rate_limit_exceeded', { subjectId, count: rateLimit.count });
+    }
+  }
+
+  /**
+   * Получение кэшированного решения
+   */
+  private getCachedDecision(requestId: string): DecisionCache | null {
+    const cached = this.decisionCache.get(requestId);
+    if (!cached) {
+      return null;
+    }
+
+    if (new Date() > cached.expiresAt) {
+      this.decisionCache.delete(requestId);
+      return null;
+    }
+
+    return cached;
+  }
+
+  /**
+   * Кэширование решения
+   */
+  private cacheDecision(requestId: string, decision: AccessResponse): void {
+    const ttl = this.config.cacheTtl;
+    
+    this.decisionCache.set(requestId, {
+      decision,
+      cachedAt: new Date(),
+      expiresAt: new Date(Date.now() + ttl)
+    });
+
+    // Очистка старого кэша
+    if (this.decisionCache.size > 1000) {
+      const firstKey = this.decisionCache.keys().next().value;
+      if (firstKey) {
+        this.decisionCache.delete(firstKey);
+      }
+    }
+  }
+
+  /**
+   * Создание DENY ответа
+   */
+  private createDenyResponse(
+    requestId: string,
+    reason: string,
+    startTime: number
+  ): AccessResponse {
+    return {
+      responseId: uuidv4(),
+      requestId,
+      decidedAt: new Date(),
+      appliedRules: [],
+      decision: PolicyDecision.DENY,
+      reason,
+      trustLevel: TrustLevel.UNTRUSTED,
+      riskAssessment: {
+        level: 'high',
+        score: 80,
+        factors: ['enforcement_failure']
+      },
+      cached: false,
+      evaluationTime: Date.now() - startTime,
+      timestamp: new Date(),
+      metadata: {
+        policyId: 'pep_enforcement',
+        evaluationSteps: ['PEP denied request'],
+        timestamp: new Date()
+      }
+    };
+  }
+
+  /**
+   * Создание ERROR ответа
+   */
+  private createErrorResponse(
+    requestId: string,
+    error: string,
+    startTime: number
+  ): AccessResponse {
+    return {
+      responseId: uuidv4(),
+      requestId,
+      decidedAt: new Date(),
+      appliedRules: [],
+      decision: PolicyDecision.DENY,
+      reason: `Error: ${error}`,
+      trustLevel: TrustLevel.UNTRUSTED,
+      riskAssessment: {
+        level: 'critical',
+        score: 100,
+        factors: ['processing_error']
+      },
+      cached: false,
+      evaluationTime: Date.now() - startTime,
+      timestamp: new Date(),
+      metadata: {
+        policyId: 'error',
+        evaluationSteps: ['Processing error'],
+        timestamp: new Date()
+      }
+    };
+  }
+
+  /**
+   * Создание timeout ответа от PDP
+   */
+  private createPdpTimeoutResponse(requestId: string): Promise<AccessResponse> {
+    return Promise.resolve({
+      responseId: uuidv4(),
+      requestId,
+      decidedAt: new Date(),
+      appliedRules: [],
+      decision: this.config.onPdpUnavailable === 'ALLOW'
+        ? PolicyDecision.ALLOW
+        : PolicyDecision.DENY,
+      reason: `PDP timeout (configured to ${this.config.onPdpUnavailable})`,
+      trustLevel: TrustLevel.MINIMAL,
+      riskAssessment: {
+        level: this.config.onPdpUnavailable === 'ALLOW' ? 'medium' : 'low',
+        score: this.config.onPdpUnavailable === 'ALLOW' ? 50 : 20,
+        factors: ['pdp_timeout']
+      },
+      cached: false,
+      evaluationTime: this.config.pdpTimeout,
+      timestamp: new Date(),
+      metadata: {
+        policyId: 'timeout',
+        evaluationSteps: ['PDP timeout'],
+        timestamp: new Date()
+      }
+    });
+  }
+
+  /**
+   * Логирование enforcement
+   */
+  private logEnforcement(
+    request: PepRequest,
+    decision: AccessResponse,
+    action: string
+  ): void {
+    const logEntry = {
+      timestamp: new Date(),
+      requestId: request.requestId,
+      subjectId: request.identity.subjectId,
+      resourceType: request.resourceType,
+      resourceId: request.resourceId,
+      operation: request.operation,
+      decision: decision.decision,
+      enforcementAction: action,
+      trustLevel: decision.trustLevel,
+      riskScore: decision.riskAssessment?.score
+    };
+
+    if (this.config.enableVerboseLogging) {
+      console.log('[PEP Enforcement]', JSON.stringify(logEntry, null, 2));
+    }
+
+    this.emit('enforcement_logged', logEntry);
+  }
+
+  /**
+   * Middleware для Express
+   */
+  createExpressMiddleware() {
+    return async (req: IncomingMessage & any, res: ServerResponse & any, next: () => void) => {
+      try {
+        // Извлечение контекста из HTTP запроса
+        const identity: Identity = {
+          subjectId: req.user?.id || req.headers['x-user-id'] as string || 'anonymous',
+          subjectType: req.user?.type || 'USER',
+          roles: req.user?.roles || [],
+          permissions: req.user?.permissions || [],
+          attributes: req.user?.attributes || {}
+        };
+
+        const authContext: AuthContext = {
+          authenticationMethods: req.authMethods || ['JWT'],
+          authenticatedAt: req.authTime ? new Date(req.authTime) : new Date(),
+          sessionId: req.sessionId || req.headers['x-session-id'] as string,
+          tokenClaims: req.tokenClaims || {}
+        };
+
+        const pepRequest: PepRequest = {
+          requestId: req.requestId || uuidv4(),
+          identity,
+          authContext,
+          resourceType: ResourceType.HTTP_ENDPOINT,
+          resourceId: req.path || req.url || '/',
+          operation: this.mapHttpMethodToOperation(req.method),
+          sourceIp: req.ip || req.socket.remoteAddress || 'unknown',
+          destinationIp: req.headers.host as string || 'unknown',
+          destinationPort: parseInt(req.headers['x-forwarded-port'] as string) || 443,
+          protocol: 'HTTPS',
+          httpContext: {
+            request: req,
+            response: res
+          }
+        };
+
+        // Проверка запроса
+        const decision = await this.interceptRequest(pepRequest);
+
+        // Применение решения
+        if (decision.decision === PolicyDecision.DENY) {
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            error: 'Access Denied',
+            reason: decision.reason,
+            requestId: decision.requestId
+          }));
+          return;
+        }
+
+        if (decision.decision === PolicyDecision.REQUIRE_STEP_UP) {
+          res.statusCode = 401;
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('X-Step-Up-Required', 'true');
+          res.end(JSON.stringify({
+            error: 'Step-up Authentication Required',
+            reason: decision.reason,
+            requestId: decision.requestId
+          }));
+          return;
+        }
+
+        // Добавление заголовков с решением
+        res.setHeader('X-Access-Decision', decision.decision);
+        res.setHeader('X-Trust-Level', TrustLevel[decision.trustLevel]);
+        res.setHeader('X-Request-ID', decision.requestId);
+
+        if (decision.metadata?.restrictions) {
+          res.setHeader('X-Access-Restrictions', decision.metadata.restrictions.join(','));
+        }
+
+        next();
+
+      } catch (error) {
+        this.emit('middleware_error', { error, path: req.url });
+        next(error);
+      }
+    };
+  }
+
+  /**
+   * Маппинг HTTP метода в операцию
+   */
+  private mapHttpMethodToOperation(method?: string): PolicyOperation {
+    switch (method?.toUpperCase()) {
+      case 'GET':
+      case 'HEAD':
+        return PolicyOperation.READ;
+      case 'POST':
+        return PolicyOperation.CREATE;
+      case 'PUT':
+      case 'PATCH':
+        return PolicyOperation.WRITE;
+      case 'DELETE':
+        return PolicyOperation.DELETE;
+      default:
+        return PolicyOperation.READ;
+    }
+  }
+
+  /**
+   * Получение PDP
+   */
+  getPdp(): PolicyDecisionPoint {
     return this.pdp;
   }
 
   /**
-   * Обработать запрос доступа
-   * 
-   * @param context Контекст запроса
-   * @returns Результат применения политики
+   * Получение Trust Verifier
    */
-  public async enforceAccess(context: {
-    identity: Identity;
-    authContext: AuthContext;
-    devicePosture?: DevicePosture;
-    resourceType: ResourceType;
-    resourceId: string;
-    resourceName: string;
-    operation: PolicyOperation;
-    sourceIp: string;
-    destinationIp?: string;
-    destinationPort?: number;
-    protocol?: string;
-    resourceAttributes?: Record<string, unknown>;
-  }): Promise<PepEnforcementResult> {
-    const startTime = Date.now();
-    const requestId = uuidv4();
-    this.stats.totalRequests++;
-    
-    this.log('PEP', 'Получен запрос на доступ', {
-      requestId,
-      subjectId: context.identity.id,
-      resource: context.resourceId,
-      operation: context.operation
-    });
-    
-    // Проверка режима работы
-    if (this.config.enforcementMode === 'DISABLE') {
-      return this.createBypassResult(requestId, context);
-    }
-    
-    // Проверка rate limiting
-    if (this.config.rateLimit.enabled && !this.checkRateLimit()) {
-      this.stats.rateLimitHits++;
-      this.log('PEP', 'Rate limit превышен', { requestId });
-      
-      return this.createEnforcementResult(
-        requestId,
-        PolicyDecision.DENY,
-        false,
-        'Rate limit exceeded',
-        context
-      );
-    }
-    
-    // Проверка circuit breaker
-    if (this.config.enableCircuitBreaker && this.circuitState === CircuitState.OPEN) {
-      if (!this.shouldRetryCircuit()) {
-        this.stats.circuitBreakerTrips++;
-        this.log('PEP', 'Circuit breaker открыт', { requestId });
-        
-        return this.handleCircuitBreakerOpen(requestId, context);
-      }
-    }
-    
-    // Проверка максимального количества одновременных запросов
-    if (this.activeRequests.size >= this.config.maxConcurrentRequests) {
-      this.log('PEP', 'Превышено максимальное количество одновременных запросов', {
-        requestId,
-        activeCount: this.activeRequests.size
-      });
-      
-      return this.createEnforcementResult(
-        requestId,
-        PolicyDecision.DEFERRED,
-        false,
-        'Too many concurrent requests',
-        context
-      );
-    }
-    
-    // Добавляем запрос в активные
-    this.activeRequests.add(requestId);
-    
-    try {
-      // Проверяем кэш
-      if (this.config.enableCaching) {
-        const cachedResult = this.checkCache(context);
-        if (cachedResult) {
-          this.stats.cacheHits++;
-          this.log('PEP', 'Решение найдено в кэше', { requestId });
-          
-          return this.applyDecision(requestId, cachedResult, context, 'CACHE');
-        }
-      }
-      
-      // Запрашиваем решение у PDP
-      const pdpResult = await this.queryPdp(context, requestId);
-      
-      // Применяем решение
-      return this.applyDecision(requestId, pdpResult, context, 'PDP');
-      
-    } catch (error) {
-      this.stats.errors++;
-      this.circuitFailureCount++;
-      
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.log('PEP', 'Ошибка обработки запроса', {
-        requestId,
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      
-      // Обрабатываем ошибку circuit breaker
-      this.handleCircuitBreakerFailure();
-      
-      // Возвращаем результат в зависимости от конфигурации
-      return this.handlePdpError(requestId, context, errorMessage);
-      
-    } finally {
-      // Удаляем из активных запросов
-      this.activeRequests.delete(requestId);
-      
-      // Обновляем статистику
-      const processingTime = Date.now() - startTime;
-      this.stats.averageProcessingTime = 
-        (this.stats.averageProcessingTime * (this.stats.totalRequests - 1) + processingTime) /
-        this.stats.totalRequests;
-    }
+  getTrustVerifier(): TrustVerifier {
+    return this.trustVerifier;
   }
 
   /**
-   * Проверить rate limit
+   * Получение статистики
    */
-  private checkRateLimit(): boolean {
-    const now = new Date();
-    const elapsed = (now.getTime() - this.rateLimiter.lastUpdate.getTime()) / 1000;
-    
-    // Восстанавливаем токены
-    this.rateLimiter.tokens = Math.min(
-      this.config.rateLimit.burstSize,
-      this.rateLimiter.tokens + elapsed * this.config.rateLimit.requestsPerSecond
-    );
-    this.rateLimiter.lastUpdate = now;
-    
-    // Проверяем наличие токенов
-    if (this.rateLimiter.tokens >= 1) {
-      this.rateLimiter.tokens -= 1;
-      return true;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Проверить кэш решений
-   */
-  private checkCache(context: {
-    identity: Identity;
-    resourceType: ResourceType;
-    resourceId: string;
-    operation: PolicyOperation;
-    sourceIp: string;
-  }): PolicyEvaluationResult | null {
-    const cacheKey = this.getCacheKey(context);
-    const cached = this.cache.entries.get(cacheKey);
-    
-    if (!cached) {
-      return null;
-    }
-    
-    // Проверяем истечение
-    if (new Date() > cached.expiresAt) {
-      this.cache.entries.delete(cacheKey);
-      return null;
-    }
-    
-    cached.hitCount++;
-    return cached.result;
-  }
-
-  /**
-   * Получить ключ кэша
-   */
-  private getCacheKey(context: {
-    identity: Identity;
-    resourceType: ResourceType;
-    resourceId: string;
-    operation: PolicyOperation;
-    sourceIp: string;
-  }): string {
-    return `${context.identity.id}:${context.resourceType}:${context.resourceId}:${context.operation}:${context.sourceIp}`;
-  }
-
-  /**
-   * Запросить решение у PDP
-   */
-  private async queryPdp(
-    context: {
-      identity: Identity;
-      authContext: AuthContext;
-      devicePosture?: DevicePosture;
-      resourceType: ResourceType;
-      resourceId: string;
-      resourceName: string;
-      operation: PolicyOperation;
-      sourceIp: string;
-      destinationIp?: string;
-      destinationPort?: number;
-      protocol?: string;
-      resourceAttributes?: Record<string, unknown>;
-    },
-    requestId: string
-  ): Promise<PolicyEvaluationResult> {
-    if (!this.pdp) {
-      throw new Error('PDP не установлен. Вызовите setPdp() перед использованием.');
-    }
-    
-    // Создаём Promise с таймаутом
-    const pdpPromise = this.pdp.evaluateAccess({
-      identity: context.identity,
-      authContext: context.authContext,
-      devicePosture: context.devicePosture,
-      resourceType: context.resourceType,
-      resourceId: context.resourceId,
-      resourceName: context.resourceName,
-      operation: context.operation,
-      sourceIp: context.sourceIp,
-      destinationIp: context.destinationIp,
-      destinationPort: context.destinationPort,
-      protocol: context.protocol,
-      resourceAttributes: context.resourceAttributes
-    });
-    
-    const timeoutPromise = new Promise<PolicyEvaluationResult>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`PDP timeout: превышен лимит ${this.config.pdpTimeout}мс`));
-      }, this.config.pdpTimeout);
-    });
-    
-    // Выполняем с таймаутом
-    const result = await Promise.race([pdpPromise, timeoutPromise]);
-    
-    // Сбрасываем счётчик ошибок circuit breaker при успехе
-    this.circuitFailureCount = Math.max(0, this.circuitFailureCount - 1);
-    
-    return result;
-  }
-
-  /**
-   * Применить решение PDP
-   */
-  private applyDecision(
-    requestId: string,
-    pdpResult: PolicyEvaluationResult,
-    context: {
-      resourceType: ResourceType;
-      resourceId: string;
-      resourceName: string;
-      operation: PolicyOperation;
-    },
-    source: 'CACHE' | 'PDP'
-  ): PepEnforcementResult {
-    const { decision } = pdpResult;
-    
-    // В режиме MONITOR только логируем, но не блокируем
-    if (this.config.enforcementMode === 'MONITOR') {
-      this.log('PEP', 'Режим MONITOR - доступ разрешён с логированием', {
-        requestId,
-        decision,
-        source
-      });
-      
-      this.stats.allowed++;
-      
-      return {
-        resultId: uuidv4(),
-        requestId,
-        decision: PolicyDecision.ALLOW,
-        enforced: false,
-        enforcementMethod: 'PROXY',
-        pdpResult,
-        enforcedAt: new Date(),
-        appliedRestrictions: {
-          timeLimit: pdpResult.restrictions.timeLimit,
-          operationLimit: pdpResult.restrictions.operationLimit,
-          requireStepUp: pdpResult.restrictions.requireStepUp
-        }
-      };
-    }
-    
-    // В режиме ENFORCE применяем решение
-    let enforced = false;
-    
-    if (decision === PolicyDecision.ALLOW ||
-        decision === PolicyDecision.ALLOW_RESTRICTED ||
-        decision === PolicyDecision.ALLOW_TEMPORARY) {
-      enforced = true;
-      this.stats.allowed++;
-      
-      // Кэшируем положительное решение
-      if (this.config.enableCaching && source === 'PDP') {
-        this.cacheDecision(context, pdpResult);
-      }
-      
-      this.log('PEP', 'Доступ разрешён', {
-        requestId,
-        decision,
-        restrictions: pdpResult.restrictions
-      });
-      
-    } else if (decision === PolicyDecision.DENY) {
-      this.stats.denied++;
-      this.log('PEP', 'Доступ запрещён', { requestId, decision });
-      
-    } else if (decision === PolicyDecision.REQUIRE_STEP_UP) {
-      this.stats.denied++;
-      this.log('PEP', 'Требуется дополнительная аутентификация', { requestId });
-    }
-    
-    // Эмитим событие применения
-    this.emit('access:enforced', {
-      requestId,
-      decision,
-      enforced,
-      timestamp: new Date()
-    });
-    
-    return {
-      resultId: uuidv4(),
-      requestId,
-      decision,
-      enforced,
-      enforcementMethod: 'INTERCEPT',
-      pdpResult,
-      enforcedAt: new Date(),
-      appliedRestrictions: {
-        timeLimit: pdpResult.restrictions.timeLimit,
-        operationLimit: pdpResult.restrictions.operationLimit,
-        requireStepUp: pdpResult.restrictions.requireStepUp
-      }
-    };
-  }
-
-  /**
-   * Кэшировать решение
-   */
-  private cacheDecision(
-    context: {
-      identity: Identity;
-      resourceType: ResourceType;
-      resourceId: string;
-      operation: PolicyOperation;
-      sourceIp: string;
-    },
-    result: PolicyEvaluationResult
-  ): void {
-    const cacheKey = this.getCacheKey(context);
-    
-    // Очищаем старые записи если кэш переполнен
-    if (this.cache.entries.size >= this.cache.maxSize) {
-      const firstKey = this.cache.entries.keys().next().value;
-      if (firstKey) {
-        this.cache.entries.delete(firstKey);
-      }
-    }
-    
-    this.cache.entries.set(cacheKey, {
-      result,
-      cachedAt: new Date(),
-      expiresAt: new Date(Date.now() + this.config.cacheTtl * 1000),
-      hitCount: 0
-    });
-  }
-
-  /**
-   * Обработать открытие circuit breaker
-   */
-  private handleCircuitBreakerOpen(
-    requestId: string,
-    context: {
-      identity: Identity;
-      resourceType: ResourceType;
-      resourceId: string;
-      resourceName: string;
-      operation: PolicyOperation;
-      sourceIp: string;
-    }
-  ): PepEnforcementResult {
-    if (this.config.onPdpUnavailable === 'DENY') {
-      this.stats.denied++;
-      
-      return this.createEnforcementResult(
-        requestId,
-        PolicyDecision.DENY,
-        false,
-        'PDP недоступен (circuit breaker открыт)',
-        context
-      );
-    }
-    
-    if (this.config.onPdpUnavailable === 'ALLOW') {
-      this.stats.allowed++;
-      
-      return this.createEnforcementResult(
-        requestId,
-        PolicyDecision.ALLOW,
-        false,
-        'PDP недоступен - доступ разрешён по конфигурации',
-        context
-      );
-    }
-    
-    // CACHE_ONLY - пытаемся найти в кэше
-    const cachedResult = this.checkCache(context);
-    if (cachedResult) {
-      return this.applyDecision(requestId, cachedResult, context, 'CACHE');
-    }
-    
-    // Кэша нет - deny by default
-    this.stats.denied++;
-    
-    return this.createEnforcementResult(
-      requestId,
-      PolicyDecision.DENY,
-      false,
-      'PDP недоступен, кэш пуст - доступ запрещён',
-      context
-    );
-  }
-
-  /**
-   * Обработать ошибку PDP
-   */
-  private handlePdpError(
-    requestId: string,
-    context: {
-      identity: Identity;
-      resourceType: ResourceType;
-      resourceId: string;
-      resourceName: string;
-      operation: PolicyOperation;
-      sourceIp: string;
-    },
-    error: string
-  ): PepEnforcementResult {
-    if (this.config.onPdpUnavailable === 'DENY') {
-      this.stats.denied++;
-      
-      return this.createEnforcementResult(
-        requestId,
-        PolicyDecision.DENY,
-        false,
-        `PDP ошибка: ${error}`,
-        context
-      );
-    }
-    
-    if (this.config.onPdpUnavailable === 'ALLOW') {
-      this.stats.allowed++;
-      
-      return this.createEnforcementResult(
-        requestId,
-        PolicyDecision.ALLOW,
-        false,
-        `PDP ошибка - доступ разрешён: ${error}`,
-        context
-      );
-    }
-    
-    // CACHE_ONLY
-    const cachedResult = this.checkCache(context);
-    if (cachedResult) {
-      return this.applyDecision(requestId, cachedResult, context, 'CACHE');
-    }
-    
-    this.stats.denied++;
-    
-    return this.createEnforcementResult(
-      requestId,
-      PolicyDecision.DENY,
-      false,
-      `PDP ошибка, кэш пуст: ${error}`,
-      context
-    );
-  }
-
-  /**
-   * Обработать сбой circuit breaker
-   */
-  private handleCircuitBreakerFailure(): void {
-    if (!this.config.enableCircuitBreaker) {
-      return;
-    }
-    
-    if (this.circuitFailureCount >= this.config.circuitBreaker.failureThreshold) {
-      this.circuitState = CircuitState.OPEN;
-      this.circuitLastReset = new Date();
-      
-      this.log('PEP', 'Circuit breaker ОТКРЫТ', {
-        failureCount: this.circuitFailureCount
-      });
-      
-      this.emit('circuit:opened', {
-        timestamp: new Date(),
-        failureCount: this.circuitFailureCount
-      });
-    }
-  }
-
-  /**
-   * Проверить, можно ли retry circuit breaker
-   */
-  private shouldRetryCircuit(): boolean {
-    const now = new Date();
-    const elapsed = now.getTime() - this.circuitLastReset.getTime();
-    
-    if (elapsed >= this.config.circuitBreaker.resetTimeout) {
-      this.circuitState = CircuitState.HALF_OPEN;
-      this.circuitLastReset = now;
-      
-      this.log('PEP', 'Circuit breaker в полуоткрытом состоянии');
-      
-      return true;
-    }
-    
-    return false;
-  }
-
-  /**
-   * Создать результат bypass (режим DISABLE)
-   */
-  private createBypassResult(
-    requestId: string,
-    context: {
-      resourceType: ResourceType;
-      resourceId: string;
-      resourceName: string;
-      operation: PolicyOperation;
-    }
-  ): PepEnforcementResult {
-    this.stats.allowed++;
-    
-    return {
-      resultId: uuidv4(),
-      requestId,
-      decision: PolicyDecision.ALLOW,
-      enforced: false,
-      enforcementMethod: 'PROXY',
-      enforcedAt: new Date(),
-      appliedRestrictions: {}
-    };
-  }
-
-  /**
-   * Создать результат применения
-   */
-  private createEnforcementResult(
-    requestId: string,
-    decision: PolicyDecision,
-    enforced: boolean,
-    error?: string,
-    context?: {
-      resourceType: ResourceType;
-      resourceId: string;
-      resourceName: string;
-      operation: PolicyOperation;
-    }
-  ): PepEnforcementResult {
-    return {
-      resultId: uuidv4(),
-      requestId,
-      decision,
-      enforced,
-      enforcementMethod: 'INTERCEPT',
-      error,
-      enforcedAt: new Date(),
-      appliedRestrictions: {}
-    };
-  }
-
-  /**
-   * Сбросить circuit breaker
-   */
-  public resetCircuitBreaker(): void {
-    this.circuitState = CircuitState.CLOSED;
-    this.circuitFailureCount = 0;
-    this.circuitLastReset = new Date();
-    
-    this.log('PEP', 'Circuit breaker сброшен');
-    this.emit('circuit:reset', { timestamp: new Date() });
-  }
-
-  /**
-   * Получить статус circuit breaker
-   */
-  public getCircuitState(): CircuitState {
-    return this.circuitState;
-  }
-
-  /**
-   * Очистить кэш
-   */
-  public clearCache(): void {
-    this.cache.entries.clear();
-    this.log('PEP', 'Кэш очищен');
-  }
-
-  /**
-   * Получить статистику PEP
-   */
-  public getStats(): typeof this.stats & {
-    /** Активные запросы */
-    activeRequests: number;
-    /** Размер кэша */
+  getStats(): {
     cacheSize: number;
-    /** Токены rate limiter */
-    rateLimitTokens: number;
+    deniedRateLimitsCount: number;
+    isInitialized: boolean;
+    pdpStats: any;
+    trustVerifierStats: any;
   } {
     return {
-      ...this.stats,
-      activeRequests: this.activeRequests.size,
-      cacheSize: this.cache.entries.size,
-      rateLimitTokens: Math.floor(this.rateLimiter.tokens)
+      cacheSize: this.decisionCache.size,
+      deniedRateLimitsCount: this.deniedRateLimits.size,
+      isInitialized: this.isInitialized,
+      pdpStats: this.pdp.getStats(),
+      trustVerifierStats: this.trustVerifier.getStats()
     };
   }
 
   /**
-   * Логирование событий PEP
+   * Очистка кэша
    */
-  private log(component: string, message: string, data?: unknown): void {
-    const event: ZeroTrustEvent = {
-      eventId: uuidv4(),
-      eventType: 'ACCESS_REQUEST',
-      timestamp: new Date(),
-      subject: {
-        id: 'system',
-        type: SubjectType.SYSTEM,
-        name: component
-      },
-      details: { message, ...data },
-      severity: 'INFO',
-      correlationId: uuidv4()
-    };
-    
-    this.emit('log', event);
+  clearCache(): void {
+    this.decisionCache.clear();
+    this.emit('cache_cleared');
+  }
 
-    if (this.config.enableVerboseLogging && this.config.enableAudit) {
-      logger.debug(`[PEP] ${message}`, { timestamp: new Date().toISOString(), ...data });
-    }
+  /**
+   * Очистка rate limits
+   */
+  clearDeniedRateLimits(): void {
+    this.deniedRateLimits.clear();
+    this.emit('denied_rate_limits_cleared');
   }
 }
-
-export default PolicyEnforcementPoint;

@@ -9,7 +9,14 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from '../utils/StubLogger';
+
+// Logger для совместимости
+const logger = {
+  info: (msg: string, data?: any) => console.log('[BlockchainSecurity]', msg, data),
+  warn: (msg: string, data?: any) => console.warn('[BlockchainSecurity]', msg, data),
+  error: (msg: string, data?: any) => console.error('[BlockchainSecurity]', msg, data),
+  debug: (msg: string, data?: any) => console.debug('[BlockchainSecurity]', msg, data)
+};
 import { BlockchainSecurityConfig } from './types/blockchain.types';
 import { PostQuantumSigner } from './crypto/PostQuantumSigner';
 import { ZKAuthenticator } from './zk/ZKAuthenticator';

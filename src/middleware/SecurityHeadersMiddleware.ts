@@ -1,50 +1,27 @@
 /**
- * =============================================================================
+ * ============================================================================
  * SECURITY HEADERS MIDDLEWARE
- * =============================================================================
+ * ============================================================================
  * Полный набор security headers для защиты веб-приложений
  * Соответствует: OWASP Secure Headers Project
- * =============================================================================
+ * ============================================================================
  */
 
 import { IncomingMessage, ServerResponse } from 'http';
-
-// =============================================================================
-// ТИПЫ И ИНТЕРФЕЙСЫ
-// =============================================================================
 
 /**
  * Конфигурация security headers
  */
 export interface SecurityHeadersConfig {
-  /** Content-Security-Policy настройки */
   csp: CSPConfig;
-  
-  /** HSTS настройки */
   hsts: HSTSConfig;
-  
-  /** X-Frame-Options */
   xFrameOptions: 'DENY' | 'SAMEORIGIN';
-  
-  /** X-Content-Type-Options */
   xContentTypeOptions: 'nosniff';
-  
-  /** X-XSS-Protection */
   xXSSProtection: '1; mode=block';
-  
-  /** Referrer-Policy */
   referrerPolicy: ReferrerPolicy;
-  
-  /** Permissions-Policy */
   permissionsPolicy: PermissionsPolicyConfig;
-  
-  /** Cross-Origin-Policy */
   crossOriginPolicies: CrossOriginPoliciesConfig;
-  
-  /** Cache-Control для чувствительных данных */
   cacheControl: CacheControlConfig;
-  
-  /** Удалить заголовки информации */
   removeHeaders: string[];
 }
 
@@ -52,61 +29,24 @@ export interface SecurityHeadersConfig {
  * CSP директивы
  */
 export interface CSPConfig {
-  /** Default source */
   defaultSrc: string[];
-  
-  /** Script source */
   scriptSrc: string[];
-  
-  /** Style source */
   styleSrc: string[];
-  
-  /** Image source */
   imgSrc: string[];
-  
-  /** Font source */
   fontSrc: string[];
-  
-  /** Connect source (AJAX, WebSocket) */
   connectSrc: string[];
-  
-  /** Media source */
   mediaSrc: string[];
-  
-  /** Object source */
   objectSrc: string[];
-  
-  /** Frame source */
   frameSrc: string[];
-  
-  /** Worker source */
   workerSrc: string[];
-  
-  /** Base URI */
   baseUri: string[];
-  
-  /** Form action */
   formAction: string[];
-  
-  /** Frame ancestors */
   frameAncestors: string[];
-  
-  /** Upgrade insecure requests */
   upgradeInsecureRequests: boolean;
-  
-  /** Block all mixed content */
   blockAllMixedContent: boolean;
-  
-  /** Report URI */
   reportUri?: string;
-  
-  /** Report-To */
   reportTo?: string;
-  
-  /** Strict dynamic */
   strictDynamic: boolean;
-  
-  /** Use unsafe-inline (fallback) */
   useUnsafeInline: boolean;
 }
 
@@ -114,20 +54,15 @@ export interface CSPConfig {
  * HSTS конфигурация
  */
 export interface HSTSConfig {
-  /** Максимальный возраст (секунды) */
   maxAge: number;
-  
-  /** Включить subdomains */
   includeSubDomains: boolean;
-  
-  /** Включить preload */
   preload: boolean;
 }
 
 /**
  * Referrer Policy
  */
-export type ReferrerPolicy = 
+export type ReferrerPolicy =
   | 'no-referrer'
   | 'no-referrer-when-downgrade'
   | 'origin'
@@ -141,55 +76,22 @@ export type ReferrerPolicy =
  * Permissions Policy
  */
 export interface PermissionsPolicyConfig {
-  /** Геолокация */
   geolocation: string[];
-  
-  /** Микрофон */
   microphone: string[];
-  
-  /** Камера */
   camera: string[];
-  
-  /** Payment */
   payment: string[];
-  
-  /** USB */
   usb: string[];
-  
-  /** Fullscreen */
   fullscreen: string[];
-  
-  /** Accelerometer */
   accelerometer: string[];
-  
-  /** Gyroscope */
   gyroscope: string[];
-  
-  /** Magnetometer */
   magnetometer: string[];
-  
-  /** Ambient light sensor */
   ambientLightSensor: string[];
-  
-  /** Autoplay */
   autoplay: string[];
-  
-  /** Encrypted media */
   encryptedMedia: string[];
-  
-  /** Picture-in-picture */
   pictureInPicture: string[];
-  
-  /** SyncXHR */
   syncXhr: string[];
-  
-  /** Wake lock */
   wakeLock: string[];
-  
-  /** Serial */
   serial: string[];
-  
-  /** Trust Token Redemption */
   trustTokenRedemption: string[];
 }
 
@@ -197,91 +99,46 @@ export interface PermissionsPolicyConfig {
  * Cross-Origin Policies
  */
 export interface CrossOriginPoliciesConfig {
-  /** Cross-Origin-Opener-Policy */
-  coop: 'same-origin' | 'same-origin-allow-popups' | 'unsafe-none';
-  
-  /** Cross-Origin-Embedder-Policy */
-  coep: 'require-corp' | 'unsafe-none';
-  
-  /** Cross-Origin-Resource-Policy */
-  corp: 'same-origin' | 'same-site' | 'cross-origin';
+  openerPolicy: 'same-origin' | 'same-origin-allow-popouts' | 'unsafe-none';
+  embedderPolicy: 'unsafe-none' | 'require-corp' | 'same-origin';
+  resourcePolicy: 'same-site' | 'same-origin' | 'cross-origin';
 }
 
 /**
  * Cache Control
  */
 export interface CacheControlConfig {
-  /** Для чувствительных страниц */
-  sensitive: string;
-  
-  /** Для статических ресурсов */
-  static: string;
-  
-  /** Для API */
-  api: string;
+  noStore: boolean;
+  noCache: boolean;
+  maxAge?: number;
+  private: boolean;
 }
 
-// =============================================================================
-// ПРЕДУСТАНОВЛЕННЫЕ КОНФИГУРАЦИИ
-// =============================================================================
-
 /**
- * Строгая CSP для production
+ * Конфигурация по умолчанию
  */
-export const CSP_STRICT: CSPConfig = {
-  defaultSrc: ["'self'"],
-  scriptSrc: ["'self'"],
-  styleSrc: ["'self'"],
-  imgSrc: ["'self'", 'data:', 'blob:'],
-  fontSrc: ["'self'"],
-  connectSrc: ["'self'"],
-  mediaSrc: ["'self'"],
-  objectSrc: ["'none'"],
-  frameSrc: ["'none'"],
-  workerSrc: ["'self'"],
-  baseUri: ["'self'"],
-  formAction: ["'self'"],
-  frameAncestors: ["'none'"],
-  upgradeInsecureRequests: true,
-  blockAllMixedContent: true,
-  reportUri: undefined,
-  reportTo: undefined,
-  strictDynamic: false,
-  useUnsafeInline: false
-};
-
-/**
- * CSP для development
- */
-export const CSP_DEVELOPMENT: CSPConfig = {
-  defaultSrc: ["'self'"],
-  scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'localhost:*'],
-  styleSrc: ["'self'", "'unsafe-inline'"],
-  imgSrc: ["'self'", 'data:', 'blob:', 'localhost:*'],
-  fontSrc: ["'self'", 'data:', 'localhost:*'],
-  connectSrc: ["'self'", 'localhost:*', 'ws:', 'wss:'],
-  mediaSrc: ["'self'", 'localhost:*'],
-  objectSrc: ["'none'"],
-  frameSrc: ["'self'", 'localhost:*'],
-  workerSrc: ["'self'", 'blob:'],
-  baseUri: ["'self'"],
-  formAction: ["'self'", 'localhost:*'],
-  frameAncestors: ["'self'"],
-  upgradeInsecureRequests: false,
-  blockAllMixedContent: false,
-  reportUri: undefined,
-  reportTo: undefined,
-  strictDynamic: false,
-  useUnsafeInline: true
-};
-
-/**
- * Конфигурация по умолчанию для production
- */
-export const DEFAULT_SECURITY_CONFIG: SecurityHeadersConfig = {
-  csp: CSP_STRICT,
+const DEFAULT_CONFIG: SecurityHeadersConfig = {
+  csp: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'"],
+    imgSrc: ["'self'", 'data:', 'https:'],
+    fontSrc: ["'self'"],
+    connectSrc: ["'self'"],
+    mediaSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    frameSrc: ["'none'"],
+    workerSrc: ["'self'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+    upgradeInsecureRequests: true,
+    blockAllMixedContent: true,
+    strictDynamic: false,
+    useUnsafeInline: false
+  },
   hsts: {
-    maxAge: 31536000, // 1 год
+    maxAge: 31536000,
     includeSubDomains: true,
     preload: true
   },
@@ -300,7 +157,7 @@ export const DEFAULT_SECURITY_CONFIG: SecurityHeadersConfig = {
     gyroscope: ["'none'"],
     magnetometer: ["'none'"],
     ambientLightSensor: ["'none'"],
-    autoplay: ["'none'"],
+    autoplay: ["'self'"],
     encryptedMedia: ["'self'"],
     pictureInPicture: ["'self'"],
     syncXhr: ["'none'"],
@@ -309,51 +166,42 @@ export const DEFAULT_SECURITY_CONFIG: SecurityHeadersConfig = {
     trustTokenRedemption: ["'none'"]
   },
   crossOriginPolicies: {
-    coop: 'same-origin',
-    coep: 'require-corp',
-    corp: 'same-origin'
+    openerPolicy: 'same-origin',
+    embedderPolicy: 'require-corp',
+    resourcePolicy: 'same-origin'
   },
   cacheControl: {
-    sensitive: 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    static: 'public, max-age=31536000, immutable',
-    api: 'no-store, no-cache, must-revalidate'
+    noStore: false,
+    noCache: false,
+    private: true
   },
-  removeHeaders: ['X-Powered-By', 'Server', 'X-AspNet-Version', 'X-AspNetMvc-Version']
+  removeHeaders: ['X-Powered-By', 'Server']
 };
 
-// =============================================================================
-// MIDDLEWARE CLASS
-// =============================================================================
-
+/**
+ * Security Headers Middleware
+ */
 export class SecurityHeadersMiddleware {
-  private config: SecurityHeadersConfig;
-  private nonceGenerator?: () => string;
+  private readonly config: SecurityHeadersConfig;
 
   constructor(config: Partial<SecurityHeadersConfig> = {}) {
-    this.config = this.mergeConfig(config);
-  }
-
-  /**
-   * Слияние конфигураций
-   */
-  private mergeConfig(custom: Partial<SecurityHeadersConfig>): SecurityHeadersConfig {
-    return {
-      ...DEFAULT_SECURITY_CONFIG,
-      ...custom,
-      csp: { ...DEFAULT_SECURITY_CONFIG.csp, ...custom.csp },
-      hsts: { ...DEFAULT_SECURITY_CONFIG.hsts, ...custom.hsts },
-      permissionsPolicy: { ...DEFAULT_SECURITY_CONFIG.permissionsPolicy, ...custom.permissionsPolicy },
-      crossOriginPolicies: { ...DEFAULT_SECURITY_CONFIG.crossOriginPolicies, ...custom.crossOriginPolicies },
-      cacheControl: { ...DEFAULT_SECURITY_CONFIG.cacheControl, ...custom.cacheControl }
+    this.config = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      csp: { ...DEFAULT_CONFIG.csp, ...config.csp },
+      hsts: { ...DEFAULT_CONFIG.hsts, ...config.hsts },
+      permissionsPolicy: { ...DEFAULT_CONFIG.permissionsPolicy, ...config.permissionsPolicy },
+      crossOriginPolicies: { ...DEFAULT_CONFIG.crossOriginPolicies, ...config.crossOriginPolicies },
+      cacheControl: { ...DEFAULT_CONFIG.cacheControl, ...config.cacheControl }
     };
   }
 
   /**
    * Middleware функция
    */
-  handle(req: IncomingMessage, res: ServerResponse, next?: () => void): void {
+  handle = (req: IncomingMessage, res: ServerResponse, next: () => void): void => {
     // Content-Security-Policy
-    this.setCSP(res, req);
+    this.setCSP(res);
 
     // Strict-Transport-Security
     this.setHSTS(res);
@@ -373,94 +221,52 @@ export class SecurityHeadersMiddleware {
     // Permissions-Policy
     this.setPermissionsPolicy(res);
 
-    // Cross-Origin-Policies
+    // Cross-Origin-Policy
     this.setCrossOriginPolicies(res);
 
     // Cache-Control
-    this.setCacheControl(res, req);
+    this.setCacheControl(res);
 
     // Remove headers
     this.removeHeaders(res);
 
-    if (next) {
-      next();
-    }
-  }
-
-  // =============================================================================
-  // УСТАНОВКА HEADERS
-  // =============================================================================
+    next();
+  };
 
   /**
-   * Установка Content-Security-Policy
+   * Content-Security-Policy
    */
-  private setCSP(res: ServerResponse, req: IncomingMessage): void {
+  private setCSP(res: ServerResponse): void {
     const csp = this.config.csp;
     const directives: string[] = [];
 
-    // Генерация nonce если нужно
-    const nonce = this.nonceGenerator?.();
-    const nonceValue = nonce ? `'nonce-${nonce}'` : undefined;
+    // Helper для построения директивы
+    const buildDirective = (name: string, values: string[]): string => {
+      if (!values || values.length === 0) return '';
+      return `${name} ${values.join(' ')}`;
+    };
 
-    if (csp.defaultSrc?.length) {
-      directives.push(`default-src ${csp.defaultSrc.join(' ')}`);
+    // Основные директивы
+    if (csp.defaultSrc) directives.push(buildDirective('default-src', csp.defaultSrc));
+    if (csp.scriptSrc) {
+      const scriptValues = [...csp.scriptSrc];
+      if (csp.strictDynamic) scriptValues.push("'strict-dynamic'");
+      if (csp.useUnsafeInline) scriptValues.push("'unsafe-inline'");
+      directives.push(buildDirective('script-src', scriptValues));
     }
+    if (csp.styleSrc) directives.push(buildDirective('style-src', csp.styleSrc));
+    if (csp.imgSrc) directives.push(buildDirective('img-src', csp.imgSrc));
+    if (csp.fontSrc) directives.push(buildDirective('font-src', csp.fontSrc));
+    if (csp.connectSrc) directives.push(buildDirective('connect-src', csp.connectSrc));
+    if (csp.mediaSrc) directives.push(buildDirective('media-src', csp.mediaSrc));
+    if (csp.objectSrc) directives.push(buildDirective('object-src', csp.objectSrc));
+    if (csp.frameSrc) directives.push(buildDirective('frame-src', csp.frameSrc));
+    if (csp.workerSrc) directives.push(buildDirective('worker-src', csp.workerSrc));
+    if (csp.baseUri) directives.push(buildDirective('base-uri', csp.baseUri));
+    if (csp.formAction) directives.push(buildDirective('form-action', csp.formAction));
+    if (csp.frameAncestors) directives.push(buildDirective('frame-ancestors', csp.frameAncestors));
 
-    if (csp.scriptSrc?.length) {
-      const scriptSrc = [...csp.scriptSrc];
-      if (nonceValue) scriptSrc.push(nonceValue);
-      if (csp.useUnsafeInline) scriptSrc.push("'unsafe-inline'");
-      if (csp.strictDynamic) scriptSrc.push("'strict-dynamic'");
-      directives.push(`script-src ${scriptSrc.join(' ')}`);
-    }
-
-    if (csp.styleSrc?.length) {
-      const styleSrc = [...csp.styleSrc];
-      if (nonceValue) styleSrc.push(nonceValue);
-      if (csp.useUnsafeInline) styleSrc.push("'unsafe-inline'");
-      directives.push(`style-src ${styleSrc.join(' ')}`);
-    }
-
-    if (csp.imgSrc?.length) {
-      directives.push(`img-src ${csp.imgSrc.join(' ')}`);
-    }
-
-    if (csp.fontSrc?.length) {
-      directives.push(`font-src ${csp.fontSrc.join(' ')}`);
-    }
-
-    if (csp.connectSrc?.length) {
-      directives.push(`connect-src ${csp.connectSrc.join(' ')}`);
-    }
-
-    if (csp.mediaSrc?.length) {
-      directives.push(`media-src ${csp.mediaSrc.join(' ')}`);
-    }
-
-    if (csp.objectSrc?.length) {
-      directives.push(`object-src ${csp.objectSrc.join(' ')}`);
-    }
-
-    if (csp.frameSrc?.length) {
-      directives.push(`frame-src ${csp.frameSrc.join(' ')}`);
-    }
-
-    if (csp.workerSrc?.length) {
-      directives.push(`worker-src ${csp.workerSrc.join(' ')}`);
-    }
-
-    if (csp.baseUri?.length) {
-      directives.push(`base-uri ${csp.baseUri.join(' ')}`);
-    }
-
-    if (csp.formAction?.length) {
-      directives.push(`form-action ${csp.formAction.join(' ')}`);
-    }
-
-    if (csp.frameAncestors?.length) {
-      directives.push(`frame-ancestors ${csp.frameAncestors.join(' ')}`);
-    }
-
+    // Дополнительные директивы
     if (csp.upgradeInsecureRequests) {
       directives.push('upgrade-insecure-requests');
     }
@@ -477,17 +283,12 @@ export class SecurityHeadersMiddleware {
       directives.push(`report-to ${csp.reportTo}`);
     }
 
-    res.setHeader('Content-Security-Policy', directives.join('; '));
-
-    // Сохранение nonce в response locals для использования в шаблоне
-    if (nonce) {
-      (res as any).locals = (res as any).locals || {};
-      (res as any).locals.nonce = nonce;
-    }
+    const cspHeader = directives.filter(d => d).join('; ');
+    res.setHeader('Content-Security-Policy', cspHeader);
   }
 
   /**
-   * Установка Strict-Transport-Security
+   * Strict-Transport-Security
    */
   private setHSTS(res: ServerResponse): void {
     const hsts = this.config.hsts;
@@ -505,142 +306,100 @@ export class SecurityHeadersMiddleware {
   }
 
   /**
-   * Установка X-Frame-Options
+   * X-Frame-Options
    */
   private setXFrameOptions(res: ServerResponse): void {
     res.setHeader('X-Frame-Options', this.config.xFrameOptions);
   }
 
   /**
-   * Установка X-Content-Type-Options
+   * X-Content-Type-Options
    */
   private setXContentTypeOptions(res: ServerResponse): void {
     res.setHeader('X-Content-Type-Options', this.config.xContentTypeOptions);
   }
 
   /**
-   * Установка X-XSS-Protection
+   * X-XSS-Protection
    */
   private setXXSSProtection(res: ServerResponse): void {
     res.setHeader('X-XSS-Protection', this.config.xXSSProtection);
   }
 
   /**
-   * Установка Referrer-Policy
+   * Referrer-Policy
    */
   private setReferrerPolicy(res: ServerResponse): void {
     res.setHeader('Referrer-Policy', this.config.referrerPolicy);
   }
 
   /**
-   * Установка Permissions-Policy
+   * Permissions-Policy
    */
   private setPermissionsPolicy(res: ServerResponse): void {
     const policy = this.config.permissionsPolicy;
     const directives: string[] = [];
 
-    const features = [
-      'geolocation', 'microphone', 'camera', 'payment', 'usb',
-      'fullscreen', 'accelerometer', 'gyroscope', 'magnetometer',
-      'ambient-light-sensor', 'autoplay', 'encrypted-media',
-      'picture-in-picture', 'sync-xhr', 'wake-lock', 'serial',
-      'trust-token-redemption'
-    ];
+    const buildFeature = (name: string, values: string[]): string => {
+      return `${name}=(${values.join(' ')})`;
+    };
 
-    for (const feature of features) {
-      const value = (policy as any)[feature];
-      if (value && Array.isArray(value)) {
-        directives.push(`${feature}=(${value.join(' ')})`);
-      }
-    }
+    if (policy.geolocation) directives.push(buildFeature('geolocation', policy.geolocation));
+    if (policy.microphone) directives.push(buildFeature('microphone', policy.microphone));
+    if (policy.camera) directives.push(buildFeature('camera', policy.camera));
+    if (policy.payment) directives.push(buildFeature('payment', policy.payment));
+    if (policy.usb) directives.push(buildFeature('usb', policy.usb));
+    if (policy.fullscreen) directives.push(buildFeature('fullscreen', policy.fullscreen));
+    if (policy.accelerometer) directives.push(buildFeature('accelerometer', policy.accelerometer));
+    if (policy.gyroscope) directives.push(buildFeature('gyroscope', policy.gyroscope));
+    if (policy.magnetometer) directives.push(buildFeature('magnetometer', policy.magnetometer));
+    if (policy.ambientLightSensor) directives.push(buildFeature('ambient-light-sensor', policy.ambientLightSensor));
+    if (policy.autoplay) directives.push(buildFeature('autoplay', policy.autoplay));
+    if (policy.encryptedMedia) directives.push(buildFeature('encrypted-media', policy.encryptedMedia));
+    if (policy.pictureInPicture) directives.push(buildFeature('picture-in-picture', policy.pictureInPicture));
+    if (policy.syncXhr) directives.push(buildFeature('sync-xhr', policy.syncXhr));
+    if (policy.wakeLock) directives.push(buildFeature('wake-lock', policy.wakeLock));
+    if (policy.serial) directives.push(buildFeature('serial', policy.serial));
+    if (policy.trustTokenRedemption) directives.push(buildFeature('trust-token-redemption', policy.trustTokenRedemption));
 
-    if (directives.length > 0) {
-      res.setHeader('Permissions-Policy', directives.join(', '));
-    }
+    res.setHeader('Permissions-Policy', directives.join(', '));
   }
 
   /**
-   * Установка Cross-Origin-Policies
+   * Cross-Origin-Policy
    */
   private setCrossOriginPolicies(res: ServerResponse): void {
     const policies = this.config.crossOriginPolicies;
 
-    res.setHeader('Cross-Origin-Opener-Policy', policies.coop);
-    res.setHeader('Cross-Origin-Embedder-Policy', policies.coep);
-    res.setHeader('Cross-Origin-Resource-Policy', policies.corp);
+    res.setHeader('Cross-Origin-Opener-Policy', policies.openerPolicy);
+    res.setHeader('Cross-Origin-Embedder-Policy', policies.embedderPolicy);
+    res.setHeader('Cross-Origin-Resource-Policy', policies.resourcePolicy);
   }
 
   /**
-   * Установка Cache-Control
+   * Cache-Control
    */
-  private setCacheControl(res: ServerResponse, req: IncomingMessage): void {
+  private setCacheControl(res: ServerResponse): void {
     const cache = this.config.cacheControl;
-    const url = req.url || '';
+    const directives: string[] = [];
 
-    // API endpoints
-    if (url.startsWith('/api/')) {
-      res.setHeader('Cache-Control', cache.api);
-      return;
+    if (cache.noStore) directives.push('no-store');
+    if (cache.noCache) directives.push('no-cache');
+    if (cache.private) directives.push('private');
+    if (cache.maxAge !== undefined) directives.push(`max-age=${cache.maxAge}`);
+
+    if (directives.length > 0) {
+      res.setHeader('Cache-Control', directives.join(', '));
     }
-
-    // Статические ресурсы
-    if (/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(url)) {
-      res.setHeader('Cache-Control', cache.static);
-      return;
-    }
-
-    // Чувствительные страницы
-    if (/\/(login|logout|account|settings|admin|dashboard)/.test(url)) {
-      res.setHeader('Cache-Control', cache.sensitive);
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      return;
-    }
-
-    // По умолчанию
-    res.setHeader('Cache-Control', 'public, max-age=300');
   }
 
   /**
-   * Удаление информационных headers
+   * Remove headers
    */
   private removeHeaders(res: ServerResponse): void {
     for (const header of this.config.removeHeaders) {
       res.removeHeader(header);
     }
-  }
-
-  // =============================================================================
-  // УТИЛИТЫ
-  // =============================================================================
-
-  /**
-   * Установка генератора nonce
-   */
-  setNonceGenerator(generator: () => string): void {
-    this.nonceGenerator = generator;
-  }
-
-  /**
-   * Получение CSP для meta тега
-   */
-  getCSPMetaTag(): string {
-    const csp = this.config.csp;
-    const directives: string[] = [];
-
-    if (csp.defaultSrc?.length) {
-      directives.push(`default-src ${csp.defaultSrc.join(' ')}`);
-    }
-
-    if (csp.scriptSrc?.length) {
-      directives.push(`script-src ${csp.scriptSrc.join(' ')}`);
-    }
-
-    if (csp.styleSrc?.length) {
-      directives.push(`style-src ${csp.styleSrc.join(' ')}`);
-    }
-
-    return directives.join('; ');
   }
 
   /**
@@ -649,19 +408,11 @@ export class SecurityHeadersMiddleware {
   getConfig(): SecurityHeadersConfig {
     return { ...this.config };
   }
-
-  /**
-   * Обновление конфигурации
-   */
-  updateConfig(updates: Partial<SecurityHeadersConfig>): void {
-    this.config = this.mergeConfig(updates);
-  }
 }
 
-// =============================================================================
-// ЭКСПОРТ
-// =============================================================================
-
+/**
+ * Factory функция
+ */
 export function createSecurityHeadersMiddleware(
   config?: Partial<SecurityHeadersConfig>
 ): SecurityHeadersMiddleware {
@@ -669,22 +420,130 @@ export function createSecurityHeadersMiddleware(
 }
 
 /**
- * Express middleware wrapper
+ * Presets для быстрого использования
  */
-export function expressSecurityHeaders(config?: Partial<SecurityHeadersConfig>) {
-  const middleware = new SecurityHeadersMiddleware(config);
-  return (req: any, res: any, next: () => void) => {
-    middleware.handle(req, res, next);
-  };
-}
+export const SecurityHeadersPresets = {
+  /** Строгий preset для API */
+  strict: {
+    csp: {
+      defaultSrc: ["'none'"],
+      scriptSrc: ["'none'"],
+      styleSrc: ["'none'"],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: true,
+      blockAllMixedContent: true,
+      strictDynamic: false,
+      useUnsafeInline: false
+    },
+    hsts: {
+      maxAge: 63072000,
+      includeSubDomains: true,
+      preload: true
+    },
+    xFrameOptions: 'DENY' as const,
+    xContentTypeOptions: 'nosniff' as const,
+    xXSSProtection: '1; mode=block' as const,
+    referrerPolicy: 'no-referrer' as const,
+    permissionsPolicy: {
+      geolocation: ["'none'"],
+      microphone: ["'none'"],
+      camera: ["'none'"],
+      payment: ["'none'"],
+      usb: ["'none'"],
+      fullscreen: ["'none'"],
+      accelerometer: ["'none'"],
+      gyroscope: ["'none'"],
+      magnetometer: ["'none'"],
+      ambientLightSensor: ["'none'"],
+      autoplay: ["'none'"],
+      encryptedMedia: ["'none'"],
+      pictureInPicture: ["'none'"],
+      syncXhr: ["'none'"],
+      wakeLock: ["'none'"],
+      serial: ["'none'"],
+      trustTokenRedemption: ["'none'"]
+    },
+    crossOriginPolicies: {
+      openerPolicy: 'same-origin' as const,
+      embedderPolicy: 'require-corp' as const,
+      resourcePolicy: 'same-origin' as const
+    },
+    cacheControl: {
+      noStore: true,
+      noCache: true,
+      private: true
+    },
+    removeHeaders: ['X-Powered-By', 'Server', 'X-AspNet-Version']
+  },
 
-/**
- * Koa middleware wrapper
- */
-export function koaSecurityHeaders(config?: Partial<SecurityHeadersConfig>) {
-  const middleware = new SecurityHeadersMiddleware(config);
-  return async (ctx: any, next: () => Promise<void>) => {
-    middleware.handle(ctx.req, ctx.res);
-    await next();
-  };
-}
+  /** Standard preset для веб-приложений */
+  standard: {
+    ...DEFAULT_CONFIG
+  },
+
+  /** Relax preset для разработки */
+  development: {
+    csp: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'https:', 'data:'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+      mediaSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'self'"],
+      workerSrc: ["'self'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: false,
+      blockAllMixedContent: false,
+      strictDynamic: false,
+      useUnsafeInline: true
+    },
+    hsts: {
+      maxAge: 0,
+      includeSubDomains: false,
+      preload: false
+    },
+    xFrameOptions: 'SAMEORIGIN' as const,
+    xContentTypeOptions: 'nosniff' as const,
+    xXSSProtection: '1; mode=block' as const,
+    referrerPolicy: 'strict-origin-when-cross-origin' as const,
+    permissionsPolicy: {
+      geolocation: ["'self'"],
+      microphone: ["'self'"],
+      camera: ["'self'"],
+      payment: ["'none'"],
+      usb: ["'none'"],
+      fullscreen: ["'self'"],
+      accelerometer: ["'self'"],
+      gyroscope: ["'self'"],
+      magnetometer: ["'self'"],
+      ambientLightSensor: ["'self'"],
+      autoplay: ["'self'"],
+      encryptedMedia: ["'self'"],
+      pictureInPicture: ["'self'"],
+      syncXhr: ["'self'"],
+      wakeLock: ["'self'"],
+      serial: ["'self'"],
+      trustTokenRedemption: ["'none'"]
+    },
+    crossOriginPolicies: {
+      openerPolicy: 'same-origin-allow-popouts' as const,
+      embedderPolicy: 'unsafe-none' as const,
+      resourcePolicy: 'cross-origin' as const
+    },
+    cacheControl: {
+      noStore: false,
+      noCache: false,
+      private: false
+    },
+    removeHeaders: ['X-Powered-By']
+  }
+};

@@ -13,7 +13,6 @@ import {
   AuthenticationError,
   AuthorizationError,
   ValidationError,
-  NotFoundError,
   RateLimitExceededError,
   InternalError
 } from './BaseError';
@@ -435,5 +434,3 @@ export function createProdErrorHandler(
 export function createErrorHandler(config: ErrorHandlerConfig): ErrorHandlerMiddleware {
   return new ErrorHandlerMiddleware(config);
 }
-
-export type { ErrorHandlerConfig, ErrorContext };
