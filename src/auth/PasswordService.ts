@@ -294,13 +294,22 @@ export class PasswordService {
     password: string,
     config: Argon2Config
   ): Promise<string> {
+    // Определяем тип алгоритма для argon2
+    let argon2Type: 0 | 1 | 2; // 0 = argon2d, 1 = argon2i, 2 = argon2id
+    if (config.algorithm === 'argon2id') {
+      argon2Type = argon2.argon2id;
+    } else if (config.algorithm === 'argon2d') {
+      argon2Type = argon2.argon2d;
+    } else {
+      argon2Type = argon2.argon2i;
+    }
+
     const hash = await argon2.hash(password, {
-      type: argon2[config.algorithm === 'argon2id' ? 'Argon2id' : config.algorithm === 'argon2d' ? 'Argon2d' : 'Argon2i'],
+      type: argon2Type as any,
       memoryCost: config.memoryCost,
       timeCost: config.timeCost,
       parallelism: config.parallelism,
-      hashLength: 32,
-      saltLength: this.saltRounds,
+      hashLength: 32
     });
 
     return hash;

@@ -12,6 +12,7 @@ import {
   PlaybookStep,
   PlaybookStepCategory,
   PlaybookActionType,
+  PlaybookStepStatus,
   IncidentCategory,
   IncidentSeverity,
   ConditionType,
@@ -46,7 +47,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -69,7 +70,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 1,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -93,7 +94,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 1,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -117,7 +118,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -144,7 +145,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 3,
       retryInterval: 2000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true,
       rollbackAction: {
@@ -156,7 +157,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
         parameters: {
           resetType: 'restore'
         },
-        status: 'pending'
+        status: PlaybookStepStatus.PENDING
       }
     },
 
@@ -179,7 +180,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 3,
       retryInterval: 2000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -203,7 +204,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 2,
       retryInterval: 3000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -239,7 +240,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 2,
       retryInterval: 3000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -263,7 +264,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 2,
       retryInterval: 3000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -291,7 +292,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -315,7 +316,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -338,7 +339,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -362,7 +363,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -390,7 +391,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 1,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -426,7 +427,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 2,
       retryInterval: 3000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -449,7 +450,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -473,7 +474,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 60000,
       retryCount: 1,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -501,7 +502,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 3,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -525,7 +526,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -551,7 +552,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 60000,
       retryCount: 3,
       retryInterval: 2000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -573,7 +574,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 60000,
       retryCount: 3,
       retryInterval: 2000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -595,7 +596,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -618,7 +619,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -640,7 +641,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -671,7 +672,7 @@ export function createCredentialCompromisePlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     }

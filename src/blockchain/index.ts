@@ -20,7 +20,7 @@
 
 // Main Module
 export { BlockchainSecurityModule, createBlockchainSecurityModule } from './BlockchainSecurityModule';
-export { BlockchainSecurityConfig } from './types/blockchain.types';
+export type { BlockchainSecurityConfig } from './types/blockchain.types';
 
 // Post-Quantum Cryptography
 export { PostQuantumSigner } from './crypto/PostQuantumSigner';

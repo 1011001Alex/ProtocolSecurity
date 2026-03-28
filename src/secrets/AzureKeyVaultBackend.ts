@@ -27,6 +27,19 @@ import {
   ISecretBackend,
   SecretBackendError
 } from '../types/secrets.types';
+// Mock импорты для Azure SDK
+import { 
+  SecretClient as MockSecretClient, 
+  KeyClient as MockKeyClient, 
+  CertificateClient as MockCertificateClient,
+  type SecretClientOptions as MockSecretClientOptions,
+  type KeyVaultKey,
+  type KeyVaultCertificate,
+  type CertificatePolicy,
+  type CertificateOperation,
+  type PollerLike,
+  type OperationState
+} from './azure.mock';
 
 /**
  * Интерфейс Azure Key Vault клиент
@@ -333,26 +346,23 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     if (this.isInitialized) {
       return;
     }
-    
+
     try {
-      // Динамический импорт Azure SDK
-      const { SecretClient, KeyClient, CertificateClient } = await this.loadAzureSDK();
-      
+      // Загрузка Azure SDK или моков
+      const { SecretClient, KeyClient, CertificateClient, DefaultAzureCredential, ClientSecretCredential, ClientCertificateCredential } = await this.loadAzureSDK();
+
       // Настройка credentials
-      let credential;
-      
+      let credential: any;
+
       if (this.config.useManagedIdentity) {
-        const { DefaultAzureCredential } = await import('@azure/identity');
         credential = new DefaultAzureCredential();
       } else if (this.config.clientSecret) {
-        const { ClientSecretCredential } = await import('@azure/identity');
         credential = new ClientSecretCredential(
           this.config.tenantId,
           this.config.clientId,
           this.config.clientSecret
         );
       } else if (this.config.certificatePath) {
-        const { ClientCertificateCredential } = await import('@azure/identity');
         credential = new ClientCertificateCredential(
           this.config.tenantId,
           this.config.clientId,
@@ -364,10 +374,10 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
           this.type
         );
       }
-      
+
       // Создание клиента
       this.client = {
-        // Реализация через Azure SDK
+        // Реализация через Azure SDK или моки
         getSecret: async (vaultUrl, secretName, secretVersion) => {
           const client = new SecretClient(vaultUrl, credential);
           return client.getSecret(secretName, { version: secretVersion });
@@ -439,7 +449,7 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
         setAccessPolicy: async () => {},
         close: () => {}
       } as unknown as KeyVaultClient;
-      
+
       // Проверка подключения
       await this.healthCheck();
 
@@ -462,21 +472,43 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
   /**
    * Загрузка Azure SDK
    */
-  private async loadAzureSDK(): Promise<Record<string, unknown>> {
+  private async loadAzureSDK(): Promise<{
+    SecretClient: typeof MockSecretClient;
+    KeyClient: typeof MockKeyClient;
+    CertificateClient: typeof MockCertificateClient;
+    DefaultAzureCredential: any;
+    ClientSecretCredential: any;
+    ClientCertificateCredential: any;
+  }> {
     try {
+      // Пытаемся загрузить реальный Azure SDK
       const keyvault = await import('@azure/keyvault-secrets');
       const identity = await import('@azure/identity');
-      return { ...keyvault, ...identity };
+      return { 
+        SecretClient: keyvault.SecretClient, 
+        KeyClient: keyvault.KeyClient, 
+        CertificateClient: keyvault.CertificateClient,
+        DefaultAzureCredential: identity.DefaultAzureCredential,
+        ClientSecretCredential: identity.ClientSecretCredential,
+        ClientCertificateCredential: identity.ClientCertificateCredential
+      };
     } catch (error) {
       logger.warn('[AzureKeyVaultBackend] Azure SDK не найден, используется mock режим');
 
+      // Mock credentials
+      class MockCredential {
+        async getToken(): Promise<any> {
+          return { token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 };
+        }
+      }
+
       return {
-        SecretClient: class {},
-        KeyClient: class {},
-        CertificateClient: class {},
-        DefaultAzureCredential: class {},
-        ClientSecretCredential: class {},
-        ClientCertificateCredential: class {}
+        SecretClient: MockSecretClient,
+        KeyClient: MockKeyClient,
+        CertificateClient: MockCertificateClient,
+        DefaultAzureCredential: MockCredential,
+        ClientSecretCredential: MockCredential,
+        ClientCertificateCredential: MockCredential
       };
     }
   }

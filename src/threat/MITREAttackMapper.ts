@@ -1124,8 +1124,3 @@ interface MitreStatistics {
   tacticsDetected: Set<string>;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { MITREAttackMapper };

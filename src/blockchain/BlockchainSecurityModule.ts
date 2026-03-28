@@ -65,7 +65,7 @@ export class BlockchainSecurityModule extends EventEmitter {
 
     this.config = {
       postQuantum: config.postQuantum ?? { enabled: true, algorithm: 'CRYSTALS-Dilithium', hybridMode: true },
-      zeroKnowledge: config.zeroKnowledge ?? { enabled: true, provider: 'circom', proofSystem: 'Groth16' },
+      zeroKnowledge: config.zeroKnowledge ?? { enabled: true, provider: 'circom', proofSystem: 'groth16' },
       mevProtection: config.mevProtection ?? { enabled: true, mode: 'AGGRESSIVE', flashbotsEnabled: true, commitRevealEnabled: true },
       contractVerification: config.contractVerification ?? { enabled: true, prover: 'Z3', autoVerify: true },
       bridgeSecurity: config.bridgeSecurity ?? { enabled: true, zkVerification: true, multiSigThreshold: '5-of-9', insuranceEnabled: true },

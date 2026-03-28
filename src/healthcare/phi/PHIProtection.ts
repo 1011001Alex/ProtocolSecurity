@@ -376,7 +376,7 @@ export class PHIProtection extends EventEmitter {
 
     // Удаление прямых идентификаторов кроме дат
     for (const field of DIRECT_IDENTIFIERS) {
-      if (field !== 'dateOfBirth' && deidentifiedData.demographics?.[field]) {
+      if (field !== 'dateOfBirth' && limitedDataSet.demographics?.[field]) {
         delete limitedDataSet.demographics[field];
       }
     }

@@ -11,13 +11,15 @@
 import {
   HealthCheckService,
   getHealthCheckService,
-  resetHealthCheckService,
-  HealthCheckConfig,
+  resetHealthCheckService
+} from '../../src/health/HealthCheckService';
+import {
   HealthStatus,
   ComponentType,
   DEFAULT_HEALTH_CHECK_CONFIG,
-  DEFAULT_HEALTH_CHECK_OPTIONS
-} from '../../src/health/HealthCheckService';
+  DEFAULT_HEALTH_CHECK_OPTIONS,
+  type HealthCheckConfig
+} from '../../src/health/HealthCheckTypes';
 import { CircuitBreakerManager, CircuitBreaker } from '../../src/utils/CircuitBreaker';
 import { PerformanceMonitor } from '../../src/utils/PerformanceMonitor';
 
@@ -724,6 +726,9 @@ describe('HealthCheckService', () => {
     it('должен останавливать периодические проверки', async () => {
       const testService = new HealthCheckService();
 
+      // Выполняем проверку перед остановкой
+      await testService.performHealthCheck();
+      
       testService.start();
       // Даем время на выполнение первой проверки
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -808,7 +813,8 @@ describe('HealthCheckService', () => {
 
       // Проверяем, что результат обновился (новый timestamp)
       expect(result2).toBeDefined();
-      expect(result2.summary.timestamp).toBeGreaterThan(result1.summary.timestamp);
+      expect(result1).toBeDefined();
+      expect(result2.timestamp.getTime()).toBeGreaterThan(result1.timestamp.getTime());
     });
   });
 

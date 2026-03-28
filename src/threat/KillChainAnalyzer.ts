@@ -694,8 +694,3 @@ interface KillChainStatistics {
   averageTimeToComplete: number;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { KillChainAnalyzer };

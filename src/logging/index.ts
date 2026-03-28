@@ -13,7 +13,7 @@
  */
 
 import { SecureLogger, LoggerFactory } from './Logger';
-import { SecurityContextLogger, securityLogger } from './SecurityContextLogger';
+import { securityLogger } from './SecurityContextLogger';
 import {
   RequestContextManager,
   RequestContextManagerInstance,
@@ -48,12 +48,12 @@ const defaultLoggerConfig: LoggerConfig = {
   level: LogLevel.DEBUG,
   format: 'structured',
   enableColors: true,
-  enableTimestamps: true,
-  includeStackTrace: false,
-  maxLogSize: 1024 * 1024, // 1MB
+  enableTimestamp: true,
+  enableProcessInfo: true,
   transports: [
     {
       type: 'console',
+      level: LogLevel.DEBUG,
       params: {}
     }
   ]
@@ -64,12 +64,19 @@ const defaultLoggerConfig: LoggerConfig = {
  */
 const defaultGlobalConfig: GlobalConfig = {
   serviceName: 'protocol',
-  environment: 'development',
+  environment: (process.env.NODE_ENV as 'development' | 'staging' | 'production') || 'development',
   region: 'local',
   version: '1.0.0',
+  timezone: 'UTC',
+  enableAudit: true,
+  enableDebug: process.env.NODE_ENV !== 'production',
+  traceSampleRate: 1,
+  maxLogSize: 1024 * 1024,
+  enableRateLimiting: true,
   rateLimiting: {
     maxAlerts: 100,
-    suppressionWindow: 60000
+    periodSeconds: 60,
+    action: 'suppress'
   }
 };
 
@@ -247,10 +254,11 @@ export function trace(
 // ЭКСПОРТЫ
 // ============================================================================
 
+export type { LogSource };
+
 export {
   SecureLogger,
   LoggerFactory,
-  SecurityContextLogger,
   securityLogger,
   RequestContextManager,
   RequestContextManagerInstance,
@@ -263,9 +271,15 @@ export {
   setRequestUserId,
   setRequestSessionId,
   runInRequestContext,
+  RequestContext
+};
+
+export type {
   RequestContext,
   LogLevel,
-  LogSource
+  LogContext,
+  LoggerConfig,
+  GlobalConfig
 };
 
 export default getLogger;

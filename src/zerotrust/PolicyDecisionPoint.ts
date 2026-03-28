@@ -180,6 +180,14 @@ export class PolicyDecisionPoint extends EventEmitter {
   }
 
   /**
+   * Добавить политику доступа
+   */
+  public addPolicy(policy: AccessPolicyRule): void {
+    this.policies.set(policy.id, policy);
+    this.emit('policy:added', { policy });
+  }
+
+  /**
    * Регистрация политики доступа
    */
   registerPolicy(policy: AccessPolicyRule): void {
@@ -616,12 +624,21 @@ export class PolicyDecisionPoint extends EventEmitter {
     let decision = PolicyDecision.ALLOW;
     let reason = 'Access granted by default policy';
     const appliedPolicies: string[] = [];
+    const appliedRules: Array<{ ruleId: string; ruleName: string; effect: 'ALLOW' | 'DENY' }> = [];
+    const factors: Array<{ name: string; value: string | number | boolean; weight: number; impact: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL' }> = [];
 
     // Если нет политик — разрешаем по умолчанию
     if (this.policies.size === 0) {
       evaluationSteps.push('No policies registered, allowing by default');
       return {
+        evaluationId: uuidv4(),
+        evaluatedAt: new Date(),
         decision,
+        trustLevel,
+        appliedRules: [],
+        factors,
+        restrictions: {},
+        recommendations: [],
         reason,
         appliedPolicies,
         evaluationSteps,
@@ -635,35 +652,125 @@ export class PolicyDecisionPoint extends EventEmitter {
     // Оценка каждой политики
     for (const [policyId, policy] of this.policies.entries()) {
       const matches = this.evaluatePolicyConditions(policy, context, trustLevel);
-      
+
       if (matches) {
         appliedPolicies.push(policyId);
+        appliedRules.push({
+          ruleId: policy.id,
+          ruleName: policy.name,
+          effect: policy.effect
+        });
         evaluationSteps.push(`Policy ${policyId} matched`);
 
         if (policy.effect === 'DENY') {
           decision = PolicyDecision.DENY;
           reason = `Access denied by policy ${policyId}`;
           evaluationSteps.push(`Policy ${policyId} denies access`);
+          factors.push({
+            name: `policy:${policyId}`,
+            value: policy.effect,
+            weight: 100,
+            impact: 'NEGATIVE'
+          });
           break; // DENY имеет приоритет
         } else if (policy.effect === 'ALLOW') {
-          if (decision !== PolicyDecision.DENY) {
+          if (decision === PolicyDecision.ALLOW) {
             decision = PolicyDecision.ALLOW;
             reason = `Access granted by policy ${policyId}`;
+            factors.push({
+              name: `policy:${policyId}`,
+              value: policy.effect,
+              weight: 50,
+              impact: 'POSITIVE'
+            });
           }
         }
       }
     }
 
+    // Добавляем фактор уровня доверия
+    factors.push({
+      name: 'trustLevel',
+      value: TrustLevel[trustLevel],
+      weight: 30,
+      impact: trustLevel >= TrustLevel.MEDIUM ? 'POSITIVE' : 'NEUTRAL'
+    });
+
+    // Добавляем фактор риска
+    factors.push({
+      name: 'riskScore',
+      value: riskAssessment.score,
+      weight: 40,
+      impact: riskAssessment.score < 30 ? 'POSITIVE' : riskAssessment.score < 70 ? 'NEUTRAL' : 'NEGATIVE'
+    });
+
     return {
+      evaluationId: uuidv4(),
+      evaluatedAt: new Date(),
       decision,
+      trustLevel,
+      appliedRules,
+      factors,
+      restrictions: this.buildRestrictions(decision, trustLevel, riskAssessment),
+      recommendations: this.buildRecommendations(decision, trustLevel, riskAssessment),
       reason,
       appliedPolicies,
       evaluationSteps,
       metadata: {
-        policyId: appliedPolicies.join(','),
+        policyId: appliedPolicies.length > 0 ? appliedPolicies.join(',') : 'default',
         timestamp: new Date()
       }
     };
+  }
+
+  /**
+   * Построение ограничений доступа
+   */
+  private buildRestrictions(
+    decision: PolicyDecision,
+    trustLevel: TrustLevel,
+    riskAssessment: RiskAssessment
+  ): PolicyEvaluationResult['restrictions'] {
+    const restrictions: PolicyEvaluationResult['restrictions'] = {};
+
+    if (decision === PolicyDecision.ALLOW_RESTRICTED || decision === PolicyDecision.REQUIRE_STEP_UP) {
+      restrictions.requireStepUp = decision === PolicyDecision.REQUIRE_STEP_UP;
+      
+      if (trustLevel < TrustLevel.MEDIUM) {
+        restrictions.timeLimit = 1800; // 30 минут
+      }
+      
+      if (riskAssessment.score > 50) {
+        restrictions.operationLimit = [PolicyOperation.READ];
+      }
+    }
+
+    return restrictions;
+  }
+
+  /**
+   * Построение рекомендаций
+   */
+  private buildRecommendations(
+    decision: PolicyDecision,
+    trustLevel: TrustLevel,
+    riskAssessment: RiskAssessment
+  ): string[] {
+    const recommendations: string[] = [];
+
+    if (trustLevel < TrustLevel.LOW) {
+      recommendations.push('Consider enabling MFA for higher trust level');
+    }
+
+    if (riskAssessment.score > 70) {
+      recommendations.push('High risk detected - additional monitoring recommended');
+    }
+
+    if (decision === PolicyDecision.DENY) {
+      recommendations.push('Review access policy or contact administrator');
+    }
+
+    return recommendations;
   }
 
   /**
@@ -698,17 +805,17 @@ export class PolicyDecisionPoint extends EventEmitter {
   ): boolean {
     switch (condition.attribute) {
       case 'subjectType':
-        return condition.operator === 'equals'
+        return condition.operator === 'EQ'
           ? context.identity.subjectType === condition.value
           : context.identity.subjectType !== condition.value;
 
       case 'resourceType':
-        return condition.operator === 'equals'
+        return condition.operator === 'EQ'
           ? context.resourceType === condition.value
           : context.resourceType !== condition.value;
 
       case 'operation':
-        return condition.operator === 'equals'
+        return condition.operator === 'EQ'
           ? context.operation === condition.value
           : context.operation !== condition.value;
 
@@ -719,14 +826,15 @@ export class PolicyDecisionPoint extends EventEmitter {
       case 'timeOfDay':
         if (!this.config.enableTemporalConstraints) return true;
         const hour = context.temporalContext.hourOfDay;
-        const [startHour, endHour] = condition.value as [number, number];
+        const timeRange = condition.value as unknown as [number, number];
+        const [startHour, endHour] = timeRange;
         return hour >= startHour && hour < endHour;
 
       case 'dayOfWeek':
         if (!this.config.enableTemporalConstraints) return true;
         const day = context.temporalContext.dayOfWeek;
-        const days = condition.value as number[];
-        return days.includes(day);
+        const daysArray = condition.value as unknown as number[];
+        return daysArray.includes(day);
 
       case 'sourceIp':
         if (!this.config.enableNetworkConstraints) return true;
@@ -736,7 +844,7 @@ export class PolicyDecisionPoint extends EventEmitter {
       case 'deviceHealth':
         if (!this.config.enableDevicePostureEnforcement) return true;
         const healthStatus = context.devicePosture?.healthStatus;
-        return condition.operator === 'equals'
+        return condition.operator === 'EQ'
           ? healthStatus === condition.value
           : healthStatus !== condition.value;
 
@@ -785,44 +893,47 @@ export class PolicyDecisionPoint extends EventEmitter {
     // Если ограничения не прошли — DENY
     if (!constraintsPass) {
       return {
+        responseId: uuidv4(),
+        decidedAt: new Date(),
         decision: PolicyDecision.DENY,
         reason: 'Security constraints not satisfied',
         trustLevel,
         riskAssessment,
-        metadata: {
-          policyId: 'constraints',
-          evaluationSteps: ['Constraints evaluation failed'],
-          timestamp: new Date()
-        }
+        appliedRules: policyResult.appliedRules,
+        restrictions: policyResult.restrictions,
+        recommendations: ['Resolve security constraint violations before requesting access again']
       };
     }
 
     // Проверка на step-up аутентификацию
     if (this.requiresStepUpAuth(trustLevel, riskAssessment)) {
       return {
+        responseId: uuidv4(),
+        decidedAt: new Date(),
         decision: PolicyDecision.REQUIRE_STEP_UP,
         reason: 'Step-up authentication required due to risk factors',
         trustLevel,
         riskAssessment,
-        metadata: {
-          policyId: 'step_up',
-          evaluationSteps: ['Step-up authentication required'],
-          timestamp: new Date()
-        }
+        appliedRules: policyResult.appliedRules,
+        restrictions: {
+          ...policyResult.restrictions,
+          requireStepUp: true
+        },
+        recommendations: ['Complete step-up authentication to proceed']
       };
     }
 
     // Возвращаем решение политик
     return {
+      responseId: uuidv4(),
+      decidedAt: new Date(),
       decision: policyResult.decision,
       reason: policyResult.reason,
       trustLevel,
       riskAssessment,
-      metadata: {
-        policyId: policyResult.appliedPolicies.join(','),
-        evaluationSteps: policyResult.evaluationSteps,
-        timestamp: new Date()
-      }
+      appliedRules: policyResult.appliedRules,
+      restrictions: policyResult.restrictions,
+      recommendations: policyResult.recommendations
     };
   }
 
@@ -891,9 +1002,15 @@ export class PolicyDecisionPoint extends EventEmitter {
     const ttl = this.cache.defaultTtl * 1000;
     this.cache.decisions.set(cacheKey, {
       result: {
+        evaluationId: uuidv4(),
+        evaluatedAt: new Date(),
         decision: decision.decision,
-        reason: decision.reason,
-        metadata: decision.metadata
+        trustLevel,
+        appliedRules: decision.appliedRules || [],
+        factors: [],
+        restrictions: decision.restrictions || {},
+        recommendations: decision.recommendations || [],
+        reason: decision.reason
       },
       cachedAt: new Date(),
       expiresAt: new Date(Date.now() + ttl)

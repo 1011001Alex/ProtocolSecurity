@@ -668,15 +668,15 @@ export class BaselineManager extends EventEmitter {
         };
       }
       
-      const data = JSON.stringify({
+      const signatureData = {
         id: baseline.id,
         version: baseline.version,
         baselineHash: baseline.baselineHash,
         merkleRoot: baseline.merkleRoot,
         createdAt: baseline.createdAt.toISOString()
-      });
-      
-      const verifyResult = await this.signer.verify(data, baseline.signature);
+      };
+
+      const verifyResult = await this.signer.verify(JSON.stringify(signatureData), baseline.signature);
       
       return {
         success: verifyResult.success,

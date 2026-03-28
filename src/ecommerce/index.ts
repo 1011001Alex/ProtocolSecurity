@@ -5,7 +5,7 @@
  */
 
 export { EcommerceSecurityModule, createEcommerceSecurityModule } from './EcommerceSecurityModule';
-export { EcommerceSecurityConfig } from './types/ecommerce.types';
+export type { EcommerceSecurityConfig } from './types/ecommerce.types';
 
 // Bot Protection
 export { BotProtection } from './BotProtection';

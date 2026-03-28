@@ -167,9 +167,9 @@ export class ArtifactSigner extends EventEmitter {
   
   /** Кэшированный сертификат Fulcio */
   private cachedCertificate: string | null = null;
-  
+
   /** Приватный ключ для подписания (ephemeral) */
-  private ephemeralKeyPair: crypto.KeyPairObject | null = null;
+  private ephemeralKeyPair: crypto.KeyPairKeyObject | null = null;
 
   /**
    * Создает экземпляр ArtifactSigner

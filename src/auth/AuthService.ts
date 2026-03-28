@@ -32,7 +32,8 @@ import { RateLimiterService, createRateLimiterService } from './RateLimiter';
 import { DeviceFingerprintService, createDeviceFingerprintService } from './DeviceFingerprint';
 import { RBACService, createRBACService } from './RBACService';
 import { ABACService, createABACService } from './ABACService';
-import { SecureLogger, LogSource } from '../logging/Logger';
+import { SecureLogger } from '../logging/Logger';
+import type { LogSource } from '../types/logging.types';
 
 /**
  * Конфигурация AuthService
@@ -172,9 +173,14 @@ export class AuthService {
    */
   constructor(config: AuthServiceConfig = DEFAULT_CONFIG) {
     this.config = config;
-    
-    // Инициализация подсервисов
-    this.passwordService = createPasswordService();
+
+    // Инициализация подсервисов с правильной конфигурацией
+    this.passwordService = createPasswordService({
+      algorithm: 'argon2id',
+      memoryCost: 65536,
+      timeCost: 3,
+      parallelism: 4,
+    });
     this.jwtService = createJwtService({
       issuer: config.issuer,
       audience: config.audience,
@@ -195,10 +201,26 @@ export class AuthService {
     this.rateLimiter = createRateLimiterService({
       redis: config.redis,
     });
-    this.deviceFingerprint = createDeviceFingerprintService();
-    this.rbacService = createRBACService();
-    this.abacService = createABACService();
-    
+    this.deviceFingerprint = createDeviceFingerprintService({
+      minMatchScore: 0.7,
+      fingerprintTTL: 90,
+      trustThreshold: 0.85,
+    });
+    this.rbacService = createRBACService({
+      keyPrefix: 'protocol:rbac:',
+      enableRoleInheritance: true,
+      enableRoleConstraints: true,
+      enableCaching: true,
+      cacheTTL: 60,
+    });
+    this.abacService = createABACService({
+      keyPrefix: 'protocol:abac:',
+      enableLogging: true,
+      enableCaching: true,
+      cacheTTL: 60,
+      combiningAlgorithm: 'deny_overrides',
+    });
+
     // Инициализация соединений
     this.initialize();
   }
@@ -212,7 +234,7 @@ export class AuthService {
       await Promise.all([
         this.sessionManager.initialize(),
         this.rateLimiter.initialize(),
-        this.jwtService.initialize(),
+        this.jwtService.initializeBlacklist(),
       ]);
       logger.info('[AuthService] Все сервисы инициализированы');
     } catch (error) {
@@ -540,7 +562,6 @@ export class AuthService {
       languages: [],
       timezone: 'UTC',
       ipAddress: input.ipAddress,
-      deviceFingerprint: input.deviceFingerprint,
     });
 
     // Проверка на account takeover
@@ -733,7 +754,7 @@ export class AuthService {
         const verifyResult = this.mfService.verifyBackupCode(code, backupCodes);
         if (verifyResult.valid && verifyResult.usedCodeId) {
           // Помечаем код как использованный
-          const codeIndex = backupCodes.findIndex(c => c.id === verifyResult.usedCodeId);
+          const codeIndex = backupCodes.findIndex((c: any) => c.id === verifyResult.usedCodeId);
           if (codeIndex !== -1) {
             backupCodes[codeIndex].used = true;
           }

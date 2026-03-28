@@ -301,7 +301,7 @@ export class SBOMGenerator extends EventEmitter {
     packageJsonPath: string,
     packageJson: PackageJSON,
     includeVulnerabilities: boolean
-  ): Promise<SBOBOMComponent[]> {
+  ): Promise<SBOMComponent[]> {
     const components: SBOMComponent[] = [];
     const projectDir = path.dirname(packageJsonPath);
     
@@ -409,7 +409,7 @@ export class SBOMGenerator extends EventEmitter {
   private async extractFromLockFile(
     lockData: PackageLock,
     projectDir: string
-  ): Promise<SBOBOMComponent[]> {
+  ): Promise<SBOMComponent[]> {
     const components: SBOMComponent[] = [];
     
     // Обрабатываем новый формат (lockfileVersion >= 2)
@@ -543,7 +543,7 @@ export class SBOMGenerator extends EventEmitter {
   private async extractFromPackageJson(
     packageJson: PackageJSON,
     projectDir: string
-  ): Promise<SBOBOMComponent[]> {
+  ): Promise<SBOMComponent[]> {
     const components: SBOMComponent[] = [];
     
     const allDeps: Record<string, string> = {

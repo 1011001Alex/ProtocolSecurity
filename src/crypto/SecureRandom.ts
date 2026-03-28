@@ -502,10 +502,11 @@ export class SecureRandom {
     if (!buffer || buffer.length === 0) {
       return;
     }
-    
-    // Используем crypto.privateFill для гарантированной записи
+
+    // Используем Buffer.fill для гарантированной записи нулей
     try {
-      crypto.privateFill(buffer, 0);
+      const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+      buf.fill(0);
     } catch {
       // Fallback: многократная перезапись для защиты от оптимизаций
       for (let i = 0; i < buffer.length; i++) {
@@ -518,7 +519,7 @@ export class SecureRandom {
         buffer[i] = 0;
       }
     }
-    
+
     this.stats.zeroOperations++;
   }
 

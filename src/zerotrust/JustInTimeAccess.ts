@@ -660,6 +660,8 @@ export class JustInTimeAccess extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'JIT_ACCESS_REQUESTED',
@@ -669,15 +671,15 @@ export class JustInTimeAccess extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[JIT] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[JIT] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

@@ -94,7 +94,7 @@ export class HashService {
         outputLength: hashBuffer.length,
       };
     } catch (error) {
-      throw this.createError('HASH_COMPUTATION_FAILED', `Ошибка вычисления хэша: ${error}`);
+      throw this.createError(CryptoErrorCode.HASH_COMPUTATION_FAILED, `Ошибка вычисления хэша: ${error}`);
     }
   }
 
@@ -162,7 +162,7 @@ export class HashService {
       
       return new Uint8Array(hmacBuffer);
     } catch (error) {
-      throw this.createError('HASH_COMPUTATION_FAILED', `Ошибка вычисления HMAC: ${error}`);
+      throw this.createError(CryptoErrorCode.HASH_COMPUTATION_FAILED, `Ошибка вычисления HMAC: ${error}`);
     }
   }
 
@@ -204,15 +204,16 @@ export class HashService {
     return new Promise((resolve, reject) => {
       const hashInstance = createHash(nodeAlgorithm);
       let totalBytes = 0;
-      
-      const stream = fs.createReadStream(filePath, { 
-        highWaterMark: chunkSize,
-        encoding: null // Binary mode
+
+      const stream = fs.createReadStream(filePath, {
+        highWaterMark: chunkSize
+        // Binary mode по умолчанию для createReadStream
       });
-      
-      stream.on('data', (chunk: Buffer) => {
-        totalBytes += chunk.length;
-        hashInstance.update(chunk);
+
+      stream.on('data', (chunk: Buffer | string) => {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        totalBytes += buffer.length;
+        hashInstance.update(buffer);
       });
       
       stream.on('end', () => {
@@ -229,7 +230,7 @@ export class HashService {
       });
       
       stream.on('error', (error) => {
-        reject(this.createError('HASH_COMPUTATION_FAILED', `Ошибка чтения файла: ${error}`));
+        reject(this.createError(CryptoErrorCode.HASH_COMPUTATION_FAILED, `Ошибка чтения файла: ${error}`));
       });
     });
   }
@@ -245,7 +246,7 @@ export class HashService {
     algorithm: HashAlgorithm = 'SHA-256'
   ): Promise<{ root: Uint8Array; leaves: Uint8Array[] }> {
     if (filePaths.length === 0) {
-      throw this.createError('INVALID_ARGUMENT', 'Список файлов не может быть пустым');
+      throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Список файлов не может быть пустым');
     }
     
     // Вычисляем хэши всех файлов (листья дерева)
@@ -318,21 +319,23 @@ export class HashService {
    */
   public hashChain(dataItems: (Uint8Array | string | Buffer)[], algorithm: HashAlgorithm = 'SHA-256'): Uint8Array {
     if (dataItems.length === 0) {
-      throw this.createError('INVALID_ARGUMENT', 'Список данных не может быть пустым');
+      throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Список данных не может быть пустым');
     }
-    
+
     let currentHash = this.hash(dataItems[0], algorithm).hash;
-    
+
     for (let i = 1; i < dataItems.length; i++) {
-      const combined = new Uint8Array(currentHash.length + dataItems[i].length);
+      const item = dataItems[i];
+      const itemBuffer = item instanceof Uint8Array ? Buffer.from(item) :
+                         Buffer.isBuffer(item) ? item :
+                         Buffer.from(String(item));
+      
+      const combined = new Uint8Array(currentHash.length + itemBuffer.length);
       combined.set(currentHash);
-      combined.set(
-        dataItems[i] instanceof Uint8Array ? dataItems[i] : new TextEncoder().encode(dataItems[i] as string),
-        currentHash.length
-      );
+      combined.set(itemBuffer, currentHash.length);
       currentHash = this.hash(combined, algorithm).hash;
     }
-    
+
     return currentHash;
   }
 
@@ -361,7 +364,7 @@ export class HashService {
   private validateAlgorithm(algorithm: string): void {
     if (!this.allowedAlgorithms.includes(algorithm as HashAlgorithm)) {
       throw this.createError(
-        'INVALID_ARGUMENT',
+        CryptoErrorCode.INVALID_ARGUMENT,
         `Алгоритм ${algorithm} не разрешен. Разрешены: ${this.allowedAlgorithms.join(', ')}`
       );
     }
@@ -400,7 +403,7 @@ export class HashService {
     if (typeof data === 'string') {
       return Buffer.from(data, 'utf8');
     }
-    throw this.createError('INVALID_ARGUMENT', 'Неподдерживаемый тип данных');
+    throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Неподдерживаемый тип данных');
   }
 
   /**

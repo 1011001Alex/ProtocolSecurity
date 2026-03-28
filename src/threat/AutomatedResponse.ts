@@ -1204,8 +1204,3 @@ interface AutomatedResponseStatistics {
   actionsByType: Map<string, number>;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { AutomatedResponseService };

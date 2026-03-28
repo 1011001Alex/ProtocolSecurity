@@ -4,7 +4,8 @@
  * ============================================================================
  */
 
-import { SecuritySeverity, ThreatCategory } from '../types';
+import { SecuritySeverity } from '../../logging/StructuredSecurityLogger';
+import { ThreatCategory } from '../../types/threat.types';
 
 /**
  * Конфигурация Finance Security Module
@@ -113,24 +114,27 @@ export interface TokenizedCard {
 export interface FraudScore {
   /** Overall fraud score (0.0 - 1.0) */
   score: number;
-  
+
   /** Risk level */
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  
+
   /** Risk factors */
   riskFactors: FraudRiskFactor[];
-  
+
   /** Recommended action */
   recommendedAction: 'APPROVE' | 'REVIEW' | 'BLOCK' | 'CHALLENGE';
-  
+
   /** Transaction ID */
   transactionId: string;
-  
+
   /** ML model confidence */
   confidence: number;
-  
+
   /** Explanation for humans */
   explanation: string;
+
+  /** Analysis timestamp */
+  analyzedAt: Date;
 }
 
 /**
@@ -159,31 +163,43 @@ export interface FraudRiskFactor {
 export interface TransactionData {
   /** Transaction ID */
   transactionId: string;
-  
+
   /** Amount */
   amount: number;
-  
+
   /** Currency */
   currency: string;
-  
+
   /** Card token or PAN */
   paymentMethod: string;
-  
+
   /** Merchant ID */
   merchantId: string;
-  
+
   /** Merchant category code (MCC) */
   merchantCategoryCode?: string;
-  
+
+  /** Merchant category (alias for MCC) */
+  merchantCategory?: string;
+
   /** Customer ID */
   customerId?: string;
-  
+
+  /** User ID (alias for customerId) */
+  userId?: string;
+
+  /** Card number (if available) */
+  cardNumber?: string;
+
+  /** Card present flag */
+  cardPresent?: boolean;
+
   /** IP address */
   ipAddress?: string;
-  
+
   /** Device fingerprint */
   deviceFingerprint?: string;
-  
+
   /** Geolocation */
   geolocation?: {
     latitude: number;
@@ -191,10 +207,18 @@ export interface TransactionData {
     country: string;
     city?: string;
   };
-  
+
+  /** Location (alias for geolocation) */
+  location?: {
+    latitude: number;
+    longitude: number;
+    country: string;
+    city?: string;
+  };
+
   /** Timestamp */
   timestamp: Date;
-  
+
   /** Transaction type */
   transactionType: 'PURCHASE' | 'REFUND' | 'WITHDRAWAL' | 'TRANSFER' | 'PAYMENT';
   
@@ -237,19 +261,19 @@ export interface AMLCheckResult {
 export interface SanctionsMatch {
   /** List name (OFAC, UN, EU) */
   listName: string;
-  
+
   /** Matched entity name */
   matchedName: string;
-  
+
   /** Match score (0.0 - 1.0) */
   matchScore: number;
-  
+
   /** Entity type */
-  entityType: 'INDIVIDUAL' | 'ORGANIZATION' | 'VESSEL' | 'AIRCRAFT';
-  
+  entityType: 'INDIVIDUAL' | 'ORGANIZATION' | 'VESSEL' | 'AIRCRAFT' | 'COUNTRY';
+
   /** List reference ID */
   referenceId: string;
-  
+
   /** Programs / sanctions programs */
   programs: string[];
 }

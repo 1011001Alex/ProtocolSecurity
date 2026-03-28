@@ -27,6 +27,7 @@ import { EventEmitter } from 'events';
  * Интерфейс для всех ML моделей
  */
 interface IMLModel {
+  modelId: string;
   train(data: TrainingData): Promise<ModelMetrics>;
   predict(input: Record<string, number>): Promise<MLPrediction>;
   predictBatch(inputs: Record<string, number>[]): Promise<MLPrediction[]>;
@@ -46,7 +47,7 @@ interface IMLModel {
 export class IsolationForest extends EventEmitter implements IMLModel {
   public modelId: string;
   public config: MLModelConfig;
-  public modelType: MLModelType = 'IsolationForest';
+  public modelType: MLModelType = MLModelType.ISOLATION_FOREST;
 
   // Параметры модели
   private nTrees: number = 100;
@@ -458,7 +459,7 @@ type IsolationTree =
 export class AutoencoderModel extends EventEmitter implements IMLModel {
   public modelId: string;
   public config: MLModelConfig;
-  public modelType: MLModelType = 'Autoencoder';
+  public modelType: MLModelType = MLModelType.AUTOENCODER;
 
   private model: tf.LayersModel | null = null;
   private inputDim: number = 0;
@@ -743,7 +744,7 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
 export class LSTMModel extends EventEmitter implements IMLModel {
   public modelId: string;
   public config: MLModelConfig;
-  public modelType: MLModelType = 'LSTM';
+  public modelType: MLModelType = MLModelType.LSTM;
 
   private model: tf.LayersModel | null = null;
   private sequenceLength: number = 0;
@@ -875,8 +876,8 @@ export class LSTMModel extends EventEmitter implements IMLModel {
       modelType: this.modelType,
       trainingTime: Date.now() - startTime,
       lastTrained: new Date(),
-      accuracy: finalAcc,
-      loss: finalLoss,
+      accuracy: typeof finalAcc === 'number' ? finalAcc : (finalAcc as tf.Tensor).dataSync()[0],
+      loss: typeof finalLoss === 'number' ? finalLoss : (finalLoss as tf.Tensor).dataSync()[0],
       trainingSamples: sequences.length,
       features: this.featureDim,
       hyperparameters: {
@@ -912,16 +913,16 @@ export class LSTMModel extends EventEmitter implements IMLModel {
     prediction.dispose();
 
     return {
+      modelId: this.modelId,
+      timestamp: new Date(),
+      input,
       prediction: isAnomaly ? 1 : 0,
       confidence: predValue,
+      isAnomaly,
+      anomalyScore: predValue,
       scores: {
         anomalyScore: predValue,
         threshold: this.anomalyThreshold
-      },
-      metadata: {
-        modelId: this.modelId,
-        modelType: this.modelType,
-        timestamp: new Date()
       }
     };
   }
@@ -1018,7 +1019,7 @@ export class LSTMModel extends EventEmitter implements IMLModel {
 export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
   public modelId: string;
   public config: MLModelConfig;
-  public modelType: MLModelType = 'NeuralNetwork';
+  public modelType: MLModelType = MLModelType.RANDOM_FOREST;
 
   private model: tf.LayersModel | null = null;
   private inputDim: number = 0;
@@ -1036,7 +1037,8 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
     super();
     this.modelId = config.modelId || uuidv4();
     this.config = config;
-    this.classLabels = config.hyperparameters.classLabels as string[] || [];
+    const labels = config.hyperparameters.classLabels;
+    this.classLabels = Array.isArray(labels) ? labels : [];
     this.numClasses = this.classLabels.length;
   }
 
@@ -1136,15 +1138,15 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
       modelType: this.modelType,
       trainingTime: Date.now() - startTime,
       lastTrained: new Date(),
-      accuracy: finalAcc,
-      loss: finalLoss,
+      accuracy: typeof finalAcc === 'number' ? finalAcc : (finalAcc as tf.Tensor).dataSync()[0],
+      loss: typeof finalLoss === 'number' ? finalLoss : (finalLoss as tf.Tensor).dataSync()[0],
       trainingSamples: data.features.length,
       features: this.inputDim,
       numClasses: this.numClasses,
       hyperparameters: {
         epochs: this.config.hyperparameters.epochs,
         batchSize: this.config.hyperparameters.batchSize,
-        classLabels: this.classLabels
+        classLabels: this.classLabels as unknown as string | number | boolean
       }
     };
 
@@ -1166,7 +1168,7 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
     const prediction = this.model!.predict(inputTensor) as tf.Tensor;
     const probabilities = prediction.dataSync();
 
-    const predictedClass = this.argmax(probabilities);
+    const predictedClass = this.argmax(new Float32Array(probabilities));
     const confidence = probabilities[predictedClass];
 
     const classProbabilities: Record<string, number> = {};
@@ -1178,13 +1180,13 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
     prediction.dispose();
 
     return {
+      modelId: this.modelId,
+      timestamp: new Date(),
+      input,
       prediction: predictedClass,
       confidence,
       scores: classProbabilities,
       metadata: {
-        modelId: this.modelId,
-        modelType: this.modelType,
-        timestamp: new Date(),
         predictedClass: this.classLabels[predictedClass]
       }
     };
@@ -1267,16 +1269,16 @@ export class MLModelManager extends EventEmitter {
     let model: IMLModel;
 
     switch (modelType) {
-      case 'IsolationForest':
+      case MLModelType.ISOLATION_FOREST:
         model = new IsolationForest(config);
         break;
-      case 'Autoencoder':
+      case MLModelType.AUTOENCODER:
         model = new AutoencoderModel(config);
         break;
-      case 'LSTM':
+      case MLModelType.LSTM:
         model = new LSTMModel(config);
         break;
-      case 'NeuralNetwork':
+      case MLModelType.RANDOM_FOREST:
         model = new NeuralNetworkClassifier(config);
         break;
       default:
@@ -1288,6 +1290,32 @@ export class MLModelManager extends EventEmitter {
 
     this.emit('model_created', { modelId: model.modelId, modelType });
     return model;
+  }
+
+  /**
+   * Регистрация существующей модели
+   */
+  registerModel(config: MLModelConfig): void {
+    const modelType = config.modelType;
+    let model: IMLModel;
+
+    switch (modelType) {
+      case MLModelType.ISOLATION_FOREST:
+        model = new IsolationForest(config);
+        break;
+      case MLModelType.AUTOENCODER:
+        model = new AutoencoderModel(config);
+        break;
+      case MLModelType.LSTM:
+        model = new LSTMModel(config);
+        break;
+      default:
+        throw new Error(`Unsupported model type for registration: ${modelType}`);
+    }
+
+    this.models.set(model.modelId, model);
+    this.modelRegistry.set(model.modelId, modelType);
+    this.emit('model_registered', { modelId: model.modelId, modelType });
   }
 
   /**
@@ -1351,12 +1379,98 @@ export class MLModelManager extends EventEmitter {
   }
 
   /**
+   * Сохранение всех моделей
+   */
+  async saveAllModels(directory: string): Promise<void> {
+    const fs = require('fs');
+    const pathMod = require('path');
+
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory, { recursive: true });
+    }
+
+    for (const [modelId, model] of this.models.entries()) {
+      const modelPath = pathMod.join(directory, modelId);
+      await model.save(modelPath);
+    }
+  }
+
+  /**
+   * Обучение всех моделей
+   */
+  async trainAllModels(trainingData: Map<string, TrainingData>): Promise<Map<string, ModelMetrics>> {
+    const results = new Map<string, ModelMetrics>();
+
+    for (const [modelId, model] of this.models.entries()) {
+      const data = trainingData.get(modelId);
+      if (data) {
+        const metrics = await model.train(data);
+        results.set(modelId, metrics);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Ensemble предсказание всеми моделями
+   */
+  async ensemblePredict(features: Record<string, number>): Promise<MLPrediction> {
+    const predictions: MLPrediction[] = [];
+
+    for (const model of this.models.values()) {
+      try {
+        const prediction = await model.predict(features);
+        predictions.push(prediction);
+      } catch (error) {
+        console.error(`Model ${model.modelId} prediction error:`, error);
+      }
+    }
+
+    if (predictions.length === 0) {
+      return {
+        modelId: 'ensemble',
+        timestamp: new Date(),
+        input: features,
+        prediction: 0,
+        confidence: 0,
+        isAnomaly: false,
+        anomalyScore: 0
+      };
+    }
+
+    // Усреднение предсказаний
+    const anomalyScores = predictions.map(p => p.anomalyScore || 0);
+    const avgScore = anomalyScores.reduce((a, b) => a + b, 0) / anomalyScores.length;
+    const avgConfidence = predictions.reduce((sum, p) => sum + p.confidence, 0) / predictions.length;
+
+    return {
+      modelId: 'ensemble',
+      timestamp: new Date(),
+      input: features,
+      prediction: avgScore > 0.5 ? 1 : 0,
+      confidence: avgConfidence,
+      isAnomaly: avgScore > 0.5,
+      anomalyScore: avgScore,
+      scores: {
+        averageScore: avgScore,
+        maxScore: Math.max(...anomalyScores),
+        minScore: Math.min(...anomalyScores)
+      }
+    };
+  }
+
+  /**
    * Загрузка модели
    */
   async loadModel(modelId: string, path: string, modelType: MLModelType): Promise<void> {
     const config: MLModelConfig = {
       modelId,
       modelType,
+      inputFeatures: [],
+      trainingWindow: 30,
+      retrainingInterval: 24,
+      threshold: 0.5,
       hyperparameters: {}
     };
 

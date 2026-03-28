@@ -193,7 +193,10 @@ export class IntegrityService extends EventEmitter {
     if (this.config.slsaRequirements) {
       this.slsaVerifier = SLSAVerifierFactory.createWithConfig({
         requiredLevel: this.config.slsaRequirements.requiredLevel,
-        requireProvenance: this.config.slsaRequirements.enforceProvenance
+        trustedBuilderIds: [],
+        requireReproducible: false,
+        requireTwoPersonReview: false,
+        hashAlgorithm: 'sha256'
       });
     } else {
       this.slsaVerifier = SLSAVerifierFactory.createForLevel3();

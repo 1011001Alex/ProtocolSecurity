@@ -846,8 +846,3 @@ interface CorrelationStatistics {
   truePositives: number;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { CorrelationEngine };

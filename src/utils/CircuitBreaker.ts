@@ -150,7 +150,7 @@ export class CircuitBreakerError extends Error {
     }
   }
 
-  public override get stack(): string {
+  public override get stack(): string | undefined {
     return super.stack;
   }
 }

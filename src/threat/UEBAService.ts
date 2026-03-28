@@ -16,6 +16,7 @@ import {
   SecurityEvent,
   SecurityAlert,
   ThreatSeverity,
+  ThreatStatus,
   ThreatCategory,
   AttackType,
   UEBAConfig,
@@ -297,32 +298,32 @@ export class UEBAService {
   /**
    * Обработка события безопасности
    */
-  async processEvent(event: SecurityEvent): Promise<SecurityAlert | null> {
+  async processEvent(event: SecurityEvent): Promise<SecurityAlert[]> {
     // Сохранение события в историю
     this.addToEventHistory(event);
-    
+
     // Определение сущности
     const entityId = this.extractEntityId(event);
     if (!entityId) {
-      return null;
+      return [];
     }
-    
+
     // Обновление профиля сущности
     await this.updateProfileFromEvent(entityId, event);
-    
+
     // Обнаружение аномалий
     const anomalyResult = await this.detectAnomalies(entityId, event);
-    
+
     if (anomalyResult.isAnomaly) {
       // Создание алерта
       const alert = this.createAnomalyAlert(entityId, event, anomalyResult);
-      
+
       this.statistics.anomaliesDetected++;
-      
-      return alert;
+
+      return [alert];
     }
-    
-    return null;
+
+    return [];
   }
 
   /**
@@ -704,7 +705,7 @@ export class UEBAService {
       title: `Обнаружена аномалия поведения: ${entityId}`,
       description: descriptions,
       severity,
-      status: 'new',
+      status: ThreatStatus.NEW,
       category: ThreatCategory.ANOMALY,
       attackType: AttackType.SUSPICIOUS_BEHAVIOR,
       source: 'UEBA',
@@ -1339,8 +1340,3 @@ interface UEBAStatistics {
   truePositives: number;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { UEBAService };

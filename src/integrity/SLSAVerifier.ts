@@ -140,14 +140,12 @@ export interface SLSAProvenancePredicate {
   allowedUsers?: string[];
   /** Разрешенные groups */
   allowedGroups?: string[];
-  /** Разрешенные capabilities */
+  /** Разрешенные seccomp */
   allowedSeccomp?: string;
   /** Разрешенные apparmor */
   allowedApparmor?: string;
   /** Разрешенные selinux */
   allowedSELinux?: string;
-  /** Разрешенные capabilities */
-  allowedCapabilities?: string[];
   /** Resolved dependencies */
   resolvedDependencies?: Array<{
     uri: string;

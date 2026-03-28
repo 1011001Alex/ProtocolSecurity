@@ -1703,6 +1703,364 @@ export interface IncidentSearchResult {
   sort?: IncidentSort;
 }
 
+// ============================================================================
+// ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСЫ ДЛЯ INCIDENT CLASSIFIER
+// ============================================================================
+
+/**
+ * Контекст классификации инцидента
+ */
+export interface ClassificationContext {
+  /** Детали инцидента */
+  details: IncidentDetails;
+  /** Затронутые системы */
+  affectedSystems: Array<{
+    id: string;
+    name: string;
+    type: string;
+    criticality: 'low' | 'medium' | 'high' | 'critical';
+    hasSensitiveData: boolean;
+    isPublicFacing: boolean;
+  }>;
+  /** Затронутые пользователи */
+  affectedUsers: Array<{
+    id: string;
+    username: string;
+    role: string;
+    accessLevel: string;
+    hasSensitiveDataAccess: boolean;
+  }>;
+  /** Затронутые данные */
+  affectedData: Array<{
+    type: string;
+    classification: DataClassification;
+    volume?: number;
+    recordCount?: number;
+  }>;
+  /** Время обнаружения */
+  detectedAt: Date;
+  /** Индикаторы компрометации */
+  iocs?: IOC[];
+  /** MITRE техники */
+  mitreTechniques?: string[];
+  /** Источник инцидента */
+  source?: string;
+  /** Вектор атаки */
+  attackVector?: string;
+}
+
+/**
+ * Результат классификации
+ */
+export interface ClassificationResult {
+  /** Категория инцидента */
+  category: IncidentCategory;
+  /** Подкатегория */
+  subCategory?: string;
+  /** Серьезность */
+  severity: IncidentSeverity;
+  /** Приоритет */
+  priority: IncidentPriority;
+  /** Оценка серьезности */
+  severityScore: SeverityScore;
+  /** Влияющие факторы */
+  influencingFactors: ClassificationFactor[];
+  /** Обоснование классификации */
+  rationale: string;
+  /** Рекомендуемые playbook */
+  recommendedPlaybooks: string[];
+  /** Требуется эскалация */
+  requiresEscalation: boolean;
+  /** SLA цели */
+  slaTargets?: SLATargets;
+}
+
+/**
+ * Фактор классификации
+ */
+export interface ClassificationFactor {
+  /** Название фактора */
+  name: string;
+  /** Описание */
+  description: string;
+  /** Категория фактора */
+  category: 'business_impact' | 'urgency' | 'complexity' | 'threat_intel' | 'context';
+  /** Вес фактора (0-1) */
+  weight: number;
+  /** Значение фактора (0-100) */
+  value: number;
+  /** Взвешенный балл */
+  weightedScore: number;
+  /** Источники данных для фактора */
+  dataSources: string[];
+  /** Уверенность в факторе (0-100) */
+  confidence: number;
+}
+
+// ============================================================================
+// ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСЫ ДЛЯ PLAYBOOK ENGINE
+// ============================================================================
+
+/**
+ * Конфигурация Playbook Engine
+ */
+export interface PlaybookEngineConfig {
+  /** Таймаут шага по умолчанию (мс) */
+  defaultStepTimeout: number;
+  /** Количество попыток по умолчанию */
+  defaultRetryCount: number;
+  /** Интервал между попытками по умолчанию (мс) */
+  defaultRetryInterval: number;
+  /** Разрешить параллельное выполнение шагов */
+  allowParallelSteps: boolean;
+  /** Автоматический rollback при ошибке */
+  autoRollbackOnError: boolean;
+  /** Требует одобрения для критических действий */
+  requiresApprovalForCritical: boolean;
+  /** Логирование */
+  enableLogging: boolean;
+  /** Максимальное количество одновременных playbook */
+  maxConcurrentPlaybooks: number;
+  /** Хранилище состояний */
+  stateStorage: 'memory' | 'redis' | 'database';
+}
+
+/**
+ * Контекст выполнения Playbook
+ */
+export interface PlaybookExecutionContext {
+  /** ID инцидента */
+  incidentId: string;
+  /** Инцидент */
+  incident: Incident;
+  /** ID выполнения playbook */
+  executionId: string;
+  /** Конфигурация playbook */
+  playbook: PlaybookConfiguration;
+  /** Текущий шаг */
+  currentStep?: PlaybookStep;
+  /** Выполненные шаги */
+  completedSteps: PlaybookStep[];
+  /** Ожидающие шаги */
+  pendingSteps: PlaybookStep[];
+  /** Проваленные шаги */
+  failedSteps: PlaybookStep[];
+  /** Пропущенные шаги */
+  skippedSteps: PlaybookStep[];
+  /** Переменные контекста */
+  variables: Record<string, unknown>;
+  /** Результат выполнения */
+  result?: PlaybookExecutionResult;
+  /** Кто инициировал */
+  initiatedBy: Actor;
+  /** Время начала */
+  startedAt: Date;
+  /** Время последнего обновления */
+  lastUpdatedAt: Date;
+  /** Статус выполнения */
+  status: 'running' | 'paused' | 'completed' | 'failed' | 'rolled_back';
+  /** Прогресс (0-100) */
+  progress: number;
+  /** Ошибки */
+  errors: string[];
+  /** Журнал выполнения */
+  executionLog: PlaybookExecutionLogEntry[];
+}
+
+/**
+ * Результат выполнения Playbook
+ */
+export interface PlaybookExecutionResult {
+  /** Успешно ли выполнено */
+  success: boolean;
+  /** Выходные данные */
+  output?: Record<string, unknown>;
+  /** Сообщение */
+  message?: string;
+  /** Артефакты */
+  artifacts: PlaybookArtifact[];
+  /** Метрики выполнения */
+  metrics: {
+    /** Время выполнения (мс) */
+    durationMs: number;
+    /** Количество выполненных шагов */
+    stepsCompleted: number;
+    /** Количество проваленных шагов */
+    stepsFailed: number;
+    /** Количество пропущенных шагов */
+    stepsSkipped: number;
+    /** Использованные ресурсы */
+    resourcesUsed?: string[];
+  };
+}
+
+/**
+ * Запись журнала выполнения Playbook
+ */
+export interface PlaybookExecutionLogEntry {
+  /** Временная метка */
+  timestamp: Date;
+  /** Уровень лога */
+  level: 'info' | 'warn' | 'error' | 'debug';
+  /** Сообщение */
+  message: string;
+  /** ID шага */
+  stepId?: string;
+  /** Детали */
+  details?: Record<string, unknown>;
+}
+
+// ============================================================================
+// ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСЫ ДЛЯ FORENSICS COLLECTOR
+// ============================================================================
+
+/**
+ * Контекст сбора форензика данных
+ */
+export interface ForensicsCollectionContext {
+  /** Инцидент */
+  incident: Incident;
+  /** Типы данных для сбора */
+  dataTypes: ForensicsDataType[];
+  /** Целевые системы */
+  targetSystems: string[];
+  /** Кто инициировал сбор */
+  initiatedBy: Actor;
+  /** Время инициации */
+  initiatedAt: Date;
+  /** Параметры сбора */
+  collectionParams?: {
+    /** Сжатие данных */
+    compressData: boolean;
+    /** Шифрование данных */
+    encryptData: boolean;
+    /** Ключ шифрования */
+    encryptionKey?: string;
+    /** Сохранять оригинальные имена файлов */
+    preserveFilenames: boolean;
+    /** Вычисляемые хэши */
+    hashAlgorithms: ('md5' | 'sha1' | 'sha256')[];
+  };
+  /** Прогресс сбора */
+  progress: number;
+  /** Собранные данные */
+  collectedData: CollectionResult[];
+  /** Ошибки сбора */
+  errors: string[];
+}
+
+/**
+ * Результат сбора данных
+ */
+export interface CollectionResult {
+  /** Тип собранных данных */
+  dataType: ForensicsDataType;
+  /** Успешно ли собрано */
+  success: boolean;
+  /** Путь к собранным данным */
+  location?: string;
+  /** Размер данных (байты) */
+  size?: number;
+  /** Хэши для целостности */
+  hashes: {
+    md5?: string;
+    sha1?: string;
+    sha256?: string;
+  };
+  /** Время сбора */
+  collectedAt: Date;
+  /** Кто собрал */
+  collectedBy: Actor;
+  /** Метод сбора */
+  collectionMethod: string;
+  /** Ошибки */
+  errors?: string[];
+  /** Метаданные */
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСЫ ДЛЯ TIMELINE RECONSTRUCTOR
+// ============================================================================
+
+/**
+ * Источник событий для временной шкалы
+ */
+export interface EventSource {
+  /** Уникальный идентификатор источника */
+  id: string;
+  /** Название источника */
+  name: string;
+  /** Тип источника */
+  type: 'log' | 'siem' | 'edr' | 'firewall' | 'ids' | 'manual' | 'api' | 'webhook';
+  /** URL или путь к источнику */
+  url?: string;
+  /** Параметры подключения */
+  connectionParams?: Record<string, unknown>;
+  /** Формат данных */
+  dataFormat: 'json' | 'syslog' | 'cef' | 'leef' | 'csv' | 'text';
+  /** Парсер данных */
+  parser?: string;
+  /** Фильтры событий */
+  eventFilters?: Array<{
+    field: string;
+    operator: 'equals' | 'contains' | 'regex' | 'gt' | 'lt';
+    value: unknown;
+  }>;
+  /** Маппинг полей */
+  fieldMapping?: Record<string, string>;
+  /** Включен ли источник */
+  enabled: boolean;
+  /** Интервал опроса (мс) */
+  pollingInterval?: number;
+  /** Последнее событие */
+  lastEventTimestamp?: Date;
+  /** Статистика источника */
+  stats?: {
+    eventsProcessed: number;
+    errors: number;
+    lastError?: string;
+  };
+}
+
+// ============================================================================
+// ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСЫ ДЛЯ INCIDENT REPORTER
+// ============================================================================
+
+/**
+ * Конфигурация Incident Reporter
+ */
+export interface IncidentReporterConfig {
+  /** Путь к хранилищу отчетов */
+  reportStoragePath: string;
+  /** Форматы отчетов */
+  outputFormats: ('pdf' | 'html' | 'markdown' | 'json' | 'docx')[];
+  /** Шаблоны отчетов */
+  templates: {
+    incidentDetail?: string;
+    executiveSummary?: string;
+    technicalAnalysis?: string;
+    complianceReport?: string;
+    lessonsLearned?: string;
+  };
+  /** Настройки PDF */
+  pdfSettings?: {
+    pageSize: 'A4' | 'Letter' | 'Legal';
+    orientation: 'portrait' | 'landscape';
+    includeHeader: boolean;
+    includeFooter: boolean;
+    includePageNumbers: boolean;
+  };
+  /** Логирование */
+  enableLogging: boolean;
+  /** Максимальный размер отчета (МБ) */
+  maxReportSizeMB: number;
+  /** Включить приложения */
+  includeAttachments: boolean;
+  /** Язык отчетов */
+  defaultLanguage: string;
+}
+
 /**
  * Фильтры для поиска инцидентов
  */
@@ -1811,30 +2169,3 @@ export interface PlaybookEffectiveness {
   rollbackCount: number;
 }
 
-/**
- * Экспорт для использования в других модулях
- */
-export {
-  IncidentLifecycleStage,
-  IncidentSeverity,
-  IncidentPriority,
-  IncidentCategory,
-  PlaybookStepStatus,
-  ContainmentActionType,
-  ForensicsDataType,
-  ChainOfCustodyStatus,
-  StakeholderType,
-  CommunicationChannel,
-  TimelineEventType,
-  MITREAttackTactic,
-  IncidentStatus,
-  DataClassification,
-  IOCType,
-  PlaybookStepCategory,
-  PlaybookActionType,
-  ConditionType,
-  ConditionOperator,
-  EvidenceCategory,
-  IntegrationType,
-  AuditEvent
-};

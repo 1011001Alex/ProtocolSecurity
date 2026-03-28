@@ -10,9 +10,12 @@ export {
   CircuitBreakerManager,
   CircuitBreakerError,
   CircuitState,
-  CircuitBreakerConfig,
-  CircuitBreakerStats,
   circuitBreaker
+} from './CircuitBreaker';
+
+export type {
+  CircuitBreakerConfig,
+  CircuitBreakerStats
 } from './CircuitBreaker';
 
 // Retry Handler
@@ -20,7 +23,10 @@ export {
   RetryHandler,
   RetryHandlerFactory,
   RetryError,
-  BackoffStrategy,
+  BackoffStrategy
+} from './RetryHandler';
+
+export type {
   RetryHandlerConfig,
   RetryStats
 } from './RetryHandler';
@@ -30,11 +36,14 @@ export {
   InputValidator,
   ValidationError,
   ValidationType,
-  ValidationResult,
-  ValidationContext,
-  ValidationRule,
   hashSensitiveData,
   maskSensitiveData
+} from './InputValidator';
+
+export type {
+  ValidationResult,
+  ValidationContext,
+  ValidationRule
 } from './InputValidator';
 
 // Performance Monitor
@@ -43,7 +52,10 @@ export {
   getPerformanceMonitor,
   profile,
   MetricType,
-  SeverityLevel,
+  SeverityLevel
+} from './PerformanceMonitor';
+
+export type {
   PerformanceMonitorConfig,
   SystemMetrics,
   CPUMetrics,

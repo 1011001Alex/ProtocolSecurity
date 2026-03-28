@@ -593,6 +593,8 @@ export class EgressFilter extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'DLP_EVENT',
@@ -602,15 +604,15 @@ export class EgressFilter extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[EF] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[EF] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

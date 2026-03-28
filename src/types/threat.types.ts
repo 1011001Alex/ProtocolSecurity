@@ -50,7 +50,13 @@ export enum ThreatCategory {
   COLLECTION = 'collection',              // Сбор данных
   COMMAND_AND_CONTROL = 'command_and_control',  // Управление
   EXFILTRATION = 'exfiltration',          // Хищение данных
-  IMPACT = 'impact'                       // Воздействие
+  IMPACT = 'impact',                      // Воздействие
+  EXPLOITATION = 'exploitation',          // Эксплуатация
+  ANOMALY = 'anomaly',                    // Аномалия
+  UNKNOWN = 'unknown',                    // Неизвестная категория
+  NETWORK = 'network',                    // Сетевая угроза
+  MALWARE = 'malware',                    // Вредоносное ПО
+  C2_COMMUNICATION = 'c2_communication'   // C2 коммуникация
 }
 
 /**
@@ -219,6 +225,8 @@ export interface MLPrediction {
   isAnomaly?: boolean;
   anomalyScore?: number;
   featureImportance?: Record<string, number>;
+  scores?: Record<string, number>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -236,6 +244,7 @@ export interface TrainingData {
  */
 export interface ModelMetrics {
   modelId: string;
+  modelType?: MLModelType;
   accuracy?: number;
   precision?: number;
   recall?: number;
@@ -245,6 +254,12 @@ export interface ModelMetrics {
   falseNegativeRate?: number;
   trainingTime: number;
   lastTrained: Date;
+  trainingSamples?: number;
+  features?: number;
+  hyperparameters?: Record<string, number | boolean | string>;
+  loss?: number;
+  confusionMatrix?: number[][];
+  rocCurve?: { falsePositiveRate: number; truePositiveRate: number }[];
 }
 
 // ============================================================================
@@ -731,7 +746,7 @@ export interface CorrelationRule {
 
 export interface CorrelationCondition {
   field: string;
-  operator: 'eq' | 'ne' | 'contains' | 'regex' | 'gt' | 'lt';
+  operator: 'eq' | 'ne' | 'contains' | 'regex' | 'gt' | 'lt' | 'gte' | 'lte' | 'in';
   value: unknown;
   sequence?: boolean;  // Последовательность событий
   sequenceOrder?: string[];  // Порядок событий
@@ -826,7 +841,7 @@ export interface RiskAdjustment {
  * Приоритизированный алерт
  */
 export interface PrioritizedAlert extends SecurityAlert {
-  riskScore: RiskScore;
+  riskScore: number;  // Числовой риск (0-100)
   priority: number;  // 1-5 (1 - наивысший)
   slaResponseTime: number;  // В минутах
   estimatedImpact: string;
@@ -900,6 +915,7 @@ export interface HuntStatistics {
   };
   topFindings: string[];
   anomaliesDetected: number;
+  lastUpdated: Date;
 }
 
 /**
@@ -1130,6 +1146,7 @@ export interface NetworkStatistics {
   uniqueDestinations: number;
   protocolDistribution: Record<string, number>;
   portDistribution: Record<string, number>;
+  beaconInterval?: number;
 }
 
 /**

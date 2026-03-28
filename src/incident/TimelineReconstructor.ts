@@ -588,8 +588,3 @@ interface TimelineSummary {
   totalDuration?: number;
   visualization?: string;
 }
-
-/**
- * Экспорт событий реконструктора
- */
-export { TimelineReconstructorEvent };

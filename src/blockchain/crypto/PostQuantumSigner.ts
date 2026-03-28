@@ -386,4 +386,12 @@ export class PostQuantumSigner extends EventEmitter {
       cachedKeys: this.keyCache.size
     };
   }
+
+  /**
+   * Очищает ресурсы
+   */
+  public async destroy(): Promise<void> {
+    this.keyCache.clear();
+    this.removeAllListeners();
+  }
 }

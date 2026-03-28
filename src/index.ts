@@ -11,9 +11,7 @@
 export {
   createApp,
   startServer,
-  createAppConfigFromEnv,
-  createCORSConfigFromEnv,
-  getCORSByMode
+  createAppConfigFromEnv
 } from './app';
 export type { AppConfig } from './app';
 
@@ -29,21 +27,14 @@ export type { CORSConfig } from './middleware/CORSMiddleware';
 
 export {
   createSecurityHeadersMiddleware,
-  SecurityHeadersMiddleware,
-  expressSecurityHeaders,
-  CSP_STRICT,
-  CSP_DEVELOPMENT,
-  DEFAULT_SECURITY_CONFIG
+  SecurityHeadersMiddleware
 } from './middleware/SecurityHeadersMiddleware';
 
 export {
   RateLimiter,
   createRateLimiter,
   createMemoryStore,
-  createRedisStore,
-  createGlobalRule,
   createPerIPRule,
-  createPerUserRule,
   createAPIRule,
   createAuthRule
 } from './middleware/RateLimitMiddleware';
@@ -74,8 +65,6 @@ export type {
 // ============================================================================
 export { HashChain, HashChainManager } from './integrity/HashChain';
 export type {
-  HashChainEntry,
-  HashChain,
   ChainData,
   HashChainConfig
 } from './integrity/HashChain';
@@ -109,9 +98,7 @@ export type {
 // ============================================================================
 export { FileIntegrityMonitor, FIMFactory } from './integrity/FileIntegrityMonitor';
 export type {
-  FIMOptions,
-  WatchedFileState,
-  DebounceTimer
+  FIMOptions
 } from './integrity/FileIntegrityMonitor';
 
 // ============================================================================
@@ -119,11 +106,7 @@ export type {
 // ============================================================================
 export { SBOMGenerator, SBOMGeneratorFactory } from './integrity/SBOMGenerator';
 export type {
-  SBOMGeneratorConfig,
-  PackageJSON,
-  PackageLock,
-  PackageLockEntry,
-  PackageLockDependency
+  SBOMGeneratorConfig
 } from './integrity/SBOMGenerator';
 
 // ============================================================================
@@ -164,8 +147,7 @@ export type {
 // ============================================================================
 export { BaselineManager } from './integrity/BaselineManager';
 export type {
-  BaselineManagerConfig,
-  BaselineStorage
+  BaselineManagerConfig
 } from './integrity/BaselineManager';
 
 // ============================================================================

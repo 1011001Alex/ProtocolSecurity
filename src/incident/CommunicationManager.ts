@@ -440,7 +440,7 @@ This notification is submitted in accordance with {{regulation}}.`,
       companyName: 'Protocol Inc.',
       accountReference: incident.id,
       incidentDescription: incident.description,
-      affectedData: incident.details.affectedData?.map(d => d.description).join(', ') || 'TBD',
+      affectedData: incident.details?.affectedData?.map(d => d.description).join(', ') || 'TBD',
       remediationActions: incident.containmentActions.map(a => a.name).join(', '),
       userActions: 'Please change your password and enable MFA',
       contactInfo: 'security@protocol.local',
@@ -683,8 +683,3 @@ This notification is submitted in accordance with {{regulation}}.`,
     };
   }
 }
-
-/**
- * Экспорт событий менеджера
- */
-export { CommunicationManagerEvent };

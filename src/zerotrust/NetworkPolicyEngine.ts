@@ -23,7 +23,8 @@ import {
   Identity,
   AuthContext,
   ResourceType,
-  PolicyOperation
+  PolicyOperation,
+  AccessRequest
 } from './zerotrust.types';
 import { PolicyDecisionPoint } from './PolicyDecisionPoint';
 import { MicroSegmentation } from './MicroSegmentation';
@@ -259,24 +260,49 @@ export class NetworkPolicyEngine extends EventEmitter {
     sourceIp: string;
   }): Promise<PolicyEvaluationResult> {
     this.stats.evaluationsPerformed++;
-    
+
     // Проверяем кэш
     if (this.config.enableCaching) {
       const cacheKey = this.getCacheKey(context);
       const cached = this.decisionCache.get(cacheKey);
-      
+
       if (cached && new Date() < cached.expiresAt) {
         this.stats.cacheHits++;
         this.log('NPE', 'Решение найдено в кэше', { cacheKey });
         return cached.decision;
       }
     }
-    
+
     let result: PolicyEvaluationResult;
-    
+
     // Используем PDP если установлен
     if (this.pdp) {
-      result = await this.pdp.evaluateAccess(context);
+      // Создаём полный AccessRequest для PDP
+      const accessRequest: AccessRequest = {
+        requestId: uuidv4(),
+        identity: context.identity,
+        authContext: context.authContext,
+        resourceType: context.resourceType,
+        resourceId: context.resourceId,
+        operation: context.operation,
+        sourceIp: context.sourceIp,
+        resourceName: context.resourceName,
+        metadata: {}
+      };
+      const response = await this.pdp.evaluateAccess(accessRequest);
+      
+      // Преобразуем AccessResponse в PolicyEvaluationResult
+      result = {
+        evaluationId: response.responseId,
+        evaluatedAt: response.decidedAt,
+        decision: response.decision,
+        trustLevel: response.trustLevel,
+        appliedRules: response.appliedRules || [],
+        factors: [],
+        restrictions: response.restrictions || {},
+        recommendations: response.recommendations || [],
+        reason: response.reason
+      };
     } else {
       // Fallback - простая оценка
       result = this.simpleEvaluate(context);
@@ -469,6 +495,8 @@ export class NetworkPolicyEngine extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'ACCESS_REQUEST',
@@ -478,15 +506,15 @@ export class NetworkPolicyEngine extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[NPE] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[NPE] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

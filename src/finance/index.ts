@@ -19,7 +19,7 @@
  */
 
 export { FinanceSecurityModule } from './FinanceSecurityModule';
-export { FinanceSecurityConfig } from './types/finance.types';
+export type { FinanceSecurityConfig } from './types/finance.types';
 
 // Payment Security
 export { PaymentCardEncryption } from './payment/PaymentCardEncryption';

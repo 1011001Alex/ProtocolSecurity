@@ -1124,3 +1124,36 @@ export interface SigningOptions {
   /** Включить timestamp */
   includeTimestamp: boolean;
 }
+
+// ============================================================================
+// TYPE ALIASES FOR BACKWARD COMPATIBILITY
+// ============================================================================
+// Эти псевдонимы используются для совместимости с legacy кодом
+
+export type MerkleTreeConfig = SigningKeyConfig;
+export type HashChainConfig = WatchConfig;
+export type CodeSignature = SignatureResult;
+export type SigningConfig = SigningKeyConfig;
+export type SigningResult = SignatureResult;
+export type ArtifactSignature = SignatureResult;
+export type SigstoreConfig = TransparencyLogConfig;
+export type FIMConfig = WatchConfig;
+export type FIMEvent = FileEvent;
+export type SBOM = SBOMDocument;
+export type SBOMConfig = SBOMMetadata;
+export type SupplyChainProof = SLSAProvenance;
+export type VerificationResult = SLSAVerificationResult;
+export type SLSAConfig = SLSAVerificationResult;
+export type Baseline = IntegrityBaseline;
+export type BaselineConfig = WatchConfig;
+export type RuntimeConfig = WatchConfig;
+export type RuntimeCheck = IntegrityViolation;
+export type ModificationEvent = FileEvent;
+export type DetectionConfig = WatchConfig;
+export type IntegrityConfig = IntegrityServiceConfig;
+export type IntegrityStatus = FIMStatus;
+export type IntegrityAlgorithm = HashAlgorithm;
+export type IntegrityLevel = SLSALevel;
+export type SigningKey = SigningKeyConfig;
+export type VerificationKey = SigningKeyConfig;
+export type IntegrityReport = FullIntegrityReport;

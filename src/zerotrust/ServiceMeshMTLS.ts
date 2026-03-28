@@ -563,7 +563,7 @@ export class ServiceMeshMTLS extends EventEmitter {
     
     // OCSP stapling
     if (this.config.enableOcspStapling) {
-      options.OCSPStapling = true;
+      (options as any).OCSPStapling = true;
     }
     
     return options;
@@ -733,6 +733,8 @@ export class ServiceMeshMTLS extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'CERTIFICATE_ISSUED',
@@ -742,15 +744,15 @@ export class ServiceMeshMTLS extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[mTLS] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[mTLS] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

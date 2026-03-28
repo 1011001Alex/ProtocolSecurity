@@ -319,8 +319,8 @@ export class SessionManager {
    */
   private generateRefreshToken(): string {
     // Формат: rt_<base64url random bytes>
-    const randomBytes = randomBytes(32);
-    return `rt_${randomBytes.toString('base64url')}`;
+    const randomData = randomBytes(32);
+    return `rt_${randomData.toString('base64url')}`;
   }
 
   /**
@@ -658,7 +658,7 @@ export class SessionManager {
     if (options?.addToBlacklist !== false && this.blacklist) {
       try {
         const ttl = this.config.sessionLifetime;
-        await this.blacklist.revokeUserTokens(userId, ttl, options.reason);
+        await this.blacklist.revokeUserTokens(userId, ttl, options?.reason || undefined);
         logger.info(`[SessionManager] Все токены пользователя ${userId} добавлены в blacklist`);
       } catch (error) {
         logger.error('[SessionManager] Ошибка добавления в blacklist', { error });

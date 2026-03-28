@@ -646,10 +646,10 @@ export class NetworkAccessControl extends EventEmitter {
       restrictions.vlanId = 10;
       appliedPolicies.push('standard_access');
     }
-    
+
     return {
       requestId: context.requestId,
-      allowed: accessType !== NetworkAccessType.DENY,
+      allowed: accessType === NetworkAccessType.FULL_ACCESS || accessType === NetworkAccessType.RESTRICTED_ACCESS,
       accessType,
       trustLevel,
       riskScore,
@@ -745,6 +745,8 @@ export class NetworkAccessControl extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'ACCESS_REQUEST',
@@ -754,15 +756,15 @@ export class NetworkAccessControl extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[NAC] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[NAC] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

@@ -148,6 +148,9 @@ export class PlaybookEngine extends EventEmitter {
   /** Активные выполнения playbook */
   private activeExecutions: Map<string, PlaybookExecution> = new Map();
 
+  /** Завершенные выполнения playbook (для тестов и аудита) */
+  private completedExecutions: Map<string, PlaybookExecution> = new Map();
+
   /** Классификатор для оценки инцидентов */
   private classifier: IncidentClassifier;
 
@@ -263,6 +266,7 @@ export class PlaybookEngine extends EventEmitter {
     // Создание выполнения
     const execution: PlaybookExecution = {
       id: this.generateExecutionId(),
+      createdAt: new Date(),
       incidentId: incident.id,
       configuration,
       currentStepId: undefined,
@@ -844,8 +848,9 @@ export class PlaybookEngine extends EventEmitter {
 
     this.log(`Playbook ${execution.configuration.name} завершен успешно`);
 
-    // Удаляем из активных
+    // Перемещаем из активных в завершенные
     this.activeExecutions.delete(execution.id);
+    this.completedExecutions.set(execution.id, execution);
   }
 
   /**
@@ -867,8 +872,9 @@ export class PlaybookEngine extends EventEmitter {
 
     this.log(`Playbook ${execution.configuration.name} провален: ${error?.message}`, 'error');
 
-    // Удаляем из активных
+    // Перемещаем из активных в завершенные
     this.activeExecutions.delete(execution.id);
+    this.completedExecutions.set(execution.id, execution);
   }
 
   /**
@@ -952,7 +958,13 @@ export class PlaybookEngine extends EventEmitter {
    * Получение статуса выполнения
    */
   public getExecutionStatus(executionId: string): PlaybookExecution | undefined {
-    return this.activeExecutions.get(executionId);
+    // Сначала проверяем активные выполнения
+    const activeExecution = this.activeExecutions.get(executionId);
+    if (activeExecution) {
+      return activeExecution;
+    }
+    // Если не найдено, проверяем завершенные
+    return this.completedExecutions.get(executionId);
   }
 
   /**
@@ -1331,8 +1343,3 @@ export class PlaybookEngine extends EventEmitter {
     };
   }
 }
-
-/**
- * Экспорт событий движка
- */
-export { PlaybookEngineEvent };

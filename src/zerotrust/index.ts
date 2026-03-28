@@ -1,8 +1,8 @@
 /**
  * Zero Trust Network Architecture - Index
- * 
+ *
  * Центральный экспорт всех компонентов Zero Trust Architecture.
- * 
+ *
  * @version 1.0.0
  * @author grigo
  * @date 22 марта 2026 г.
@@ -12,7 +12,7 @@
 // TYPES
 // ============================================================================
 
-export * from './zerotrust/zerotrust.types';
+export * from './zerotrust.types';
 
 // ============================================================================
 // CORE COMPONENTS
@@ -20,46 +20,39 @@ export * from './zerotrust/zerotrust.types';
 
 /**
  * Policy Decision Point (PDP)
- * 
+ *
  * Точка принятия решений политик. Оценивает запросы доступа
  * и принимает решения на основе политик, контекста и уровня доверия.
  */
-export { PolicyDecisionPoint, PdpConfig } from './zerotrust/PolicyDecisionPoint';
+export { PolicyDecisionPoint } from './PolicyDecisionPoint';
+export type { PdpConfig } from './PolicyDecisionPoint';
 
 /**
  * Policy Enforcement Point (PEP)
- * 
+ *
  * Точка принудительного применения политик. Перехватывает запросы,
  * взаимодействует с PDP и применяет решения о доступе.
  */
-export { 
-  PolicyEnforcementPoint, 
-  PepConfig, 
-  PepRequestContext, 
-  PepEnforcementResult 
-} from './zerotrust/PolicyEnforcementPoint';
+export { PolicyEnforcementPoint } from './PolicyEnforcementPoint';
+export type { PepConfig } from './PolicyEnforcementPoint';
 
 /**
  * Device Posture Checker
- * 
+ *
  * Проверка состояния устройств. Непрерывная проверка соответствия
  * устройств политикам безопасности организации.
  */
-export { 
-  DevicePostureChecker, 
-  DevicePostureCheckerConfig 
-} from './zerotrust/DevicePostureChecker';
+export { DevicePostureChecker } from './DevicePostureChecker';
+export type { DevicePostureCheckerConfig } from './DevicePostureChecker';
 
 /**
  * Trust Verifier
- * 
+ *
  * Непрерывная верификация доверия. Динамическая оценка и пере оценка
  * уровня доверия к субъектам в реальном времени.
  */
-export { 
-  TrustVerifier, 
-  TrustVerifierConfig 
-} from './zerotrust/TrustVerifier';
+export { TrustVerifier } from './TrustVerifier';
+export type { TrustVerifierConfig } from './TrustVerifier';
 
 // ============================================================================
 // NETWORK SEGMENTATION
@@ -67,25 +60,21 @@ export {
 
 /**
  * Micro-Segmentation
- * 
+ *
  * Микросегментация сети для предотвращения lateral movement атак.
  * Создаёт изолированные сегменты и применяет детальные правила трафика.
  */
-export { 
-  MicroSegmentation, 
-  MicroSegmentationConfig 
-} from './zerotrust/MicroSegmentation';
+export { MicroSegmentation } from './MicroSegmentation';
+export type { MicroSegmentationConfig } from './MicroSegmentation';
 
 /**
  * Network Access Control (NAC)
- * 
+ *
  * Контекстно-зависимый контроль доступа к сети на основе идентичности,
  * устройства, местоположения и других факторов.
  */
-export { 
-  NetworkAccessControl, 
-  NetworkAccessControlConfig 
-} from './zerotrust/NetworkAccessControl';
+export { NetworkAccessControl } from './NetworkAccessControl';
+export type { NetworkAccessControlConfig } from './NetworkAccessControl';
 
 // ============================================================================
 // PERIMETER & PROXY
@@ -93,26 +82,22 @@ export {
 
 /**
  * Software Defined Perimeter (SDP)
- * 
+ *
  * Программно-определяемый периметр. Скрывает ресурсы от
  * неавторизованных клиентов. Ресурсы видимы только после
  * успешной аутентификации и авторизации.
  */
-export { 
-  SoftwareDefinedPerimeter, 
-  SdpConfig 
-} from './zerotrust/SoftwareDefinedPerimeter';
+export { SoftwareDefinedPerimeter } from './SoftwareDefinedPerimeter';
+export type { SdpConfig } from './SoftwareDefinedPerimeter';
 
 /**
  * Identity-Aware Proxy
- * 
+ *
  * Прокси-сервер с учётом идентичности. Принимает решения о
  * маршрутизации запросов на основе идентичности и контекста.
  */
-export { 
-  IdentityAwareProxy, 
-  IdentityAwareProxyConfig 
-} from './zerotrust/IdentityAwareProxy';
+export { IdentityAwareProxy } from './IdentityAwareProxy';
+export type { IdentityAwareProxyConfig } from './IdentityAwareProxy';
 
 // ============================================================================
 // SERVICE MESH & TLS
@@ -120,25 +105,21 @@ export {
 
 /**
  * Service Mesh mTLS
- * 
+ *
  * Mutual TLS для микросервисов. Автоматическая генерация,
  * ротация и отзыв сертификатов для каждого сервиса.
  */
-export { 
-  ServiceMeshMTLS, 
-  ServiceMeshMtlsConfig 
-} from './zerotrust/ServiceMeshMTLS';
+export { ServiceMeshMTLS } from './ServiceMeshMTLS';
+export type { ServiceMeshMtlsConfig } from './ServiceMeshMTLS';
 
 /**
  * TLS Everywhere
- * 
+ *
  * Управление TLS конфигурацией для обеспечения шифрования
  * всего трафика в системе. TLS 1.3 везде.
  */
-export { 
-  TlsEverywhere, 
-  TlsEverywhereConfig 
-} from './zerotrust/TLSEverywhere';
+export { TlsEverywhere } from './TLSEverywhere';
+export type { TlsEverywhereConfig } from './TLSEverywhere';
 
 // ============================================================================
 // ACCESS MANAGEMENT
@@ -146,25 +127,21 @@ export {
 
 /**
  * Just-In-Time Access
- * 
+ *
  * Временный доступ по запросу. Предоставление временных
  * привилегий с обязательным утверждением и аудитом.
  */
-export { 
-  JustInTimeAccess, 
-  JustInTimeAccessConfig 
-} from './zerotrust/JustInTimeAccess';
+export { JustInTimeAccess } from './JustInTimeAccess';
+export type { JustInTimeAccessConfig } from './JustInTimeAccess';
 
 /**
  * Egress Filter
- * 
+ *
  * Фильтрация исходящего трафика с DLP (Data Loss Prevention)
  * для предотвращения утечек данных.
  */
-export { 
-  EgressFilter, 
-  EgressFilterConfig 
-} from './zerotrust/EgressFilter';
+export { EgressFilter } from './EgressFilter';
+export type { EgressFilterConfig } from './EgressFilter';
 
 // ============================================================================
 // POLICY ENGINE
@@ -172,14 +149,12 @@ export {
 
 /**
  * Network Policy Engine
- * 
+ *
  * Централизованный движок для управления всеми сетевыми
  * политиками Zero Trust архитектуры.
  */
-export { 
-  NetworkPolicyEngine, 
-  NetworkPolicyEngineConfig 
-} from './zerotrust/NetworkPolicyEngine';
+export { NetworkPolicyEngine } from './NetworkPolicyEngine';
+export type { NetworkPolicyEngineConfig } from './NetworkPolicyEngine';
 
 // ============================================================================
 // MAIN CONTROLLER
@@ -187,33 +162,31 @@ export {
 
 /**
  * Zero Trust Controller
- * 
+ *
  * Главный контроллер, координирующий все компоненты
  * Zero Trust Network Architecture.
  */
-export { 
-  ZeroTrustController, 
-  ZeroTrustControllerConfig 
-} from './zerotrust/ZeroTrustController';
+export { ZeroTrustController } from './ZeroTrustController';
+export type { ZeroTrustControllerConfig } from './ZeroTrustController';
 
 // ============================================================================
 // DEFAULT EXPORTS
 // ============================================================================
 
-import { ZeroTrustController } from './zerotrust/ZeroTrustController';
-import { PolicyDecisionPoint } from './zerotrust/PolicyDecisionPoint';
-import { PolicyEnforcementPoint } from './zerotrust/PolicyEnforcementPoint';
-import { DevicePostureChecker } from './zerotrust/DevicePostureChecker';
-import { TrustVerifier } from './zerotrust/TrustVerifier';
-import { MicroSegmentation } from './zerotrust/MicroSegmentation';
-import { SoftwareDefinedPerimeter } from './zerotrust/SoftwareDefinedPerimeter';
-import { IdentityAwareProxy } from './zerotrust/IdentityAwareProxy';
-import { ServiceMeshMTLS } from './zerotrust/ServiceMeshMTLS';
-import { NetworkAccessControl } from './zerotrust/NetworkAccessControl';
-import { JustInTimeAccess } from './zerotrust/JustInTimeAccess';
-import { EgressFilter } from './zerotrust/EgressFilter';
-import { TlsEverywhere } from './zerotrust/TLSEverywhere';
-import { NetworkPolicyEngine } from './zerotrust/NetworkPolicyEngine';
+import { ZeroTrustController } from './ZeroTrustController';
+import { PolicyDecisionPoint } from './PolicyDecisionPoint';
+import { PolicyEnforcementPoint } from './PolicyEnforcementPoint';
+import { DevicePostureChecker } from './DevicePostureChecker';
+import { TrustVerifier } from './TrustVerifier';
+import { MicroSegmentation } from './MicroSegmentation';
+import { SoftwareDefinedPerimeter } from './SoftwareDefinedPerimeter';
+import { IdentityAwareProxy } from './IdentityAwareProxy';
+import { ServiceMeshMTLS } from './ServiceMeshMTLS';
+import { NetworkAccessControl } from './NetworkAccessControl';
+import { JustInTimeAccess } from './JustInTimeAccess';
+import { EgressFilter } from './EgressFilter';
+import { TlsEverywhere } from './TLSEverywhere';
+import { NetworkPolicyEngine } from './NetworkPolicyEngine';
 
 export default {
   ZeroTrustController,

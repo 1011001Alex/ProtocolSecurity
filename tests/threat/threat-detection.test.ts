@@ -19,7 +19,7 @@ import {
   LSTMModel,
   AutoencoderModel,
   MLModelManager
-} from '../src/threat/MLModels';
+} from '../../src/threat/MLModels';
 import {
   SecurityEvent,
   ThreatSeverity,
@@ -32,7 +32,7 @@ import {
   KillChainPhase,
   CorrelationRule,
   DetectionRule
-} from '../src/types/threat.types';
+} from '../../src/types/threat.types';
 
 // ============================================================================
 // MOCK ДАННЫЕ

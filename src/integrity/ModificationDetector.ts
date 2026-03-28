@@ -146,15 +146,15 @@ export class ModificationDetector extends EventEmitter {
   
   /** Baseline хеши */
   private readonly baselineHashes: Map<string, FileHash> = new Map();
-  
+
   /** История изменений */
   private readonly changeHistory: Array<{
     filePath: string;
     timestamp: Date;
     oldHash: string;
     newHash: string;
-  }> = new Map();
-  
+  }> = [];
+
   /** Кэш анализа файлов */
   private readonly analysisCache: Map<string, FileAnalysisResult> = new Map();
 

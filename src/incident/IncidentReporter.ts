@@ -15,7 +15,9 @@ import {
   IncidentCategory,
   IncidentMetricsDashboard,
   TimeSeriesData,
-  PlaybookEffectiveness
+  PlaybookEffectiveness,
+  IOC,
+  MITRETechnique
 } from '../types/incident.types';
 
 /**
@@ -554,29 +556,31 @@ export class IncidentReporter extends EventEmitter {
     }));
   }
 
-  private extractTopIOCs(incidents: Incident[], limit: number = 10) {
-    const iocCount: Map<string, number> = new Map();
+  private extractTopIOCs(incidents: Incident[], limit: number = 10): IOC[] {
+    const iocCount: Map<string, { ioc: IOC; count: number }> = new Map();
 
     for (const incident of incidents) {
       const details = incident.details;
       if (!details) continue;
-      
+
       for (const ioc of details.indicatorsOfCompromise || []) {
         const key = `${ioc.type}:${ioc.value}`;
-        iocCount.set(key, (iocCount.get(key) || 0) + 1);
+        const existing = iocCount.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          iocCount.set(key, { ioc: { ...ioc }, count: 1 });
+        }
       }
     }
 
-    return Array.from(iocCount.entries())
-      .sort((a, b) => b[1] - a[1])
+    return Array.from(iocCount.values())
+      .sort((a, b) => b.count - a.count)
       .slice(0, limit)
-      .map(([key, count]) => {
-        const [type, value] = key.split(':');
-        return { type, value, count };
-      });
+      .map(({ ioc }) => ioc);
   }
 
-  private extractTopTechniques(incidents: Incident[], limit: number = 10) {
+  private extractTopTechniques(incidents: Incident[], limit: number = 10): MITRETechnique[] {
     const techniqueCount: Map<string, number> = new Map();
 
     for (const incident of incidents) {
@@ -588,7 +592,12 @@ export class IncidentReporter extends EventEmitter {
     return Array.from(techniqueCount.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit)
-      .map(([id, count]) => ({ id, count }));
+      .map(([id, count]) => ({
+        id,
+        name: `Техника ${id}`,
+        description: `MITRE ATT&CK техника`,
+        url: `https://attack.mitre.org/techniques/${id}/`
+      }));
   }
 
   private calculatePlaybookEffectiveness(incidents: Incident[]): PlaybookEffectiveness[] {
@@ -655,8 +664,3 @@ export interface IncidentReport {
   generatedAt: Date;
   content: Record<string, unknown>;
 }
-
-/**
- * Экспорт событий репортера
- */
-export { IncidentReporterEvent, ReportType };

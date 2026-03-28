@@ -511,11 +511,11 @@ export class PerformanceMonitor extends EventEmitter {
     const slowest = [...this.completedProfiles]
       .sort((a, b) => (b.duration || 0) - (a.duration || 0))
       .slice(0, 10);
-    
+
     return {
       total: this.stats.totalProfiles,
       active: this.activeProfiles.size,
-      completed: this.completedProfiles.size,
+      completed: this.completedProfiles.length,
       averageDuration: this.stats.averageDuration,
       maxDuration: this.stats.maxDuration,
       slowestOperations: slowest

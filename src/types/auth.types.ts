@@ -258,10 +258,10 @@ export interface IWebAuthnMethod extends IMfaMethod {
   
   /** Тип аутентификатора */
   authenticatorType: 'platform' | 'roaming';
-  
-  /** Транспортные методы */
+
+  /** Транспортные методы аутентификатора WebAuthn */
   transports: AuthenticatorTransport[];
-  
+
   /** Флаги возможностей аутентификатора */
   authenticatorFlags: {
     userPresent: boolean;
@@ -269,13 +269,18 @@ export interface IWebAuthnMethod extends IMfaMethod {
     backupEligible: boolean;
     backupState: boolean;
   };
-  
+
   /** Название устройства (для UI) */
   deviceName?: string;
-  
+
   /** Дата последней синхронизации счетчика */
   lastCounterSyncAt?: Date;
 }
+
+/**
+ * Транспортные методы аутентификатора WebAuthn
+ */
+export type AuthenticatorTransport = 'ble' | 'hybrid' | 'internal' | 'nfc' | 'smart-card' | 'usb';
 
 /**
  * Резервный код восстановления
@@ -633,27 +638,30 @@ export interface IdTokenPayload {
 export interface JwtKeyConfig {
   /** ID ключа (kid) */
   kid: string;
-  
+
   /** Алгоритм */
   algorithm: JwtAlgorithm;
-  
+
   /** Приватный ключ (PEM) */
   privateKey: string;
-  
+
   /** Публичный ключ (PEM) */
   publicKey: string;
-  
+
   /** Дата создания */
   createdAt: Date;
-  
+
   /** Дата истечения срока действия ключа */
   expiresAt: Date;
-  
+
   /** Активен ли ключ */
   isActive: boolean;
-  
+
   /** Используется ли для подписи новых токенов */
   isSigningKey: boolean;
+
+  /** Версия ключа */
+  version?: number;
 }
 
 /**
@@ -1414,6 +1422,7 @@ export enum AuthErrorCode {
   OAUTH_INVALID_REDIRECT_URI = 'OAUTH_INVALID_REDIRECT_URI',
   OAUTH_PKCE_MISMATCH = 'OAUTH_PKCE_MISMATCH',
   OAUTH_CONSENT_REQUIRED = 'OAUTH_CONSENT_REQUIRED',
+  INVALID_ARGUMENT = 'INVALID_ARGUMENT',
   INTERNAL_ERROR = 'INTERNAL_ERROR'
 }
 
@@ -1476,24 +1485,10 @@ export interface AccessCheckResult {
   
   /** Причина отказа (если есть) */
   denialReason?: string;
-  
+
   /** Policy, которая приняла решение */
   policyId?: string;
-  
+
   /** Обязательства для выполнения */
   obligations?: PolicyObligation[];
 }
-
-// =============================================================================
-// ЭКСПОРТЫ
-// =============================================================================
-
-export { IUser, IUserAttributes, ISecurityPreferences, UserStatus };
-export { IMfaMethod, ITotpMethod, IHotpMethod, IWebAuthnMethod, IBackupCode, IBackupCodeSet, MfaMethodType, MfaMethodStatus };
-export { ISession, SessionStatus, SessionType, AuthenticationMethod };
-export { JwtHeader, AccessTokenPayload, RefreshTokenPayload, IdTokenPayload, JwtAlgorithm, JwtKeyConfig, JwkSet };
-export { IOAuthClient, IAuthorizationCode, IDeviceCode, IOAuthTokens, OAuthGrantType, OAuthResponseType, PkceChallengeMethod };
-export { IRole, IRoleConstraints, IRoleAssignment };
-export { IPolicy, PolicyCondition, PolicyDecision, PolicyObligation, PolicyAdvice, PolicyContext, PolicyOperator, LogicalOperator };
-export { SecurityEventType, ISecurityEvent, RateLimitConfig, RateLimitStats, DeviceFingerprintData };
-export { ApiResponse, AuthResult, AccessCheckResult };

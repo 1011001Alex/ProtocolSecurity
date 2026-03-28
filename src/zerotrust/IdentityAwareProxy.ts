@@ -24,7 +24,8 @@ import {
   ZeroTrustEvent,
   SubjectType,
   ResourceType,
-  PolicyOperation
+  PolicyOperation,
+  AuthenticationMethod
 } from './zerotrust.types';
 import { PolicyEnforcementPoint } from './PolicyEnforcementPoint';
 import { TrustVerifier } from './TrustVerifier';
@@ -443,15 +444,18 @@ export class IdentityAwareProxy extends EventEmitter {
   private async extractIdentity(req: http.IncomingMessage): Promise<Identity | null> {
     // Проверяем заголовок авторизации
     const authHeader = req.headers['authorization'];
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      
+
       // В реальной реализации здесь была бы валидация JWT токена
       // и извлечение identity из claims
+      const userId = `user_${uuidv4().substring(0, 8)}`;
       return {
-        id: `user_${uuidv4().substring(0, 8)}`,
+        id: userId,
+        subjectId: userId,
         type: SubjectType.USER,
+        subjectType: 'USER',
         displayName: 'Authenticated User',
         roles: ['user'],
         permissions: [],
@@ -461,15 +465,18 @@ export class IdentityAwareProxy extends EventEmitter {
         updatedAt: new Date()
       };
     }
-    
+
     // Проверяем mTLS сертификат
-    const tlsSocket = req.socket as https.TLSSocket;
+    const tlsSocket = req.socket as any;
     const peerCertificate = tlsSocket.getPeerCertificate?.();
-    
+
     if (peerCertificate && Object.keys(peerCertificate).length > 0) {
+      const certId = `cert_${peerCertificate.fingerprint?.replace(/:/g, '').toLowerCase() || uuidv4()}`;
       return {
-        id: `cert_${peerCertificate.fingerprint?.replace(/:/g, '').toLowerCase() || uuidv4()}`,
+        id: certId,
+        subjectId: certId,
         type: SubjectType.USER,
+        subjectType: 'USER',
         displayName: peerCertificate.subject?.CN || 'Certificate User',
         roles: ['user'],
         permissions: [],
@@ -481,7 +488,7 @@ export class IdentityAwareProxy extends EventEmitter {
         updatedAt: new Date()
       };
     }
-    
+
     return null;
   }
 
@@ -494,21 +501,31 @@ export class IdentityAwareProxy extends EventEmitter {
   ): Promise<AuthContext> {
     const authHeader = req.headers['authorization'];
     const hasMfa = req.headers['x-mfa-verified'] === 'true';
-    
+    const authMethod = authHeader
+      ? (identity.labels?.authMethod === 'mtls' ? AuthenticationMethod.MTLS : AuthenticationMethod.JWT)
+      : AuthenticationMethod.PASSWORD;
+
+    const factors: AuthenticationMethod[] = [];
+    if (authHeader) {
+      factors.push(identity.labels?.authMethod === 'mtls' ? AuthenticationMethod.MTLS : AuthenticationMethod.JWT);
+    } else {
+      factors.push(AuthenticationMethod.PASSWORD);
+    }
+    if (hasMfa) {
+      factors.push(AuthenticationMethod.MFA);
+    }
+
     return {
-      method: authHeader ? 
-        (identity.labels?.authMethod === 'mtls' ? 'MTLS' : 'JWT') : 
-        'PASSWORD',
+      method: authMethod,
       authenticatedAt: new Date(),
       expiresAt: new Date(Date.now() + 3600000),
       levelOfAssurance: hasMfa ? 3 : 1,
-      factors: [
-        authHeader ? 'JWT' : 'PASSWORD',
-        hasMfa ? 'MFA' : null
-      ].filter(Boolean) as ('JWT' | 'MFA' | 'MTLS')[],
+      factors,
+      authenticationMethods: factors,
       sessionId: uuidv4(),
       mfaVerified: hasMfa,
-      mfaMethods: hasMfa ? ['TOTP'] : []
+      mfaMethods: hasMfa ? [AuthenticationMethod.OTP] : [],
+      tokenClaims: {}
     };
   }
 
@@ -605,22 +622,31 @@ export class IdentityAwareProxy extends EventEmitter {
     
     // Определяем операцию
     const operation = this.methodToOperation(context.method);
-    
+
     // Запрашиваем решение у PEP
     const result = await this.pep.enforceAccess({
       identity: context.identity,
       authContext: context.authContext,
       resourceType: ResourceType.HTTP_ENDPOINT,
       resourceId: context.targetUrl.pathname,
-      resourceName: context.targetUrl.hostname,
       operation,
       sourceIp: context.originalRequest.socket.remoteAddress || '0.0.0.0',
       destinationIp: context.targetUrl.hostname,
       destinationPort: parseInt(context.targetUrl.port) || 443,
       protocol: 'TCP'
     });
-    
-    return result;
+
+    // Преобразуем AccessResponse в PolicyEvaluationResult
+    return {
+      evaluationId: uuidv4(),
+      evaluatedAt: new Date(),
+      decision: result.decision,
+      trustLevel: result.trustLevel,
+      appliedRules: result.appliedRules || [],
+      factors: [],
+      restrictions: result.metadata?.restrictions || {},
+      recommendations: []
+    };
   }
 
   /**
@@ -814,6 +840,8 @@ export class IdentityAwareProxy extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'ACCESS_REQUEST',
@@ -823,15 +851,15 @@ export class IdentityAwareProxy extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[IAP] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[IAP] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

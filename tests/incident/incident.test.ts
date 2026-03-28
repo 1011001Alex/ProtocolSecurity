@@ -201,10 +201,11 @@ describe('IncidentClassifier', () => {
 
       for (const { title, expectedCategory, description } of contexts) {
         const result = classifier.classify({
-          details: createTestIncidentDetails({ 
-            title, 
+          details: createTestIncidentDetails({
+            title,
             description,
-            category: undefined as any 
+            category: undefined as any,
+            indicatorsOfCompromise: []
           }),
           affectedSystems: [],
           affectedUsers: [],

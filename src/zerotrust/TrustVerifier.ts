@@ -284,10 +284,10 @@ export class TrustVerifier extends EventEmitter {
 
     // Риск от устройства
     if (devicePosture) {
-      if (devicePosture.healthStatus === DeviceHealthStatus.UNHEALTHY) {
+      if (devicePosture.healthStatus === DeviceHealthStatus.NON_COMPLIANT ||
+          devicePosture.healthStatus === DeviceHealthStatus.BLOCKED) {
         riskScore += 40;
-      } else if (devicePosture.healthStatus === DeviceHealthStatus.NON_COMPLIANT || 
-                 devicePosture.healthStatus === DeviceHealthStatus.UNHEALTHY) {
+      } else if (devicePosture.healthStatus === DeviceHealthStatus.DEGRADED) {
         riskScore += 30;
       }
 
@@ -735,5 +735,12 @@ export class TrustVerifier extends EventEmitter {
 
     this.trustContexts.clear();
     this.emit('all_sessions_cleared');
+  }
+
+  /**
+   * Получение текущего уровня доверия (алиас для getCurrentTrustLevel)
+   */
+  getTrustLevel(subjectId: string): TrustLevel | undefined {
+    return this.getCurrentTrustLevel(subjectId);
   }
 }

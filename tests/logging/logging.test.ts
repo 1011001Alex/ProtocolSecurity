@@ -282,13 +282,13 @@ describe('SecureLogger', () => {
       expect(logger.isEnabled()).toBe(true);
     });
     
-    it('should get statistics', () => {
-      logger.info('Test 1');
-      logger.error('Test 2');
-      logger.warning('Test 3');
-      
+    it('should get statistics', async () => {
+      await logger.info('Test 1');
+      await logger.error('Test 2');
+      await logger.warning('Test 3');
+
       const stats = logger.getStatistics();
-      
+
       expect(stats.logsProcessed).toBeGreaterThanOrEqual(3);
       expect(stats.transportsCount).toBeGreaterThanOrEqual(1);
     });
@@ -362,9 +362,9 @@ describe('LogParser', () => {
     });
     
     it('should detect path traversal patterns', () => {
-      const traversalLog = 'GET /files/../../../etc/passwd';
+      const traversalLog = '192.168.1.1 - - [27/Mar/2026:10:00:00 +0000] "GET /files/../../../etc/passwd HTTP/1.1" 403 1234 "-" "Mozilla/5.0"';
       const result = parser.parse(traversalLog);
-      
+
       expect(result.success).toBe(true);
       expect(result.log?.context.metadata?.securityThreat).toBe('path_traversal');
     });

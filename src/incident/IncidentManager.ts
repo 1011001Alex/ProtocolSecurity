@@ -22,7 +22,13 @@ import {
   IncidentSearchResult,
   IncidentFilters,
   IncidentSort,
-  AuditEvent
+  AuditEvent,
+  ForensicsDataType,
+  ContainmentActionType,
+  ContainmentActionRecord,
+  StakeholderType,
+  CommunicationChannel,
+  TimelineEventType
 } from '../types/incident.types';
 import { IncidentClassifier, ClassificationContext } from './IncidentClassifier';
 import { PlaybookEngine, PlaybookEngineEvent } from './PlaybookEngine';
@@ -171,7 +177,7 @@ export class IncidentManager extends EventEmitter {
       },
       forensics: {
         autoCollectionEnabled: true,
-        defaultDataTypes: ['system_logs', 'security_logs', 'process_list', 'network_connections'],
+        defaultDataTypes: [ForensicsDataType.SYSTEM_LOGS, ForensicsDataType.SECURITY_LOGS, ForensicsDataType.PROCESS_LIST, ForensicsDataType.NETWORK_CONNECTIONS],
         maxCollectionSize: 10737418240,
         compressData: true,
         encryptData: true,
@@ -187,14 +193,24 @@ export class IncidentManager extends EventEmitter {
       },
       containment: {
         autoContainmentEnabled: true,
-        actionsRequiringApproval: ['network_isolation', 'account_lockout'],
+        actionsRequiringApproval: [ContainmentActionType.NETWORK_ISOLATION, ContainmentActionType.ACCOUNT_LOCKOUT],
         maxContainmentDuration: 86400000,
         autoRollbackOnFalsePositive: true,
         notifyOnContainment: true
       },
       communication: {
         templates: [],
-        defaultChannels: {},
+        defaultChannels: {
+          [StakeholderType.SECURITY_TEAM]: [CommunicationChannel.SLACK, CommunicationChannel.EMAIL],
+          [StakeholderType.EXECUTIVE_MANAGEMENT]: [CommunicationChannel.EMAIL],
+          [StakeholderType.IT_OPERATIONS]: [CommunicationChannel.SLACK, CommunicationChannel.PAGERDUTY],
+          [StakeholderType.LEGAL_TEAM]: [CommunicationChannel.EMAIL],
+          [StakeholderType.PUBLIC_RELATIONS]: [CommunicationChannel.EMAIL],
+          [StakeholderType.REGULATORS]: [CommunicationChannel.EMAIL],
+          [StakeholderType.CUSTOMERS]: [CommunicationChannel.EMAIL],
+          [StakeholderType.PARTNERS]: [CommunicationChannel.EMAIL],
+          [StakeholderType.LAW_ENFORCEMENT]: [CommunicationChannel.EMAIL]
+        },
         escalationOnNoResponse: true,
         responseTimeout: 3600000,
         updateFrequency: 900000
@@ -207,10 +223,11 @@ export class IncidentManager extends EventEmitter {
       },
       sla: {
         bySeverity: {
-          critical: { responseTime: 900000, containmentTime: 3600000, eradicationTime: 14400000, recoveryTime: 28800000, statusUpdateTime: 900000 },
-          high: { responseTime: 3600000, containmentTime: 14400000, eradicationTime: 28800000, recoveryTime: 86400000, statusUpdateTime: 3600000 },
-          medium: { responseTime: 14400000, containmentTime: 28800000, eradicationTime: 86400000, recoveryTime: 172800000, statusUpdateTime: 14400000 },
-          low: { responseTime: 86400000, containmentTime: 172800000, eradicationTime: 259200000, recoveryTime: 604800000, statusUpdateTime: 86400000 }
+          [IncidentSeverity.CRITICAL]: { responseTime: 900000, containmentTime: 3600000, eradicationTime: 14400000, recoveryTime: 28800000, statusUpdateTime: 900000 },
+          [IncidentSeverity.HIGH]: { responseTime: 3600000, containmentTime: 14400000, eradicationTime: 28800000, recoveryTime: 86400000, statusUpdateTime: 3600000 },
+          [IncidentSeverity.MEDIUM]: { responseTime: 14400000, containmentTime: 28800000, eradicationTime: 86400000, recoveryTime: 172800000, statusUpdateTime: 14400000 },
+          [IncidentSeverity.LOW]: { responseTime: 86400000, containmentTime: 172800000, eradicationTime: 259200000, recoveryTime: 604800000, statusUpdateTime: 86400000 },
+          [IncidentSeverity.INFORMATIONAL]: { responseTime: 86400000, containmentTime: 172800000, eradicationTime: 259200000, recoveryTime: 604800000, statusUpdateTime: 86400000 }
         },
         businessHours: { start: '09:00', end: '18:00', timezone: 'UTC', excludeWeekends: true, holidays: [] },
         trackBreaches: true,
@@ -271,10 +288,17 @@ export class IncidentManager extends EventEmitter {
    * Подписка на события компонентов
    */
   private subscribeToComponentEvents(): void {
+    // System actor для автоматических событий
+    const systemActor: Actor = {
+      id: 'system',
+      username: 'system',
+      department: 'automated'
+    };
+
     // Playbook Engine events
     this.playbookEngine.on(PlaybookEngineEvent.PLAYBOOK_COMPLETED, ({ execution }) => {
       this.log(`Playbook завершен для инцидента ${execution.incidentId}`);
-      this.updateIncidentLifecycle(execution.incidentId, IncidentLifecycleStage.ERADICATION);
+      this.updateIncidentLifecycle(execution.incidentId, IncidentLifecycleStage.ERADICATION, systemActor);
     });
 
     // Containment Actions events
@@ -322,6 +346,7 @@ export class IncidentManager extends EventEmitter {
     // Создание инцидента
     const incident: Incident = {
       id: this.generateIncidentId(),
+      createdAt: new Date(),
       incidentNumber,
       lifecycleStage: IncidentLifecycleStage.DETECTION,
       category: details.category,
@@ -370,7 +395,7 @@ export class IncidentManager extends EventEmitter {
 
     // Добавление первого события в временную шкалу
     await this.timelineReconstructor.addEvent(incident.id, {
-      type: 'anomaly_detected',
+      type: TimelineEventType.ANOMALY_DETECTED,
       title: 'Инцидент создан',
       description: `Инцидент ${incidentNumber} создан пользователем ${createdBy.username}`,
       timestamp: new Date(),
@@ -612,9 +637,9 @@ export class IncidentManager extends EventEmitter {
     // В реальной системе здесь был бы вызов ContainmentActions
     // Для простоты создаем запись действия
 
-    const actionRecord = {
+    const actionRecord: ContainmentActionRecord = {
       id: `ca_${Date.now()}`,
-      type: actionType,
+      type: ContainmentActionType.NETWORK_ISOLATION,
       name: actionType,
       description: `Действие сдерживания: ${actionType}`,
       target,
@@ -629,13 +654,13 @@ export class IncidentManager extends EventEmitter {
 
     // Добавление события в временную шкалу
     await this.timelineReconstructor.addEvent(incidentId, {
-      type: 'containment_action',
+      type: TimelineEventType.CONTAINMENT_ACTION,
       title: actionRecord.name,
       description: actionRecord.description,
       timestamp: new Date(),
       source: 'containment_system',
       significance: 'high',
-      verified: true
+      verifiedAt: new Date()
     });
 
     this.emit(IncidentManagerEvent.INCIDENT_UPDATED, {
@@ -673,8 +698,8 @@ export class IncidentManager extends EventEmitter {
     // В реальной системе здесь был бы вызов ForensicsCollector
     const collectionId = `fc_${Date.now()}`;
 
-    // Преобразование в улики
-    const evidence = this.evidenceManager.convertToEvidence(collectionId, incidentId, collectedBy);
+    // Создаем улики напрямую
+    const evidence = this.evidenceManager.createEvidence(collectionId, incidentId, collectedBy);
 
     for (const evd of evidence) {
       await this.evidenceManager.addEvidence(evd, collectedBy);
@@ -685,13 +710,13 @@ export class IncidentManager extends EventEmitter {
 
     // Добавление события в временную шкалу
     await this.timelineReconstructor.addEvent(incidentId, {
-      type: 'forensics_collection',
+      type: TimelineEventType.FORENSICS_COLLECTION,
       title: 'Сбор форензика данных',
       description: `Собрано ${evidence.length} улик`,
       timestamp: new Date(),
       source: 'forensics_system',
       significance: 'medium',
-      verified: true
+      verifiedAt: new Date()
     });
 
     this.emit(IncidentManagerEvent.INCIDENT_UPDATED, {
@@ -737,13 +762,13 @@ export class IncidentManager extends EventEmitter {
 
     // Добавление события в временную шкалу
     await this.timelineReconstructor.addEvent(incidentId, {
-      type: 'stakeholder_notification',
+      type: TimelineEventType.STAKEHOLDER_NOTIFICATION,
       title: 'Уведомление стейкхолдеров',
       description: `Отправлено ${recipients.length} получателям`,
       timestamp: new Date(),
       source: 'communication_system',
       significance: 'medium',
-      verified: true
+      verifiedAt: new Date()
     });
 
     this.emit(IncidentManagerEvent.INCIDENT_UPDATED, {
@@ -946,8 +971,3 @@ export class IncidentManager extends EventEmitter {
     };
   }
 }
-
-/**
- * Экспорт событий менеджера
- */
-export { IncidentManagerEvent };

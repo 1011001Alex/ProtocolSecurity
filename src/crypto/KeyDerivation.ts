@@ -107,7 +107,7 @@ export class KeyDerivationService {
       case 'HKDF-SHA256':
       case 'HKDF-SHA512':
         if (!params.hkdf) {
-          throw this.createError('INVALID_ARGUMENT', 'HKDF требует параметры hkdf');
+          throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'HKDF требует параметры hkdf');
         }
         return this.deriveHKDF(passwordBytes, params.hkdf);
       
@@ -115,7 +115,7 @@ export class KeyDerivationService {
         return this.deriveScrypt(passwordBytes, salt, params.scrypt || this.defaultScryptParams);
       
       default:
-        throw this.createError('INVALID_ARGUMENT', `Неподдерживаемый алгоритм KDF: ${params.algorithm}`);
+        throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, `Неподдерживаемый алгоритм KDF: ${params.algorithm}`);
     }
   }
 
@@ -495,12 +495,12 @@ export class KeyDerivationService {
     params: HKDFParams
   ): Uint8Array {
     // HKDF состоит из двух этапов: Extract и Expand
-    
+
     // Этап 1: Extract
-    const prk = this.hkdfExtract(inputKeyMaterial, params.salt, params.hash);
-    
+    const prk = this.hkdfExtract(inputKeyMaterial, params.salt, params.hash as 'SHA-256' | 'SHA-512');
+
     // Этап 2: Expand
-    return this.hkdfExpand(prk, params.info, params.keyLength, params.hash);
+    return this.hkdfExpand(prk, params.info, params.keyLength, params.hash as 'SHA-256' | 'SHA-512');
   }
 
   /**
@@ -509,12 +509,12 @@ export class KeyDerivationService {
   private hkdfExtract(
     ikm: Uint8Array,
     salt: Uint8Array,
-    hash: 'SHA-256' | 'SHA-512'
+    hash: 'SHA-256' | 'SHA-384' | 'SHA-512'
   ): Uint8Array {
     // Если соль не предоставлена, используем хэш нулей
     const actualSalt = salt.length > 0 ? salt : new Uint8Array(this.getHashLength(hash));
-    
-    return this.hashService.hmac(ikm, actualSalt, hash === 'SHA-256' ? 'SHA-256' : 'SHA-512');
+
+    return this.hashService.hmac(ikm, actualSalt, hash);
   }
 
   /**
@@ -524,13 +524,13 @@ export class KeyDerivationService {
     prk: Uint8Array,
     info: Uint8Array,
     length: number,
-    hash: 'SHA-256' | 'SHA-512'
+    hash: 'SHA-256' | 'SHA-384' | 'SHA-512'
   ): Uint8Array {
     const hashLength = this.getHashLength(hash);
     const n = Math.ceil(length / hashLength);
     
     if (n > 255) {
-      throw this.createError('INVALID_ARGUMENT', 'Слишком большая длина вывода для HKDF');
+      throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Слишком большая длина вывода для HKDF');
     }
     
     const okm = new Uint8Array(n * hashLength);
@@ -586,8 +586,13 @@ export class KeyDerivationService {
   /**
    * Получение длины хэша
    */
-  private getHashLength(hash: 'SHA-256' | 'SHA-512'): number {
-    return hash === 'SHA-256' ? 32 : 64;
+  private getHashLength(hash: 'SHA-256' | 'SHA-384' | 'SHA-512'): number {
+    switch (hash) {
+      case 'SHA-256': return 32;
+      case 'SHA-384': return 48;
+      case 'SHA-512': return 64;
+      default: return 32;
+    }
   }
 
   /**
@@ -595,15 +600,15 @@ export class KeyDerivationService {
    */
   private validateSalt(salt: Uint8Array): void {
     if (!salt || salt.length === 0) {
-      throw this.createError('INVALID_ARGUMENT', 'Соль не может быть пустой');
+      throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Соль не может быть пустой');
     }
     
     if (salt.length < 8) {
-      throw this.createError('INVALID_ARGUMENT', 'Минимальная длина соли - 8 байт');
+      throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Минимальная длина соли - 8 байт');
     }
     
     if (salt.length > 64) {
-      throw this.createError('INVALID_ARGUMENT', 'Максимальная длина соли - 64 байта');
+      throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Максимальная длина соли - 64 байта');
     }
   }
 

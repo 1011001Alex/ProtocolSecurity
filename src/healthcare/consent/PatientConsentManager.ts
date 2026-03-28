@@ -792,7 +792,7 @@ export class PatientConsentManager extends EventEmitter {
   /**
    * Проверка инициализации
    */
-  public isInitialized(): boolean {
+  public checkInitialized(): boolean {
     return this.isInitialized;
   }
 }

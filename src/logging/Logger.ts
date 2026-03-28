@@ -751,8 +751,8 @@ export class SecureLogger extends EventEmitter {
    * Получение кода события
    */
   private getEventCode(level: LogLevel, source: LogSource): string {
-    const levelCode = level.toString().padStart(2, '0');
-    const sourceName = LogSource[source] || 'UNK';
+    const levelCode = (level + 1).toString().padStart(2, '0');
+    const sourceName = LogLevel[level] || 'UNKNOWN';
     const sourceCode = sourceName.substring(0, 3).toUpperCase();
     return `EVT-${sourceCode}-${levelCode}`;
   }
@@ -951,7 +951,12 @@ export class SecureLogger extends EventEmitter {
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.EMERGENCY, message, source, component, context, fields);
+    try {
+      return await this.log(LogLevel.EMERGENCY, message, source, component, context, fields);
+    } catch (err) {
+      console.error('Logger emergency error:', err);
+      return null;
+    }
   }
 
   /**
@@ -965,9 +970,14 @@ export class SecureLogger extends EventEmitter {
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.ALERT, message, source, component, context, fields);
+    try {
+      return await this.log(LogLevel.ALERT, message, source, component, context, fields);
+    } catch (err) {
+      console.error('Logger alert error:', err);
+      return null;
+    }
   }
-  
+
   /**
    * Логирование уровня CRITICAL (2)
    * Критическое состояние
@@ -979,7 +989,12 @@ export class SecureLogger extends EventEmitter {
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.CRITICAL, message, source, component, context, fields);
+    try {
+      return await this.log(LogLevel.CRITICAL, message, source, component, context, fields);
+    } catch (err) {
+      console.error('Logger critical error:', err);
+      return null;
+    }
   }
 
   /**
@@ -988,27 +1003,21 @@ export class SecureLogger extends EventEmitter {
    */
   async error(
     message: string,
-    source: LogSource = LogSource.APPLICATION,
+    source: LogSource | LogContext = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>,
     errorObj?: Error
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.ERROR, message, source, component, context, fields, errorObj);
-  }
-
-  /**
-   * Логирование уровня WARNING (4)
-   * Предупреждение
-   */
-  async warning(
-    message: string,
-    source: LogSource = LogSource.APPLICATION,
-    component: string = this.globalConfig.serviceName,
-    context?: LogContext,
-    fields?: Record<string, unknown>
-  ): Promise<LogEntry | null> {
-    return this.log(LogLevel.WARNING, message, source, component, context, fields);
+    // Если source передан как объект, считаем его context
+    const actualSource = typeof source === 'object' ? LogSource.APPLICATION : source;
+    const actualContext = typeof source === 'object' ? source : context;
+    try {
+      return await this.log(LogLevel.ERROR, message, actualSource, component, actualContext, fields, errorObj);
+    } catch (err) {
+      console.error('Logger error error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1017,12 +1026,17 @@ export class SecureLogger extends EventEmitter {
    */
   async notice(
     message: string,
-    source: LogSource = LogSource.AUDIT,
+    source: LogSource = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.NOTICE, message, source, component, context, fields);
+    try {
+      return await this.log(LogLevel.NOTICE, message, source, component, context, fields);
+    } catch (err) {
+      console.error('Logger notice error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1031,12 +1045,20 @@ export class SecureLogger extends EventEmitter {
    */
   async info(
     message: string,
-    source: LogSource = LogSource.APPLICATION,
+    source: LogSource | LogContext = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.INFO, message, source, component, context, fields);
+    // Если source передан как объект, считаем его context
+    const actualSource = typeof source === 'object' ? LogSource.APPLICATION : source;
+    const actualContext = typeof source === 'object' ? source : context;
+    try {
+      return await this.log(LogLevel.INFO, message, actualSource, component, actualContext, fields);
+    } catch (err) {
+      console.error('Logger info error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1045,12 +1067,20 @@ export class SecureLogger extends EventEmitter {
    */
   async debug(
     message: string,
-    source: LogSource = LogSource.APPLICATION,
+    source: LogSource | LogContext = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.DEBUG, message, source, component, context, fields);
+    // Если source передан как объект, считаем его context
+    const actualSource = typeof source === 'object' ? LogSource.APPLICATION : source;
+    const actualContext = typeof source === 'object' ? source : context;
+    try {
+      return await this.log(LogLevel.DEBUG, message, actualSource, component, actualContext, fields);
+    } catch (err) {
+      console.error('Logger debug error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1059,12 +1089,42 @@ export class SecureLogger extends EventEmitter {
    */
   async warn(
     message: string,
-    source: LogSource = LogSource.APPLICATION,
+    source: LogSource | LogContext = LogSource.APPLICATION,
     component: string = this.globalConfig.serviceName,
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.WARNING, message, source, component, context, fields);
+    // Если source передан как объект, считаем его context
+    const actualSource = typeof source === 'object' ? LogSource.APPLICATION : source;
+    const actualContext = typeof source === 'object' ? source : context;
+    try {
+      return await this.log(LogLevel.WARNING, message, actualSource, component, actualContext, fields);
+    } catch (err) {
+      console.error('Logger warn error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Логирование уровня WARNING (4)
+   * Предупреждение (алиас для warn)
+   */
+  async warning(
+    message: string,
+    source: LogSource | LogContext = LogSource.APPLICATION,
+    component: string = this.globalConfig.serviceName,
+    context?: LogContext,
+    fields?: Record<string, unknown>
+  ): Promise<LogEntry | null> {
+    // Если source передан как объект, считаем его context
+    const actualSource = typeof source === 'object' ? LogSource.APPLICATION : source;
+    const actualContext = typeof source === 'object' ? source : context;
+    try {
+      return await this.log(LogLevel.WARNING, message, actualSource, component, actualContext, fields);
+    } catch (err) {
+      console.error('Logger warning error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1078,13 +1138,18 @@ export class SecureLogger extends EventEmitter {
     context?: LogContext,
     fields?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(LogLevel.TRACE, message, source, component, context, fields);
+    try {
+      return await this.log(LogLevel.TRACE, message, source, component, context, fields);
+    } catch (err) {
+      console.error('Logger trace error:', err);
+      return null;
+    }
   }
   
   // ==========================================================================
   // СПЕЦИАЛИЗИРОВАННЫЕ МЕТОДЫ ДЛЯ СОБЫТИЙ БЕЗОПАСНОСТИ
   // ==========================================================================
-  
+
   /**
    * Логирование события аутентификации
    */
@@ -1094,21 +1159,26 @@ export class SecureLogger extends EventEmitter {
     clientIp: string,
     details?: Record<string, unknown>
   ): Promise<LogEntry | null> {
-    return this.log(
-      eventType === 'login_failure' ? LogLevel.WARNING : LogLevel.INFO,
-      `Authentication event: ${eventType}`,
-      LogSource.AUTH,
-      'auth-service',
-      {
-        userId,
-        clientIp,
-        sessionId: crypto.randomUUID()
-      },
-      {
-        eventType,
-        ...details
-      }
-    );
+    try {
+      return await this.log(
+        eventType === 'login_failure' ? LogLevel.WARNING : LogLevel.INFO,
+        `Authentication event: ${eventType}`,
+        LogSource.AUTH,
+        'auth-service',
+        {
+          userId,
+          clientIp,
+          sessionId: crypto.randomUUID()
+        },
+        {
+          eventType,
+          ...details
+        }
+      );
+    } catch (err) {
+      console.error('Logger authEvent error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1122,22 +1192,27 @@ export class SecureLogger extends EventEmitter {
     result: 'success' | 'denied',
     clientIp: string
   ): Promise<LogEntry | null> {
-    return this.log(
-      result === 'denied' ? LogLevel.WARNING : LogLevel.INFO,
-      `Data access: ${action} ${resourceType}/${resourceId} - ${result}`,
-      LogSource.AUDIT,
-      'audit-service',
-      {
-        userId,
-        clientIp
-      },
-      {
-        resourceType,
-        resourceId,
-        action,
-        result
-      }
-    );
+    try {
+      return await this.log(
+        result === 'denied' ? LogLevel.WARNING : LogLevel.INFO,
+        `Data access: ${action} ${resourceType}/${resourceId} - ${result}`,
+        LogSource.AUDIT,
+        'audit-service',
+        {
+          userId,
+          clientIp
+        },
+        {
+          resourceType,
+          resourceId,
+          action,
+          result
+        }
+      );
+    } catch (err) {
+      console.error('Logger dataAccessEvent error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1150,22 +1225,27 @@ export class SecureLogger extends EventEmitter {
     newValue: unknown,
     clientIp: string
   ): Promise<LogEntry | null> {
-    return this.log(
-      LogLevel.NOTICE,
-      `Configuration changed: ${configPath}`,
-      LogSource.AUDIT,
-      'config-service',
-      {
-        userId,
-        clientIp
-      },
-      {
-        configPath,
-        oldValue,
-        newValue,
-        changeType: 'update'
-      }
-    );
+    try {
+      return await this.log(
+        LogLevel.NOTICE,
+        `Configuration changed: ${configPath}`,
+        LogSource.AUDIT,
+        'config-service',
+        {
+          userId,
+          clientIp
+        },
+        {
+          configPath,
+          oldValue,
+          newValue,
+          changeType: 'update'
+        }
+      );
+    } catch (err) {
+      console.error('Logger configChangeEvent error:', err);
+      return null;
+    }
   }
 
   /**
@@ -1179,21 +1259,26 @@ export class SecureLogger extends EventEmitter {
     protocol: string,
     bytesTransferred?: number
   ): Promise<LogEntry | null> {
-    return this.log(
-      eventType === 'error' ? LogLevel.ERROR : LogLevel.INFO,
-      `Network ${eventType}: ${remoteIp}:${remotePort} -> :${localPort} (${protocol})`,
-      LogSource.NETWORK,
-      'network-service',
-      {},
-      {
-        eventType,
-        remoteIp,
-        remotePort,
-        localPort,
-        protocol,
-        bytesTransferred
-      }
-    );
+    try {
+      return await this.log(
+        eventType === 'error' ? LogLevel.ERROR : LogLevel.INFO,
+        `Network ${eventType}: ${remoteIp}:${remotePort} -> :${localPort} (${protocol})`,
+        LogSource.NETWORK,
+        'network-service',
+        {},
+        {
+          eventType,
+          remoteIp,
+          remotePort,
+          localPort,
+          protocol,
+          bytesTransferred
+        }
+      );
+    } catch (err) {
+      console.error('Logger networkEvent error:', err);
+      return null;
+    }
   }
   
   // ==========================================================================
@@ -1392,7 +1477,7 @@ export default SecureLogger;
 
 /**
  * Глобальный экземпляр logger для использования во всех модулях
- * 
+ *
  * @example
  * ```typescript
  * import { logger } from './logging/Logger';
@@ -1404,17 +1489,33 @@ export const logger = new SecureLogger({
     level: LogLevel.DEBUG,
     format: 'structured',
     enableColors: true,
-    enableTimestamps: true,
-    enableStackTrace: false,
-    maxLogSize: 1024 * 1024,
-    transports: [{ type: 'console' as const, params: { enableColors: true, format: 'structured' } }]
+    enableTimestamp: true,
+    enableProcessInfo: true,
+    transports: [
+      {
+        type: 'console' as const,
+        level: LogLevel.DEBUG,
+        params: {
+          enableColors: true
+        }
+      }
+    ]
   },
   globalConfig: {
     serviceName: 'protocol-security',
-    environment: process.env.NODE_ENV || 'development',
+    environment: (process.env.NODE_ENV as 'development' | 'staging' | 'production') || 'development',
     region: 'local',
     version: '3.0.0-alpha',
-    rateLimiting: { maxAlerts: 100, suppressionWindow: 60000 },
-    defaultContext: {}
+    timezone: 'UTC',
+    enableAudit: true,
+    enableDebug: process.env.NODE_ENV !== 'production',
+    traceSampleRate: 1,
+    maxLogSize: 1024 * 1024,
+    enableRateLimiting: true,
+    rateLimiting: { 
+      maxAlerts: 100, 
+      periodSeconds: 60,
+      action: 'suppress'
+    }
   }
 });

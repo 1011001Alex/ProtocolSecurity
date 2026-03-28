@@ -11,7 +11,7 @@ import {
   AutoencoderModel,
   NeuralNetworkClassifier,
   MLModelManager
-} from '../src/threat/MLModels';
+} from '../../src/threat/MLModels';
 
 describe('ML Models', () => {
   

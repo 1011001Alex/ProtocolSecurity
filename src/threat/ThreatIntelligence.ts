@@ -1142,8 +1142,3 @@ interface ThreatIntelStatistics {
   syncErrors: number;
   indicatorsMatched: number;
 }
-
-/**
- * Экспорт основного класса
- */
-export { ThreatIntelligenceService };

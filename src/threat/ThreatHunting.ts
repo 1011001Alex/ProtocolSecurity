@@ -99,7 +99,7 @@ export class ThreatHuntingService {
       id: 'HUNT-001',
       name: 'PowerShell Аномалии',
       description: 'Поиск аномального использования PowerShell',
-      category: 'execution',
+      category: ThreatCategory.EXECUTION,
       mitreTechniques: ['T1059'],
       hypothesis: 'Злоумышленники используют PowerShell для выполнения вредоносных команд',
       query: `
@@ -142,7 +142,7 @@ export class ThreatHuntingService {
       id: 'HUNT-002',
       name: 'Горизонтальное Перемещение',
       description: 'Поиск признаков перемещения внутри сети',
-      category: 'lateral_movement',
+      category: ThreatCategory.LATERAL_MOVEMENT,
       mitreTechniques: ['T1021', 'T1570'],
       hypothesis: 'Злоумышленник перемещается между системами в сети',
       query: `
@@ -179,7 +179,7 @@ export class ThreatHuntingService {
       id: 'HUNT-003',
       name: 'Эксфильтрация Данных',
       description: 'Поиск крупных исходящих передач данных',
-      category: 'exfiltration',
+      category: ThreatCategory.EXFILTRATION,
       mitreTechniques: ['T1041', 'T1048'],
       hypothesis: 'Происходит хищение данных из сети',
       query: `
@@ -217,11 +217,11 @@ export class ThreatHuntingService {
       id: 'HUNT-004',
       name: 'Credential Dumping',
       description: 'Поиск попыток кражи учетных данных',
-      category: 'credential_access',
+      category: ThreatCategory.CREDENTIAL_ACCESS,
       mitreTechniques: ['T1003'],
       hypothesis: 'Злоумышленник пытается получить учетные данные из LSASS',
       query: `
-        (process_name: "procdump.exe" OR 
+        (process_name: "procdump.exe" OR
          process_name: "mimikatz.exe" OR
          process_name: "lsass.exe") AND
         (command_line: "*lsass*" OR command_line: "*dump*")
@@ -249,7 +249,7 @@ export class ThreatHuntingService {
       id: 'HUNT-005',
       name: 'Persistence Механизмы',
       description: 'Поиск механизмов закрепления в системе',
-      category: 'persistence',
+      category: ThreatCategory.PERSISTENCE,
       mitreTechniques: ['T1547', 'T1053'],
       hypothesis: 'Злоумышленник настроил механизмы для сохранения доступа',
       query: `
@@ -772,8 +772,3 @@ interface PlaybookExecutionResult {
   totalSteps: number;
   findingsCount: number;
 }
-
-/**
- * Экспорт основного класса
- */
-export { ThreatHuntingService };

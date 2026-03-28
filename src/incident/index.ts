@@ -19,12 +19,16 @@ export * from '../types/incident.types';
 
 export {
   IncidentManager,
-  IncidentManagerEvent,
-  IncidentManagerConfig
+  IncidentManagerEvent
 } from './IncidentManager';
 
+export type { IncidentManagerConfig } from './IncidentManager';
+
 export {
-  IncidentClassifier,
+  IncidentClassifier
+} from './IncidentClassifier';
+
+export type {
   ClassificationContext,
   ClassificationResult,
   ClassificationFactor
@@ -32,7 +36,10 @@ export {
 
 export {
   PlaybookEngine,
-  PlaybookEngineEvent,
+  PlaybookEngineEvent
+} from './PlaybookEngine';
+
+export type {
   PlaybookEngineConfig,
   PlaybookExecutionContext
 } from './PlaybookEngine';
@@ -43,7 +50,10 @@ export {
 
 export {
   ForensicsCollector,
-  ForensicsCollectorEvent,
+  ForensicsCollectorEvent
+} from './ForensicsCollector';
+
+export type {
   ForensicsCollectorConfig,
   ForensicsCollectionContext,
   CollectionResult
@@ -51,7 +61,10 @@ export {
 
 export {
   EvidenceManager,
-  EvidenceManagerEvent,
+  EvidenceManagerEvent
+} from './EvidenceManager';
+
+export type {
   EvidenceManagerConfig,
   AccessRecord
 } from './EvidenceManager';
@@ -62,7 +75,10 @@ export {
 
 export {
   ContainmentActions,
-  ContainmentActionsEvent,
+  ContainmentActionsEvent
+} from './ContainmentActions';
+
+export type {
   ContainmentModuleConfig,
   ContainmentActionContext,
   ContainmentActionResult
@@ -74,7 +90,10 @@ export {
 
 export {
   CommunicationManager,
-  CommunicationManagerEvent,
+  CommunicationManagerEvent
+} from './CommunicationManager';
+
+export type {
   CommunicationManagerConfig
 } from './CommunicationManager';
 
@@ -84,14 +103,20 @@ export {
 
 export {
   TimelineReconstructor,
-  TimelineReconstructorEvent,
+  TimelineReconstructorEvent
+} from './TimelineReconstructor';
+
+export type {
   TimelineReconstructorConfig,
   EventSource
 } from './TimelineReconstructor';
 
 export {
   PostIncidentReview,
-  PostIncidentReviewEvent,
+  PostIncidentReviewEvent
+} from './PostIncidentReview';
+
+export type {
   PostIncidentReviewConfig
 } from './PostIncidentReview';
 
@@ -101,7 +126,10 @@ export {
 
 export {
   ExternalIntegrations,
-  ExternalIntegrationsEvent,
+  ExternalIntegrationsEvent
+} from './ExternalIntegrations';
+
+export type {
   IntegrationResult
 } from './ExternalIntegrations';
 
@@ -112,8 +140,11 @@ export {
 export {
   IncidentReporter,
   IncidentReporterEvent,
+  ReportType
+} from './IncidentReporter';
+
+export type {
   IncidentReporterConfig,
-  ReportType,
   IncidentReport
 } from './IncidentReporter';
 

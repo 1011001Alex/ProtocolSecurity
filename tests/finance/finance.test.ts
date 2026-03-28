@@ -11,8 +11,8 @@ import {
   createPaymentCardEncryption,
   CardType,
   PaymentCardData
-} from '../src/finance/payment/PaymentCardEncryption';
-import { HSMIntegration } from '../src/finance/hsm/HSMIntegration';
+} from '../../src/finance/payment/PaymentCardEncryption';
+import { HSMIntegration } from '../../src/finance/hsm/HSMIntegration';
 
 describe('Finance Security', () => {
   

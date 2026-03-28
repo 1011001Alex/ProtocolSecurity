@@ -147,6 +147,8 @@ export interface LogContext {
   device?: DeviceInfo;
   /** Дополнительные метаданные */
   metadata?: Record<string, unknown>;
+  /** Разрешить любые дополнительные свойства для гибкости */
+  [key: string]: unknown;
 }
 
 /**

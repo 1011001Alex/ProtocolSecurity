@@ -10,7 +10,7 @@
 
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import UAParser from 'ua-parser-js';
+import * as UAParser from 'ua-parser-js';
 import * as geoip from 'geoip-lite';
 import {
   DeviceFingerprintData,
@@ -684,7 +684,7 @@ export class DeviceFingerprintService {
    */
   private isHighRiskCountry(countryCode: string): boolean {
     // Упрощенный список (в production использовать актуальные данные)
-    const highRiskCountries = [
+    const highRiskCountries: string[] = [
       // Список стран с высоким уровнем киберпреступности
       // Это пример, не отражает реальную ситуацию
     ];
@@ -721,7 +721,7 @@ export class DeviceFingerprintService {
    * @private
    */
   private parseUserAgent(userAgent: string): ParsedUserAgent {
-    const parser = new UAParser(userAgent);
+    const parser = new UAParser.UAParser(userAgent);
     const result = parser.getResult();
 
     return {

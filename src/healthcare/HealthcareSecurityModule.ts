@@ -235,7 +235,7 @@ export class HealthcareSecurityModule extends EventEmitter {
   /**
    * Проверка инициализации
    */
-  public isInitialized(): boolean {
+  public checkInitialized(): boolean {
     return this.isInitialized;
   }
 }

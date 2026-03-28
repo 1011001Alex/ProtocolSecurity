@@ -304,4 +304,12 @@ export class ZKAuthenticator extends EventEmitter {
       proofSystem: this.config.proofSystem
     };
   }
+
+  /**
+   * Очищает ресурсы
+   */
+  public async destroy(): Promise<void> {
+    this.commitmentCache.clear();
+    this.removeAllListeners();
+  }
 }

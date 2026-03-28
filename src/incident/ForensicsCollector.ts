@@ -863,6 +863,7 @@ export class ForensicsCollector extends EventEmitter {
       [ForensicsDataType.SYSTEM_LOGS]: 'log_file',
       [ForensicsDataType.APPLICATION_LOGS]: 'log_file',
       [ForensicsDataType.SECURITY_LOGS]: 'log_file',
+      [ForensicsDataType.REGISTRY_HIVES]: 'digital_file',
       [ForensicsDataType.PROCESS_LIST]: 'digital_file',
       [ForensicsDataType.NETWORK_CONNECTIONS]: 'digital_file',
       [ForensicsDataType.AUTOSTART_ENTRIES]: 'digital_file',
@@ -886,6 +887,7 @@ export class ForensicsCollector extends EventEmitter {
       [ForensicsDataType.SYSTEM_LOGS]: EvidenceCategory.LOG_FILE,
       [ForensicsDataType.APPLICATION_LOGS]: EvidenceCategory.LOG_FILE,
       [ForensicsDataType.SECURITY_LOGS]: EvidenceCategory.LOG_FILE,
+      [ForensicsDataType.REGISTRY_HIVES]: EvidenceCategory.DIGITAL_FILE,
       [ForensicsDataType.PROCESS_LIST]: EvidenceCategory.DIGITAL_FILE,
       [ForensicsDataType.NETWORK_CONNECTIONS]: EvidenceCategory.DIGITAL_FILE,
       [ForensicsDataType.AUTOSTART_ENTRIES]: EvidenceCategory.DIGITAL_FILE,
@@ -994,8 +996,3 @@ export class ForensicsCollector extends EventEmitter {
     };
   }
 }
-
-/**
- * Экспорт событий сборщика
- */
-export { ForensicsCollectorEvent };

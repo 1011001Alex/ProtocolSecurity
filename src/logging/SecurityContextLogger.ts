@@ -27,9 +27,12 @@ const DEFAULT_LOGGER_CONFIG: LoggerConfig = {
   level: LogLevel.DEBUG,
   format: 'json',
   enableColors: process.env.NODE_ENV !== 'production',
+  enableTimestamp: true,
+  enableProcessInfo: true,
   transports: [
     {
       type: 'console',
+      level: LogLevel.DEBUG,
       params: {
         enableColors: process.env.NODE_ENV !== 'production'
       }
@@ -41,12 +44,20 @@ const DEFAULT_LOGGER_CONFIG: LoggerConfig = {
  * Глобальная конфигурация
  */
 const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
-  environment: process.env.NODE_ENV || 'development',
+  serviceName: 'protocol-security-api',
+  environment: (process.env.NODE_ENV as 'development' | 'staging' | 'production') || 'development',
   region: process.env.REGION || 'default',
   version: process.env.APP_VERSION || '1.0.0',
-  serviceName: process.env.SERVICE_NAME || 'protocol-security-api',
+  timezone: 'UTC',
+  enableAudit: true,
+  enableDebug: process.env.NODE_ENV !== 'production',
+  traceSampleRate: 1,
+  maxLogSize: 1024 * 1024,
+  enableRateLimiting: true,
   rateLimiting: {
-    maxAlerts: 100
+    maxAlerts: 100,
+    periodSeconds: 60,
+    action: 'suppress'
   }
 };
 
@@ -80,6 +91,8 @@ class SecurityContextLogger {
       level: this.parseLogLevel(logLevel),
       format: logFormat as 'json' | 'text' | 'structured',
       enableColors: process.env.LOG_COLORS !== 'false',
+      enableTimestamp: true,
+      enableProcessInfo: true,
       transports: []
     };
 
@@ -89,6 +102,7 @@ class SecurityContextLogger {
     if (outputs.includes('console')) {
       config.transports.push({
         type: 'console',
+        level: config.level,
         params: {
           enableColors: process.env.LOG_COLORS !== 'false'
         }
@@ -102,6 +116,7 @@ class SecurityContextLogger {
 
       config.transports.push({
         type: 'file',
+        level: config.level,
         params: {
           path: logPath,
           maxSizeMB: logMaxSize,
@@ -117,6 +132,7 @@ class SecurityContextLogger {
 
       config.transports.push({
         type: 'http',
+        level: config.level,
         params: {
           url: httpUrl,
           headers: {
@@ -203,21 +219,20 @@ class SecurityContextLogger {
   /**
    * Логирование уровня EMERGENCY
    */
-  emergency(message: string, fields?: Record<string, unknown>, error?: Error): void {
+  emergency(message: string, fields?: Record<string, unknown>): void {
     this.logger.emergency(
       message,
       LogSource.SECURITY,
       'security-context',
       this.buildContext(),
-      this.sanitizeFields(fields),
-      error
+      this.sanitizeFields(fields)
     );
   }
 
   /**
    * Логирование уровня ALERT
    */
-  alert(message: string, fields?: Record<string, unknown>, error?: Error): void {
+  alert(message: string, fields?: Record<string, unknown>): void {
     this.logger.alert(
       message,
       LogSource.SECURITY,
@@ -230,14 +245,13 @@ class SecurityContextLogger {
   /**
    * Логирование уровня CRITICAL
    */
-  critical(message: string, fields?: Record<string, unknown>, error?: Error): void {
+  critical(message: string, fields?: Record<string, unknown>): void {
     this.logger.critical(
       message,
       LogSource.APPLICATION,
       'security-context',
       this.buildContext(),
-      this.sanitizeFields(fields),
-      error
+      this.sanitizeFields(fields)
     );
   }
 
@@ -285,6 +299,19 @@ class SecurityContextLogger {
   }
 
   /**
+   * Логирование уровня TRACE
+   */
+  trace(message: string, fields?: Record<string, unknown>): void {
+    this.logger.trace(
+      message,
+      LogSource.APPLICATION,
+      'security-context',
+      this.buildContext(),
+      this.sanitizeFields(fields)
+    );
+  }
+
+  /**
    * Логирование уровня INFO
    */
   info(message: string, fields?: Record<string, unknown>): void {
@@ -310,19 +337,6 @@ class SecurityContextLogger {
     );
   }
 
-  /**
-   * Логирование уровня TRACE
-   */
-  trace(message: string, fields?: Record<string, unknown>): void {
-    this.logger.trace(
-      message,
-      LogSource.APPLICATION,
-      'security-context',
-      this.buildContext(),
-      this.sanitizeFields(fields)
-    );
-  }
-
   // ==========================================================================
   // СПЕЦИАЛИЗИРОВАННЫЕ МЕТОДЫ ДЛЯ СОБЫТИЙ БЕЗОПАСНОСТИ
   // ==========================================================================
@@ -336,16 +350,25 @@ class SecurityContextLogger {
     extraFields?: Record<string, unknown>
   ): void {
     const level = eventType.includes('failure') ? LogLevel.WARNING : LogLevel.INFO;
-    const source = LogSource.AUTH;
+    const message = `Authentication event: ${eventType}`;
 
-    this.logger.log(
-      level,
-      `Authentication event: ${eventType}`,
-      source,
-      'auth-service',
-      this.buildContext({ userId, ...extraFields }),
-      { eventType, userId }
-    );
+    if (level === LogLevel.WARNING) {
+      this.logger.warning(
+        message,
+        LogSource.AUTH,
+        'auth-service',
+        this.buildContext({ userId, ...extraFields }),
+        { eventType, userId }
+      );
+    } else {
+      this.logger.info(
+        message,
+        LogSource.AUTH,
+        'auth-service',
+        this.buildContext({ userId, ...extraFields }),
+        { eventType, userId }
+      );
+    }
   }
 
   /**
@@ -358,15 +381,25 @@ class SecurityContextLogger {
     extraFields?: Record<string, unknown>
   ): void {
     const level = action === 'access_denied' ? LogLevel.WARNING : LogLevel.INFO;
+    const message = `Authorization: ${action} - ${resource}`;
 
-    this.logger.log(
-      level,
-      `Authorization: ${action} - ${resource}`,
-      LogSource.AUTH,
-      'authz-service',
-      this.buildContext({ userId, ...extraFields }),
-      { action, resource, userId }
-    );
+    if (level === LogLevel.WARNING) {
+      this.logger.warning(
+        message,
+        LogSource.AUTH,
+        'authz-service',
+        this.buildContext({ userId, ...extraFields }),
+        { action, resource, userId }
+      );
+    } else {
+      this.logger.info(
+        message,
+        LogSource.AUTH,
+        'authz-service',
+        this.buildContext({ userId, ...extraFields }),
+        { action, resource, userId }
+      );
+    }
   }
 
   /**
@@ -381,15 +414,25 @@ class SecurityContextLogger {
     extraFields?: Record<string, unknown>
   ): void {
     const level = result === 'denied' ? LogLevel.WARNING : LogLevel.INFO;
+    const message = `Data access: ${action} ${resourceType}/${resourceId} - ${result}`;
 
-    this.logger.log(
-      level,
-      `Data access: ${action} ${resourceType}/${resourceId} - ${result}`,
-      LogSource.AUDIT,
-      'audit-service',
-      this.buildContext({ userId, ...extraFields }),
-      { resourceType, resourceId, action, result }
-    );
+    if (level === LogLevel.WARNING) {
+      this.logger.warning(
+        message,
+        LogSource.AUDIT,
+        'audit-service',
+        this.buildContext({ userId, ...extraFields }),
+        { resourceType, resourceId, action, result }
+      );
+    } else {
+      this.logger.info(
+        message,
+        LogSource.AUDIT,
+        'audit-service',
+        this.buildContext({ userId, ...extraFields }),
+        { resourceType, resourceId, action, result }
+      );
+    }
   }
 
   /**
@@ -400,8 +443,7 @@ class SecurityContextLogger {
     userId?: string,
     extraFields?: Record<string, unknown>
   ): void {
-    this.logger.log(
-      LogLevel.NOTICE,
+    this.logger.notice(
       `Configuration changed: ${configPath}`,
       LogSource.AUDIT,
       'config-service',
@@ -419,21 +461,47 @@ class SecurityContextLogger {
     description: string,
     extraFields?: Record<string, unknown>
   ): void {
-    const levelMap: Record<string, LogLevel> = {
-      'low': LogLevel.INFO,
-      'medium': LogLevel.WARNING,
-      'high': LogLevel.ERROR,
-      'critical': LogLevel.CRITICAL
-    };
+    const message = `Security event: ${eventType} - ${description}`;
 
-    this.logger.log(
-      levelMap[severity] || LogLevel.INFO,
-      `Security event: ${eventType} - ${description}`,
-      LogSource.SECURITY,
-      'security-service',
-      this.buildContext(extraFields),
-      { eventType, severity, description, ...extraFields }
-    );
+    switch (severity) {
+      case 'critical':
+        this.logger.critical(
+          message,
+          LogSource.SECURITY,
+          'security-service',
+          this.buildContext(extraFields),
+          { eventType, severity, description, ...extraFields }
+        );
+        break;
+      case 'high':
+        this.logger.error(
+          message,
+          LogSource.SECURITY,
+          'security-service',
+          this.buildContext(extraFields),
+          { eventType, severity, description, ...extraFields }
+        );
+        break;
+      case 'medium':
+        this.logger.warning(
+          message,
+          LogSource.SECURITY,
+          'security-service',
+          this.buildContext(extraFields),
+          { eventType, severity, description, ...extraFields }
+        );
+        break;
+      case 'low':
+      default:
+        this.logger.info(
+          message,
+          LogSource.SECURITY,
+          'security-service',
+          this.buildContext(extraFields),
+          { eventType, severity, description, ...extraFields }
+        );
+        break;
+    }
   }
 
   /**
@@ -445,8 +513,7 @@ class SecurityContextLogger {
     windowMs: number,
     extraFields?: Record<string, unknown>
   ): void {
-    this.logger.log(
-      LogLevel.WARNING,
+    this.logger.warning(
       `Rate limit exceeded for ${identifier}`,
       LogSource.SECURITY,
       'rate-limiter',
@@ -464,14 +531,23 @@ class SecurityContextLogger {
     severity: 'warning' | 'error' = 'error',
     extraFields?: Record<string, unknown>
   ): void {
-    this.logger.log(
-      severity === 'warning' ? LogLevel.WARNING : LogLevel.ERROR,
-      `Validation failed for ${inputType}: ${reason}`,
-      LogSource.SECURITY,
-      'input-validation',
-      this.buildContext(extraFields),
-      { inputType, reason }
-    );
+    if (severity === 'warning') {
+      this.logger.warning(
+        `Validation failed for ${inputType}: ${reason}`,
+        LogSource.SECURITY,
+        'input-validation',
+        this.buildContext(extraFields),
+        { inputType, reason }
+      );
+    } else {
+      this.logger.error(
+        `Validation failed for ${inputType}: ${reason}`,
+        LogSource.SECURITY,
+        'input-validation',
+        this.buildContext(extraFields),
+        { inputType, reason }
+      );
+    }
   }
 
   // ==========================================================================

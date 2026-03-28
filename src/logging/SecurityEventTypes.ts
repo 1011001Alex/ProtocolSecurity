@@ -522,7 +522,7 @@ export const EventTypes = {
 // ЭКСПОРТ
 // =============================================================================
 
-export type {
+export {
   AuthenticationEvent,
   AuthorizationEvent,
   DataEvent,

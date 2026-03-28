@@ -179,6 +179,48 @@ export class EvidenceManager extends EventEmitter {
   }
 
   /**
+   * Создание улики для сбора форензика данных
+   */
+  public createEvidence(
+    collectionId: string,
+    incidentId: string,
+    collectedBy: Actor
+  ): Evidence[] {
+    const evidenceList: Evidence[] = [];
+
+    // Создаем улики для каждого типа данных (заглушка)
+    const evidenceTypes = [
+      { type: 'system_logs', category: EvidenceCategory.LOG_FILE },
+      { type: 'security_logs', category: EvidenceCategory.LOG_FILE },
+      { type: 'process_list', category: EvidenceCategory.DIGITAL_FILE }
+    ];
+
+    for (const evidenceType of evidenceTypes) {
+      const evidence: Evidence = {
+        id: `evd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: evidenceType.type,
+        name: `Forensics ${evidenceType.type}`,
+        description: `Собрано в рамках сбора ${collectionId}`,
+        category: evidenceType.category,
+        location: `/var/forensics/${incidentId}/${collectionId}/${evidenceType.type}`,
+        size: 0,
+        hash: {},
+        collectedAt: new Date(),
+        collectedBy,
+        collectionContext: `Автоматический сбор форензика данных`,
+        incidentId,
+        custodyStatus: ChainOfCustodyStatus.COLLECTED,
+        custodyHistory: [],
+        tags: ['forensics', 'auto-collected']
+      };
+
+      evidenceList.push(evidence);
+    }
+
+    return evidenceList;
+  }
+
+  /**
    * Валидация улики
    */
   private validateEvidence(evidence: Evidence): void {
@@ -740,8 +782,3 @@ export class EvidenceManager extends EventEmitter {
     return { imported, failed, errors };
   }
 }
-
-/**
- * Экспорт событий менеджера
- */
-export { EvidenceManagerEvent };

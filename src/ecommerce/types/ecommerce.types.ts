@@ -346,6 +346,9 @@ export interface ReviewSuspicionFactor {
 
   /** Описание */
   description: string;
+
+  /** Доказательства */
+  evidence?: Record<string, any>;
 }
 
 /**

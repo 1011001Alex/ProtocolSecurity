@@ -545,8 +545,8 @@ export class HashChain {
       }));
       chain.currentHash = data.currentHash || '';
       chain.entryCounter = data.entryCounter || chain.entries.length;
-      chain.createdAt = new Date(data.createdAt);
-      chain.updatedAt = new Date(data.updatedAt);
+      // createdAt и updatedAt это readonly свойства, устанавливаемые в конструкторе
+      // не можем их изменить после создания экземпляра
 
       // Верифицируем загруженную цепь
       const verification = chain.verify();
@@ -771,33 +771,33 @@ export class HashChainManager {
 
   /**
    * Сохраняет все цепи
-   * 
+   *
    * @returns Результаты сохранения
    */
-  async saveAllChains(): Promise<Map<string, OperationResult>> {
-    const results = new Map<string, OperationResult>();
-    
+  async saveAllChains(): Promise<Map<string, OperationResult<void>>> {
+    const results = new Map<string, OperationResult<void>>();
+
     for (const [id, chain] of this.chains.entries()) {
       const result = await chain.save();
       results.set(id, result);
     }
-    
+
     return results;
   }
 
   /**
    * Верифицирует все цепи
-   * 
+   *
    * @returns Результаты верификации
    */
-  verifyAllChains(): Map<string, OperationResult> {
-    const results = new Map<string, OperationResult>();
-    
+  verifyAllChains(): Map<string, OperationResult<{ validFrom: number; validTo: number }>> {
+    const results = new Map<string, OperationResult<{ validFrom: number; validTo: number }>>();
+
     for (const [id, chain] of this.chains.entries()) {
       const result = chain.verify();
       results.set(id, result);
     }
-    
+
     return results;
   }
 

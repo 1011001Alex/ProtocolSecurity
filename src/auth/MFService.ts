@@ -288,7 +288,7 @@ export class MFService {
       secret,
     });
 
-    return totp.generate(timestamp ? Math.floor(timestamp / 1000) : undefined);
+    return totp.generate({ timestamp: timestamp ? Math.floor(timestamp / 1000) : undefined });
   }
 
   // ===========================================================================
@@ -573,14 +573,14 @@ export class MFService {
 
         if (timingSafeEqual(hashBuffer, inputBuffer)) {
           // Код найден, проверяем статус
-          if (hashCode.used) {
+          if (hashedCode.used) {
             return {
               valid: false,
               reason: 'Код уже был использован',
             };
           }
 
-          if (hashCode.expiresAt && hashCode.expiresAt < new Date()) {
+          if (hashedCode.expiresAt && hashedCode.expiresAt < new Date()) {
             return {
               valid: false,
               reason: 'Срок действия кода истек',

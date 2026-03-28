@@ -1158,14 +1158,14 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
     if (!this.config.auditEnabled) {
       return;
     }
-    
+
     const fullEntry: AuditLogEntry = {
       ...entry,
       entryId: randomUUID(),
       timestamp: new Date(),
       backend: this.primaryBackend?.type ?? SecretBackendType.LOCAL
     };
-    
+
     // Добавление времени выполнения
     if (startTime) {
       fullEntry.metadata = {
@@ -1173,20 +1173,34 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         executionTimeMs: Date.now() - startTime
       };
     }
-    
+
     this.auditLogs.push(fullEntry);
-    
+
     // Ограничение размера логов в памяти
     if (this.auditLogs.length > 10000) {
       this.auditLogs = this.auditLogs.slice(-10000);
     }
-    
+
     // Запись в файл если указан путь
     if (this.auditLogPath) {
       this.writeAuditLogToFile(fullEntry);
     }
-    
+
     this.emit('audit:logged', fullEntry);
+  }
+
+  /**
+   * Публичный метод для добавления audit записи (для тестов)
+   */
+  addAuditLog(action: SecretAction, secretId: string, context: Partial<AccessContext>): void {
+    this.logAudit({
+      operation: action as any,
+      secretId,
+      secretName: secretId,
+      performedBy: context.subjectId ?? 'unknown',
+      success: true,
+      metadata: { context }
+    });
   }
 
   /**

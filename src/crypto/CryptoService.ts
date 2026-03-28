@@ -223,7 +223,7 @@ export class CryptoService extends EventEmitter {
       const keyMaterial = this.keyManager.getKeyMaterial(keyId);
       
       if (!keyMaterial) {
-        throw this.createError('KEY_NOT_FOUND', `Ключ не найден: ${keyId}`);
+        throw this.createError(CryptoErrorCode.KEY_NOT_FOUND, `Ключ не найден: ${keyId}`);
       }
       
       // Регистрируем KEK и шифруем
@@ -255,7 +255,7 @@ export class CryptoService extends EventEmitter {
       const keyMaterial = this.keyManager.getKeyMaterial(actualKeyId);
       
       if (!keyMaterial) {
-        throw this.createError('KEY_NOT_FOUND', `Ключ не найден: ${actualKeyId}`);
+        throw this.createError(CryptoErrorCode.KEY_NOT_FOUND, `Ключ не найден: ${actualKeyId}`);
       }
       
       // Регистрируем KEK и расшифровываем
@@ -283,14 +283,14 @@ export class CryptoService extends EventEmitter {
       const publicKey = this.keyManager.getPublicKey(publicKeyId);
       
       if (!publicKey) {
-        throw this.createError('KEY_NOT_FOUND', `Открытый ключ не найден: ${publicKeyId}`);
+        throw this.createError(CryptoErrorCode.KEY_NOT_FOUND, `Открытый ключ не найден: ${publicKeyId}`);
       }
       
       // Используем RSA-OAEP
       return new Uint8Array(crypto.publicEncrypt(
         {
           key: publicKey,
-          padding: crypto.constants.RSA_OAEP_PADDING,
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
           oaepHash: 'sha256',
         },
         Buffer.from(plaintext)
@@ -311,7 +311,7 @@ export class CryptoService extends EventEmitter {
       const keyMaterial = this.keyManager.getKeyMaterial(privateKeyId);
       
       if (!keyMaterial) {
-        throw this.createError('KEY_NOT_FOUND', `Закрытый ключ не найден: ${privateKeyId}`);
+        throw this.createError(CryptoErrorCode.KEY_NOT_FOUND, `Закрытый ключ не найден: ${privateKeyId}`);
       }
       
       const privateKey = crypto.createPrivateKey({
@@ -323,7 +323,7 @@ export class CryptoService extends EventEmitter {
       return new Uint8Array(crypto.privateDecrypt(
         {
           key: privateKey,
-          padding: crypto.constants.RSA_OAEP_PADDING,
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
           oaepHash: 'sha256',
         },
         Buffer.from(data)
@@ -397,7 +397,7 @@ export class CryptoService extends EventEmitter {
     const keyMaterial = this.keyManager.getKeyMaterial(keyId);
     
     if (!keyMaterial) {
-      throw this.createError('KEY_NOT_FOUND', `Ключ не найден: ${keyId}`);
+      throw this.createError(CryptoErrorCode.KEY_NOT_FOUND, `Ключ не найден: ${keyId}`);
     }
     
     const selectedAlgorithm = algorithm || 'SHA-256';
@@ -663,7 +663,7 @@ export class CryptoService extends EventEmitter {
    */
   private validateInitialized(): void {
     if (!this.isInitialized) {
-      throw this.createError('UNKNOWN_ERROR', 'CryptoService не инициализирован');
+      throw this.createError(CryptoErrorCode.UNKNOWN_ERROR, 'CryptoService не инициализирован');
     }
   }
 
@@ -680,7 +680,7 @@ export class CryptoService extends EventEmitter {
     if (typeof data === 'string') {
       return new TextEncoder().encode(data);
     }
-    throw this.createError('INVALID_ARGUMENT', 'Неподдерживаемый тип данных');
+    throw this.createError(CryptoErrorCode.INVALID_ARGUMENT, 'Неподдерживаемый тип данных');
   }
 
   /**
@@ -689,7 +689,7 @@ export class CryptoService extends EventEmitter {
   private validateAlgorithm(algorithm: string, allowed: string[]): void {
     if (!allowed.includes(algorithm)) {
       throw this.createError(
-        'INVALID_ARGUMENT',
+        CryptoErrorCode.INVALID_ARGUMENT,
         `Алгоритм ${algorithm} не разрешен. Разрешены: ${allowed.join(', ')}`
       );
     }

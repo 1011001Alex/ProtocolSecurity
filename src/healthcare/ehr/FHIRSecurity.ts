@@ -95,8 +95,10 @@ export class FHIRSecurity extends EventEmitter {
       ...resource,
       id: resource.id || `new-${Date.now()}`,
       meta: {
-        ...resource.meta,
-        lastUpdated: new Date().toISOString()
+        versionId: resource.meta?.versionId || '1',
+        lastUpdated: new Date().toISOString(),
+        profile: resource.meta?.profile,
+        tag: resource.meta?.tag
       }
     };
   }

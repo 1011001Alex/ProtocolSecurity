@@ -195,6 +195,9 @@ export interface Identity {
 
   /** Время последнего обновления */
   updatedAt: Date;
+
+  /** Дополнительные атрибуты */
+  attributes?: Record<string, unknown>;
 }
 
 /**
@@ -337,6 +340,9 @@ export interface DevicePosture {
   /** Диск зашифрован (алиас для compliance.diskEncrypted) */
   isEncrypted: boolean;
 
+  /** Антивирус активен (алиас для compliance.antivirusActive) */
+  hasAntivirus: boolean;
+
   /** Сетевая информация */
   network: {
     /** IP адрес */
@@ -383,19 +389,22 @@ export interface DevicePosture {
 export enum PolicyOperation {
   /** Чтение */
   READ = 'READ',
-  
+
   /** Запись */
   WRITE = 'WRITE',
-  
+
   /** Удаление */
   DELETE = 'DELETE',
-  
+
   /** Выполнение */
   EXECUTE = 'EXECUTE',
-  
+
   /** Администрирование */
   ADMIN = 'ADMIN',
-  
+
+  /** Создание */
+  CREATE = 'CREATE',
+
   /** Любая операция */
   ANY = 'ANY'
 }
@@ -421,6 +430,9 @@ export interface PolicyCondition {
  * Ограничение политики
  */
 export interface PolicyConstraint {
+  /** Уникальный идентификатор ограничения */
+  id: string;
+
   /** Whitelist IP адресов */
   ipWhitelist?: string[];
   
@@ -1291,6 +1303,46 @@ export interface PolicyEvaluationResult {
   
   /** Токен доступа (если разрешено) */
   accessToken?: string;
+
+  /** Причина решения */
+  reason?: string;
+
+  /** Применённые политики */
+  appliedPolicies?: string[];
+
+  /** Шаги оценки */
+  evaluationSteps?: string[];
+
+  /** Метаданные */
+  metadata?: PolicyDecisionMetadata;
+}
+
+/**
+ * Метаданные решения политики
+ */
+export interface PolicyDecisionMetadata {
+  /** ID применённой политики */
+  policyId?: string;
+  /** Шаги оценки */
+  evaluationSteps?: string[];
+  /** Время оценки */
+  timestamp?: Date;
+  /** Дополнительные данные */
+  [key: string]: unknown;
+}
+
+/**
+ * Оценка риска
+ */
+export interface RiskAssessment {
+  /** Уровень риска */
+  level: string;
+  /** Числовая оценка (0-100) */
+  score: number;
+  /** Факторы риска */
+  factors: string[];
+  /** Рекомендации по снижению риска */
+  recommendations?: string[];
 }
 
 /**

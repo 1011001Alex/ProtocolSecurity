@@ -40,25 +40,6 @@ import {
 import { CircuitBreaker, CircuitBreakerManager, CircuitState } from '../utils/CircuitBreaker';
 import { PerformanceMonitor, getPerformanceMonitor } from '../utils/PerformanceMonitor';
 
-// Ре-экспорт типов для тестов
-export {
-  HealthStatus,
-  ComponentType,
-  HealthCheckConfig,
-  HealthCheckResult,
-  ComponentHealthStatus,
-  DEFAULT_HEALTH_CHECK_CONFIG,
-  HealthCheckOptions,
-  DEFAULT_HEALTH_CHECK_OPTIONS,
-  CircuitBreakerHealthStatus,
-  RedisHealthStatus,
-  DatabaseHealthStatus,
-  ExternalApiHealthStatus,
-  MemoryHealthStatus,
-  CPUHealthStatus,
-  PrometheusMetrics
-};
-
 /**
  * Health Check Service
  */

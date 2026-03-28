@@ -21,9 +21,10 @@ import {
   VerifiedRegistrationResponse,
   VerifiedAuthenticationResponse,
   // Settings
-  RegistrationCredentialJSON,
   AuthenticatorTransportFuture,
   WebAuthnCredential,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
 import { v4 as uuidv4 } from 'uuid';
@@ -59,15 +60,15 @@ export interface WebAuthnServiceConfig {
   
   /** Требовать user verification */
   requireUserVerification: boolean;
-  
+
   /** Предпочтительная аутентификация */
   authenticatorAttachment: AuthenticatorType | 'cross-platform' | 'platform';
-  
+
   /** Таймаут операций (мс) */
   timeout: number;
-  
-  /** Аттестация: 'none', 'direct', 'indirect' */
-  attestationType: 'none' | 'direct' | 'indirect';
+
+  /** Аттестация: 'none', 'direct', 'enterprise' */
+  attestationType: 'none' | 'direct' | 'enterprise';
   
   /** Разрешенные алгоритмы */
   supportedAlgorithmIDs: number[];
@@ -85,7 +86,7 @@ const DEFAULT_CONFIG: WebAuthnServiceConfig = {
   requireUserVerification: true,
   authenticatorAttachment: 'platform',
   timeout: 60000, // 1 минута
-  attestationType: 'none',
+  attestationType: 'direct',
   // Поддерживаемые алгоритмы (по приоритету)
   supportedAlgorithmIDs: [
     -8, // EdDSA
@@ -319,12 +320,16 @@ export class WebAuthnService {
       }
 
       const {
-        credentialPublicKey,
-        credentialID,
-        counter,
-        credentialType,
-        attestationInfo,
+        credential,
+        userVerified,
+        credentialDeviceType,
+        credentialBackedUp,
+        origin,
+        rpID,
       } = registrationInfo;
+
+      // credential содержит publicKey, id и counter
+      const { publicKey, id: credentialID, counter } = credential;
 
       // Определение типа аутентификатора
       let authenticatorType: AuthenticatorType = 'roaming';
@@ -339,17 +344,17 @@ export class WebAuthnService {
         type: 'webauthn',
         status: 'active',
         credentialId: credentialID,
-        publicKey: isoBase64URL.fromBuffer(credentialPublicKey),
+        publicKey: isoBase64URL.fromBuffer(publicKey),
         counter,
         authenticatorType,
         transports: (response.response.transports as AuthenticatorTransportFuture[]) || [],
         authenticatorFlags: {
           userPresent: true,
-          userVerified: this.config.requireUserVerification,
-          backupEligible: attestationInfo?.credentialBackedUp ?? false,
-          backupState: attestationInfo?.credentialBackedUp ?? false,
+          userVerified: userVerified || this.config.requireUserVerification,
+          backupEligible: credentialBackedUp ?? false,
+          backupState: credentialBackedUp ?? false,
         },
-        deviceName: this.getAuthenticatorName(attestationInfo?.aaguid),
+        deviceName: this.getAuthenticatorName(registrationInfo.aaguid),
         createdAt: new Date(),
         lastUsedAt: new Date(),
         usageCount: 0,
@@ -358,7 +363,7 @@ export class WebAuthnService {
 
       // Информация об аутентификаторе
       const authenticatorInfo = {
-        aaguid: attestationInfo?.aaguid || 'unknown',
+        aaguid: registrationInfo.aaguid || 'unknown',
         name: webAuthnMethod.deviceName || 'Unknown Authenticator',
         type: authenticatorType,
       };
@@ -493,7 +498,7 @@ export class WebAuthnService {
           id: storedCredential.credentialId,
           publicKey: isoBase64URL.toBuffer(storedCredential.publicKey),
           counter: storedCredential.counter,
-          transports: response.response.transports as AuthenticatorTransportFuture[],
+          transports: undefined, // response.response.transports не существует в новом типе
         },
         requireUserVerification: this.config.requireUserVerification,
       });
@@ -510,7 +515,7 @@ export class WebAuthnService {
         };
       }
 
-      const { newCounter, userVerified, userPresent } = authenticationInfo;
+      const { newCounter, userVerified, credentialBackedUp } = authenticationInfo;
 
       return {
         success: true,
@@ -518,9 +523,9 @@ export class WebAuthnService {
         newCounter,
         authInfo: {
           userVerified,
-          userPresent,
-          backupEligible: response.response.userHandle ? true : false,
-          backupState: false,
+          userPresent: true, // userPresent всегда true если верификация прошла
+          backupEligible: credentialBackedUp ?? false,
+          backupState: credentialBackedUp ?? false,
         },
       };
     } catch (error) {

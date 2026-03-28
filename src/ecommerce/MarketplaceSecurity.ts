@@ -349,6 +349,6 @@ interface Report {
   reporterId: string;
   reason: string;
   evidence: string[];
-  status: string;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'CONFIRMED' | 'REJECTED';
   createdAt: Date;
 }

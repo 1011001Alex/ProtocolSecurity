@@ -87,7 +87,7 @@ export class AccountTakeoverPrevention extends EventEmitter {
     let recommendedAction: ATORiskResult['recommendedAction'] = 'ALLOW';
     if (riskLevel === 'CRITICAL') recommendedAction = 'BLOCK';
     else if (riskLevel === 'HIGH') recommendedAction = 'REQUIRE_MFA';
-    else if (riskLevel === 'MEDIUM') recommendedAction = 'REQUIRE_VERIFICATION';
+    else if (riskLevel === 'MEDIUM') recommendedAction = 'REVIEW';
 
     const result: ATORiskResult = {
       loginAttemptId: `login-${uuidv4()}`,
@@ -179,8 +179,8 @@ export class AccountTakeoverPrevention extends EventEmitter {
     // Impossible travel detection
 
     const highRiskCountries = ['NG', 'RU', 'CN', 'BR', 'ID'];
-    
-    if (geolocation.country && highRiskCountries.includes(geolocation.country)) {
+
+    if (geolocation?.country && highRiskCountries.includes(geolocation.country)) {
       return {
         name: 'HIGH_RISK_COUNTRY',
         weight: 0.2,

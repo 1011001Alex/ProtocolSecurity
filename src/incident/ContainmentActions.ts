@@ -852,8 +852,3 @@ export class ContainmentActions extends EventEmitter {
     };
   }
 }
-
-/**
- * Экспорт событий модуля
- */
-export { ContainmentActionsEvent };

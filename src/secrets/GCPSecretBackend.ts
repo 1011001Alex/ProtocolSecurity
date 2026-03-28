@@ -27,6 +27,14 @@ import {
   ISecretBackend,
   SecretBackendError
 } from '../types/secrets.types';
+// Mock импорты для GCP SDK
+import { 
+  SecretManagerServiceClient as MockSecretManagerClient,
+  type SecretManagerServiceClientOptions,
+  type Secret,
+  type SecretVersion as GCPSecretVersion,
+  type Policy
+} from './gcp.mock';
 
 /**
  * Интерфейс GCP Secret Manager клиент
@@ -309,27 +317,20 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   /**
    * Загрузка GCP SDK
    */
-  private async loadGCPSDK(): Promise<Record<string, unknown>> {
+  private async loadGCPSDK(): Promise<{
+    SecretManagerServiceClient: typeof MockSecretManagerClient;
+  }> {
     try {
+      // Пытаемся загрузить реальный GCP SDK
       const sdk = await import('@google-cloud/secret-manager');
-      return sdk;
+      return {
+        SecretManagerServiceClient: sdk.SecretManagerServiceClient
+      };
     } catch (error) {
       logger.warn('[GCPSecretBackend] GCP SDK не найден, используется mock режим');
 
       return {
-        SecretManagerServiceClient: class MockClient {
-          async accessSecretVersion() { return {}; }
-          async addSecretVersion() { return {}; }
-          async createSecret() { return {}; }
-          async updateSecret() { return {}; }
-          async deleteSecret() { return {}; }
-          async getSecret() { return {}; }
-          async listSecretVersions() { return { versions: [] }; }
-          async destroySecretVersion() { return {}; }
-          async setIamPolicy() { return {}; }
-          async getIamPolicy() { return {}; }
-          close() {}
-        }
+        SecretManagerServiceClient: MockSecretManagerClient
       };
     }
   }

@@ -976,8 +976,3 @@ interface RiskScorerStatistics {
   };
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { RiskScorer };

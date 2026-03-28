@@ -31,7 +31,14 @@ import {
 import { HealthStatus } from './health/HealthCheckTypes';
 import { CircuitBreakerManager } from './utils/CircuitBreaker';
 import { PerformanceMonitor, getPerformanceMonitor } from './utils/PerformanceMonitor';
-import { securityLogger } from './logging';
+import { securityLogger } from './logging/SecurityContextLogger';
+
+/**
+ * Глобальные переменные для управления сервисами
+ */
+let healthCheckService: HealthCheckService | undefined = undefined;
+let circuitBreakerManager: CircuitBreakerManager | undefined = undefined;
+let performanceMonitor: PerformanceMonitor | undefined = undefined;
 
 // =============================================================================
 // ENVIRONMENT CONFIGURATION
@@ -298,11 +305,10 @@ export function createApp(config?: Partial<AppConfig>): Application {
 
   // =============================================================================
   // SECURITY HEADERS MIDDLEWARE
-  // =============================================================================
   if (appConfig.enableSecurityHeaders) {
     const securityHeadersMiddleware = createSecurityHeadersMiddleware();
     app.use((req: Request, res: Response, next: NextFunction) => {
-      securityHeadersMiddleware.handle(req, res);
+      securityHeadersMiddleware.handle(req, res, next);
       next();
     });
     securityLogger.info('Security headers middleware activated', { component: 'security_headers' });
@@ -312,11 +318,10 @@ export function createApp(config?: Partial<AppConfig>): Application {
   // RATE LIMITING MIDDLEWARE
   // =============================================================================
   if (appConfig.enableRateLimit) {
-    // Инициализируем rate limiter асинхронно
+    // Инициализием rate limiter асинхронно
     const initRateLimiter = async () => {
       const store = createMemoryStore();
-      const rateLimiter = createRateLimiter(store, true);
-      await rateLimiter.initialize();
+      const rateLimiter = createRateLimiter();
 
       // Добавляем правила
       rateLimiter.addRule(createPerIPRule());
@@ -329,8 +334,8 @@ export function createApp(config?: Partial<AppConfig>): Application {
       securityLogger.info('Rate limit middleware activated', { store: 'MemoryStore', component: 'rate_limit' });
     };
 
-    initRateLimiter().catch(err => {
-      securityLogger.error('Rate limit initialization error', err, { component: 'rate_limit' });
+    initRateLimiter().catch((err: Error) => {
+      securityLogger.error('Rate limit initialization error', { error: err.message, component: 'rate_limit' });
     });
   }
 
@@ -350,11 +355,9 @@ export function createApp(config?: Partial<AppConfig>): Application {
       maxBodySize: appConfig.inputValidationMaxBodySize,
       sanitizeHTML: appConfig.inputValidationSanitizeHTML,
       logErrors: true,
-      enableRateLimit: false, // Rate limiting уже есть в RateLimitMiddleware
-      skipMethods: ['GET', 'HEAD', 'OPTIONS'], // GET запросы не требуют валидации body
-      schema: {
-        // Базовая схема для всех запросов может быть расширена в роутах
-      }
+      enableRateLimit: false,
+      skipMethods: ['GET', 'HEAD', 'OPTIONS'],
+      schema: {}
     });
 
     app.use(inputValidationMiddleware);
@@ -368,9 +371,6 @@ export function createApp(config?: Partial<AppConfig>): Application {
   // =============================================================================
   // HEALTH CHECK SERVICE INITIALIZATION
   // =============================================================================
-  let healthCheckService: HealthCheckService | null = null;
-  let circuitBreakerManager: CircuitBreakerManager | null = null;
-  let performanceMonitor: PerformanceMonitor | null = null;
 
   if (appConfig.enableHealthCheck && appConfig.healthCheckEnabled) {
     // Инициализация Circuit Breaker Manager
@@ -686,10 +686,11 @@ export function createApp(config?: Partial<AppConfig>): Application {
   // GLOBAL ERROR HANDLER
   // =============================================================================
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    securityLogger.error('Global error handler', err, {
+    securityLogger.error('Global error handler', {
       path: req.path,
       method: req.method,
-      component: 'error_handler'
+      component: 'error_handler',
+      error: err.message
     });
 
     res.status(err instanceof Error && 'status' in err ? (err as any).status : 500).json({
@@ -808,7 +809,7 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
       process.stdout.write('\n');
 
       // Логирование для системы
-      securityLogger.info(startupMessage.message, startupMessage, { component: 'server' });
+      securityLogger.info(startupMessage.message, { ...startupMessage, component: 'server' });
 
       resolve();
     });
@@ -821,7 +822,7 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
           component: 'server'
         });
       } else {
-        securityLogger.error('Server error', err, { component: 'server' });
+        securityLogger.error('Server error', { error: err.message, code: err.code, component: 'server' });
       }
       reject(err);
     });
@@ -877,8 +878,10 @@ export async function startServer(config?: Partial<AppConfig>): Promise<void> {
 
 // Запускаем сервер только если этот файл является точкой входа
 if (require.main === module) {
-  startServer().catch(err => {
-    securityLogger.critical('Startup critical error', err, {
+  startServer().catch((err: Error) => {
+    securityLogger.critical('Startup critical error', {
+      error: err.message,
+      stack: err.stack,
       phase: 'startup',
       component: 'main'
     });

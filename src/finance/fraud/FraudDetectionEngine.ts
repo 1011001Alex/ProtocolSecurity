@@ -161,7 +161,7 @@ export class FraudDetectionEngine extends EventEmitter {
       score: normalizedScore,
       riskFactors,
       recommendedAction,
-      transactionId: transaction.id,
+      transactionId: transaction.transactionId,
       analyzedAt: new Date(),
       metadata: {
         analysisTime: Date.now() - startTime,
@@ -216,7 +216,7 @@ export class FraudDetectionEngine extends EventEmitter {
    * Geolocation проверка
    */
   private async checkGeolocation(transaction: TransactionData): Promise<FraudRiskFactor> {
-    if (!transaction.location || !transaction.location.latitude || !transaction.location.longitude) {
+    if (!transaction.geolocation || !transaction.geolocation.latitude || !transaction.geolocation.longitude) {
       return {
         name: 'GEOLOCATION_CHECK',
         weight: 0.15,
@@ -226,7 +226,7 @@ export class FraudDetectionEngine extends EventEmitter {
     }
 
     // Проверка на необычные локации
-    const { latitude, longitude } = transaction.location;
+    const { latitude, longitude } = transaction.geolocation;
     
     // Пример: проверка расстояния от "домашнего" местоположения
     // В production здесь был бы запрос к базе домашних локаций
@@ -377,7 +377,7 @@ export class FraudDetectionEngine extends EventEmitter {
       0.5, // distanceFromHome (placeholder)
       0.5, // deviceRiskScore (placeholder)
       0.5, // ipRiskScore (placeholder)
-      this.getMerchantCategoryRisk(transaction.merchantCategory || 'unknown'),
+      this.getMerchantCategoryRisk(transaction.merchantCategoryCode || 'unknown'),
       transaction.cardPresent ? 1 : 0
     ];
   }

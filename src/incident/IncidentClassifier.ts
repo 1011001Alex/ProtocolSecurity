@@ -267,10 +267,10 @@ export class IncidentClassifier {
         description: 'Обнаружение вредоносного ПО',
         category: IncidentCategory.MALWARE,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'malware' },
-          { field: 'title', operator: 'contains', value: 'virus' },
-          { field: 'title', operator: 'contains', value: 'trojan' },
-          { field: 'description', operator: 'contains', value: 'malicious software' }
+          { field: 'details.title', operator: 'contains', value: 'malware' },
+          { field: 'details.title', operator: 'contains', value: 'virus' },
+          { field: 'details.title', operator: 'contains', value: 'trojan' },
+          { field: 'details.description', operator: 'contains', value: 'malicious software' }
         ],
         priority: 10,
         confidenceWeight: 0.8
@@ -281,10 +281,12 @@ export class IncidentClassifier {
         description: 'Обнаружение ransomware атаки',
         category: IncidentCategory.RANSOMWARE_ATTACK,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'ransomware' },
-          { field: 'title', operator: 'contains', value: 'encryption' },
-          { field: 'description', operator: 'contains', value: 'ransom' },
-          { field: 'description', operator: 'contains', value: 'encrypted files' }
+          { field: 'details.title', operator: 'contains', value: 'ransomware' },
+          { field: 'details.title', operator: 'contains', value: 'encryption' },
+          { field: 'details.title', operator: 'contains', value: 'encrypted' },
+          { field: 'details.description', operator: 'contains', value: 'ransom' },
+          { field: 'details.description', operator: 'contains', value: 'encrypted files' },
+          { field: 'details.description', operator: 'contains', value: 'encryption' }
         ],
         priority: 20,
         confidenceWeight: 0.9
@@ -296,10 +298,10 @@ export class IncidentClassifier {
         description: 'Обнаружение утечки данных',
         category: IncidentCategory.DATA_BREACH,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'data breach' },
-          { field: 'title', operator: 'contains', value: 'data leak' },
-          { field: 'description', operator: 'contains', value: 'unauthorized access to data' },
-          { field: 'description', operator: 'contains', value: 'data exfiltration' }
+          { field: 'details.title', operator: 'contains', value: 'data breach' },
+          { field: 'details.title', operator: 'contains', value: 'data leak' },
+          { field: 'details.description', operator: 'contains', value: 'unauthorized access to data' },
+          { field: 'details.description', operator: 'contains', value: 'data exfiltration' }
         ],
         priority: 15,
         confidenceWeight: 0.85
@@ -311,10 +313,10 @@ export class IncidentClassifier {
         description: 'Обнаружение DDoS атаки',
         category: IncidentCategory.DDOS_ATTACK,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'ddos' },
-          { field: 'title', operator: 'contains', value: 'denial of service' },
-          { field: 'description', operator: 'contains', value: 'traffic spike' },
-          { field: 'description', operator: 'contains', value: 'service unavailable' }
+          { field: 'details.title', operator: 'contains', value: 'ddos' },
+          { field: 'details.title', operator: 'contains', value: 'denial of service' },
+          { field: 'details.description', operator: 'contains', value: 'traffic spike' },
+          { field: 'details.description', operator: 'contains', value: 'service unavailable' }
         ],
         priority: 12,
         confidenceWeight: 0.8
@@ -326,9 +328,9 @@ export class IncidentClassifier {
         description: 'Обнаружение угрозы изнутри',
         category: IncidentCategory.INSIDER_THREAT,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'insider' },
-          { field: 'description', operator: 'contains', value: 'unauthorized access by employee' },
-          { field: 'description', operator: 'contains', value: 'policy violation' }
+          { field: 'details.title', operator: 'contains', value: 'insider' },
+          { field: 'details.description', operator: 'contains', value: 'unauthorized access by employee' },
+          { field: 'details.description', operator: 'contains', value: 'policy violation' }
         ],
         priority: 8,
         confidenceWeight: 0.7
@@ -340,10 +342,10 @@ export class IncidentClassifier {
         description: 'Обнаружение компрометации учетных данных',
         category: IncidentCategory.CREDENTIAL_COMPROMISE,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'credential' },
-          { field: 'title', operator: 'contains', value: 'password' },
-          { field: 'description', operator: 'contains', value: 'compromised credentials' },
-          { field: 'description', operator: 'contains', value: 'brute force' }
+          { field: 'details.title', operator: 'contains', value: 'credential' },
+          { field: 'details.title', operator: 'contains', value: 'password' },
+          { field: 'details.description', operator: 'contains', value: 'compromised credentials' },
+          { field: 'details.description', operator: 'contains', value: 'brute force' }
         ],
         priority: 10,
         confidenceWeight: 0.75
@@ -355,9 +357,9 @@ export class IncidentClassifier {
         description: 'Обнаружение фишинговой атаки',
         category: IncidentCategory.PHISHING,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'phishing' },
-          { field: 'description', operator: 'contains', value: 'suspicious email' },
-          { field: 'description', operator: 'contains', value: 'malicious link' }
+          { field: 'details.title', operator: 'contains', value: 'phishing' },
+          { field: 'details.description', operator: 'contains', value: 'suspicious email' },
+          { field: 'details.description', operator: 'contains', value: 'malicious link' }
         ],
         priority: 7,
         confidenceWeight: 0.7
@@ -369,9 +371,9 @@ export class IncidentClassifier {
         description: 'Обнаружение несанкционированного доступа',
         category: IncidentCategory.UNAUTHORIZED_ACCESS,
         conditions: [
-          { field: 'title', operator: 'contains', value: 'unauthorized' },
-          { field: 'description', operator: 'contains', value: 'unauthorized access' },
-          { field: 'description', operator: 'contains', value: 'privilege escalation' }
+          { field: 'details.title', operator: 'contains', value: 'unauthorized' },
+          { field: 'details.description', operator: 'contains', value: 'unauthorized access' },
+          { field: 'details.description', operator: 'contains', value: 'privilege escalation' }
         ],
         priority: 9,
         confidenceWeight: 0.75

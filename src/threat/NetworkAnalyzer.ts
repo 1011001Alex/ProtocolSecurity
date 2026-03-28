@@ -17,6 +17,8 @@ import {
   SecurityAlert,
   ThreatSeverity,
   ThreatCategory,
+  ThreatStatus,
+  EntityType,
   AttackType
 } from '../types/threat.types';
 import { v4 as uuidv4 } from 'uuid';
@@ -671,7 +673,7 @@ export class NetworkAnalyzer {
       title: `Сетевая аномалия: ${anomaly.type}`,
       description: anomaly.description,
       severity: anomaly.severity,
-      status: 'new',
+      status: ThreatStatus.NEW,
       category: ThreatCategory.NETWORK,
       attackType: this.mapAnomalyToAttackType(anomaly.type),
       source: 'NetworkAnalyzer',
@@ -679,20 +681,20 @@ export class NetworkAnalyzer {
       entities: [
         {
           id: uuidv4(),
-          type: 'host',
+          type: EntityType.HOST,
           name: flow.srcIp,
           value: flow.srcIp,
           riskScore: anomaly.confidence * 100,
-          role: 'source',
+          role: 'attacker',
           context: {}
         },
         {
           id: uuidv4(),
-          type: 'host',
+          type: EntityType.HOST,
           name: flow.dstIp,
           value: flow.dstIp,
           riskScore: 50,
-          role: 'target',
+          role: 'victim',
           context: {}
         }
       ],
@@ -876,8 +878,3 @@ interface NetworkAnalyzerStatistics {
   anomaliesByType: Map<NetworkAnomalyType, number>;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { NetworkAnalyzer };

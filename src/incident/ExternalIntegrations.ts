@@ -741,8 +741,3 @@ export class ExternalIntegrations extends EventEmitter {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
-
-/**
- * Экспорт событий интеграций
- */
-export { ExternalIntegrationsEvent };

@@ -11,14 +11,7 @@
  */
 
 import {
-  SignJwtPayload,
-  verify,
-  sign,
-  createSigner,
-  createVerifier,
-  KeyLike,
-  JWTPayload,
-  JwtHeaderParameters,
+  JwtPayload,
 } from 'jsonwebtoken';
 import { logger } from '../logging/Logger';
 import {
@@ -29,6 +22,7 @@ import {
   randomBytes,
   createHash,
 } from 'crypto';
+import { webcrypto } from 'crypto';
 import {
   exportJWK,
   importJWK,
@@ -150,10 +144,8 @@ const DEFAULT_CONFIG: JwtServiceConfig = {
  */
 interface KeyPair {
   config: JwtKeyConfig;
-  privateKey: KeyLike;
-  publicKey: KeyLike;
-  signer: ReturnType<typeof createSigner>;
-  verifier: ReturnType<typeof createVerifier>;
+  privateKey: webcrypto.CryptoKey;
+  publicKey: webcrypto.CryptoKey;
   /** Версия ключа для key versioning */
   version: number;
   /** Ключи для верификации (для старых ключей) */
@@ -395,26 +387,13 @@ export class JwtService {
     try {
       // Импортируем ключи
       const privateKey = await importPKCS8(keyConfig.privateKey, keyConfig.algorithm);
-      const publicKey = await importSPKI(keyConfig.publicKey);
-
-      // Создаем signer и verifier
-      const signer = createSigner({
-        key: keyConfig.privateKey,
-        algorithm: keyConfig.algorithm,
-        kid: keyConfig.kid,
-      });
-
-      const verifier = createVerifier({
-        key: keyConfig.publicKey,
-        algorithms: [keyConfig.algorithm],
-      });
+      const publicKey = await importSPKI(keyConfig.publicKey, keyConfig.algorithm);
 
       const keyPair: KeyPair = {
         config: keyConfig,
         privateKey,
         publicKey,
-        signer,
-        verifier,
+        version: 1,
       };
 
       this.keyPairs.set(keyConfig.kid, keyPair);
@@ -570,10 +549,18 @@ export class JwtService {
     }
 
     try {
-      return sign(payload, keyPair.config.privateKey, {
-        algorithm: keyPair.config.algorithm,
-        keyid: keyPair.config.kid,
-      });
+      // Используем jose library для подписи CryptoKey
+      const { SignJWT } = await import('jose');
+      const alg = keyPair.config.algorithm as string;
+      const token = await new SignJWT(payload as any)
+        .setProtectedHeader({ alg, kid: keyPair.config.kid })
+        .setIssuedAt()
+        .setIssuer(this.config.issuer)
+        .setAudience(this.config.audience)
+        .setExpirationTime(Math.floor(this.config.accessTokenLifetime / 1000))
+        .sign(keyPair.privateKey);
+      
+      return token;
     } catch (error) {
       throw new AuthError(
         `Ошибка создания access токена: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -620,15 +607,21 @@ export class JwtService {
     };
 
     try {
-      const token = sign(payload, keyPair.config.privateKey, {
-        algorithm: keyPair.config.algorithm,
-        keyid: keyPair.config.kid,
-      });
+      // Используем jose library для подписи CryptoKey
+      const { SignJWT } = await import('jose');
+      const alg = keyPair.config.algorithm as string;
+      const token = await new SignJWT(payload as any)
+        .setProtectedHeader({ alg, kid: keyPair.config.kid })
+        .setIssuedAt()
+        .setIssuer(this.config.issuer)
+        .setAudience(this.config.audience)
+        .setExpirationTime(now + this.config.refreshTokenLifetime)
+        .sign(keyPair.privateKey);
 
       // Создаем fingerprint если включена защита
       let fingerprintId: string | undefined;
       const securityConfig = this.config.refreshTokenSecurity;
-      
+
       if (securityConfig?.enableFingerprinting && verificationContext) {
         fingerprintId = this.createRefreshTokenFingerprint(
           payload.jti,
@@ -750,10 +743,16 @@ export class JwtService {
     };
 
     try {
-      return sign(payload, keyPair.config.privateKey, {
-        algorithm: keyPair.config.algorithm,
-        keyid: keyPair.config.kid,
-      });
+      // Используем jose library для подписи CryptoKey
+      const { SignJWT } = await import('jose');
+      const alg = keyPair.config.algorithm as string;
+      return await new SignJWT(payload as any)
+        .setProtectedHeader({ alg, kid: keyPair.config.kid })
+        .setIssuedAt()
+        .setIssuer(this.config.issuer)
+        .setAudience(this.config.audience)
+        .setExpirationTime(now + this.config.idTokenLifetime)
+        .sign(keyPair.privateKey);
     } catch (error) {
       throw new AuthError(
         `Ошибка создания ID токена: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -807,7 +806,7 @@ export class JwtService {
    * @param options - Опции верификации
    * @returns Payload токена
    */
-  public async verifyToken<T extends JWTPayload>(
+  public async verifyToken<T extends JwtPayload>(
     token: string,
     options?: {
       /** Требовать конкретный тип токена */
@@ -834,12 +833,17 @@ export class JwtService {
       // Получаем ключ для верификации
       const keyPair = this.getKeyById(kid);
 
-      // Верифицируем токен
-      const payload = await verify(token, keyPair.config.publicKey, {
-        algorithms: [keyPair.config.algorithm],
-        issuer: this.config.issuer,
-        audience: this.config.audience,
-      }) as T;
+      // Верифицируем токен используя jose library для CryptoKey
+      const { jwtVerify } = await import('jose');
+      const result = await jwtVerify<T>(
+        token,
+        keyPair.publicKey,
+        {
+          issuer: this.config.issuer,
+          audience: this.config.audience,
+        }
+      );
+      const payload = result.payload as T;
 
       // Проверка blacklist (если включена)
       const shouldCheckBlacklist = options?.checkRevocation ?? this.config.enableBlacklistCheck ?? true;
@@ -859,7 +863,7 @@ export class JwtService {
 
       // Дополнительные проверки
       if (options?.tokenType === 'refresh') {
-        const refreshPayload = payload as RefreshTokenPayload;
+        const refreshPayload = payload as unknown as RefreshTokenPayload;
         if (refreshPayload.tok !== 'refresh') {
           throw new AuthError(
             'Ожидался refresh токен',
@@ -917,8 +921,8 @@ export class JwtService {
    * @returns Декодированный токен с заголовком
    */
   public decodeToken(token: string): {
-    header: JwtHeaderParameters;
-    payload: JWTPayload;
+    header: Record<string, any>;
+    payload: Record<string, any>;
     signature: string;
   } {
     try {
@@ -1418,9 +1422,10 @@ export class JwtService {
       },
       timestamp: new Date().toISOString(),
     });
-    
+
     // В реальной реализации здесь была бы отправка в SIEM
-    this.emit('security:incident', {
+    // Для совместимости оставляем как логирование
+    logger.warn('[JwtService] Security Incident Event', {
       userId,
       incidentType,
       timestamp: new Date(),

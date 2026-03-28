@@ -3,7 +3,7 @@
  * HEALTH CHECK MODULE - ЭКСПОРТ МОДУЛЕЙ
  * ============================================================================
  * Центральный файл экспорта для системы health check
- * 
+ *
  * @author Theodor Munch
  * @version 1.0.0
  */
@@ -14,10 +14,8 @@ export {
   resetHealthCheckService
 } from './HealthCheckService';
 
-export {
+export type {
   HealthCheckConfig,
-  HealthStatus,
-  ComponentType,
   HealthCheckResult,
   ComponentHealthStatus,
   PrometheusMetrics,
@@ -27,9 +25,12 @@ export {
   ExternalApiHealthStatus,
   MemoryHealthStatus,
   CPUHealthStatus,
-  HealthCheckOptions,
+  HealthCheckOptions
+} from './HealthCheckTypes';
+
+export {
+  HealthStatus,
+  ComponentType,
   DEFAULT_HEALTH_CHECK_CONFIG,
   DEFAULT_HEALTH_CHECK_OPTIONS
 } from './HealthCheckTypes';
-
-export * from './HealthCheckTypes';

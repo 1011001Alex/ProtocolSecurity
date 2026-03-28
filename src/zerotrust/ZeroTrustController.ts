@@ -23,7 +23,8 @@ import {
   TrustLevel,
   PolicyDecision,
   AccessResponse,
-  SubjectType
+  SubjectType,
+  AuthenticationMethod
 } from './zerotrust.types';
 import { PolicyDecisionPoint, PdpConfig } from './PolicyDecisionPoint';
 import { PolicyEnforcementPoint, PepConfig } from './PolicyEnforcementPoint';
@@ -52,6 +53,11 @@ export interface ZeroTrustConfig {
   /** Интервал отчётности (мс) */
   reportingInterval: number;
 }
+
+/**
+ * Конфигурация Zero Trust Controller (алиас для ZeroTrustConfig)
+ */
+export type ZeroTrustControllerConfig = ZeroTrustConfig;
 
 /**
  * Zero Trust сессия
@@ -342,8 +348,17 @@ export class ZeroTrustController extends EventEmitter {
       requestId: uuidv4(),
       identity: session.identity,
       authContext: trustContext?.authContext || {
-        authenticationMethods: ['JWT'],
-        authenticatedAt: new Date()
+        method: AuthenticationMethod.JWT,
+        authenticatedAt: new Date(),
+        expiresAt: new Date(Date.now() + 3600000),
+        levelOfAssurance: 1,
+        factors: [AuthenticationMethod.JWT],
+        sessionId: uuidv4(),
+        refreshTokenId: undefined,
+        mfaVerified: false,
+        mfaMethods: [],
+        authenticationMethods: [AuthenticationMethod.JWT],
+        tokenClaims: {}
       },
       devicePosture: session.devicePosture,
       resourceType,

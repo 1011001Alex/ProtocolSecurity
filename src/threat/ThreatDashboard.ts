@@ -649,12 +649,12 @@ export class ThreatDashboardService {
       }
       
       const bucket = hourlyRisk.get(bucketKey)!;
-      
+
       // Обновление максимальных значений риска
-      bucket.overallRisk = Math.max(bucket.overallRisk, alert.riskScore.overall);
-      bucket.entityRisk = Math.max(bucket.entityRisk, alert.riskScore.entity);
-      bucket.threatRisk = Math.max(bucket.threatRisk, alert.riskScore.threat);
-      bucket.impactRisk = Math.max(bucket.impactRisk, alert.riskScore.impact);
+      bucket.overallRisk = Math.max(bucket.overallRisk, alert.riskScore);
+      bucket.entityRisk = Math.max(bucket.entityRisk, alert.riskScore);
+      bucket.threatRisk = Math.max(bucket.threatRisk, alert.riskScore);
+      bucket.impactRisk = Math.max(bucket.impactRisk, alert.riskScore);
     }
     
     const riskTrend = Array.from(hourlyRisk.values())
@@ -959,8 +959,3 @@ interface DashboardStatistics {
   averageResponseTime: number;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { ThreatDashboardService };

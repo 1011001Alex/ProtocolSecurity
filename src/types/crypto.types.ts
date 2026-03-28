@@ -8,6 +8,16 @@
  */
 
 // ============================================================================
+// WEB CRYPTO API ТИПЫ (для совместимости)
+// ============================================================================
+
+/**
+ * CryptoKey из Web Crypto API
+ * Используем type alias для совместимости с Node.js crypto
+ */
+export type CryptoKey = import('crypto').KeyObject;
+
+// ============================================================================
 // БАЗОВЫЕ ТИПЫ ДАННЫХ
 // ============================================================================
 
@@ -51,14 +61,14 @@ export enum CryptoErrorCode {
   INVALID_ARGUMENT = 'INVALID_ARGUMENT',
   BUFFER_TOO_SMALL = 'BUFFER_TOO_SMALL',
   OPERATION_TIMEOUT = 'OPERATION_TIMEOUT',
-  
+
   // Ошибки шифрования
   ENCRYPTION_FAILED = 'ENCRYPTION_FAILED',
   DECRYPTION_FAILED = 'DECRYPTION_FAILED',
   INVALID_CIPHERTEXT = 'INVALID_CIPHERTEXT',
   AUTH_TAG_MISMATCH = 'AUTH_TAG_MISMATCH',
   NONCE_REUSED = 'NONCE_REUSED',
-  
+
   // Ошибки ключей
   KEY_GENERATION_FAILED = 'KEY_GENERATION_FAILED',
   KEY_DERIVATION_FAILED = 'KEY_DERIVATION_FAILED',
@@ -67,34 +77,42 @@ export enum CryptoErrorCode {
   KEY_REVOKED = 'KEY_REVOKED',
   INVALID_KEY_FORMAT = 'INVALID_KEY_FORMAT',
   INVALID_KEY_SIZE = 'INVALID_KEY_SIZE',
-  
+
   // Ошибки подписи
   SIGNATURE_GENERATION_FAILED = 'SIGNATURE_GENERATION_FAILED',
   SIGNATURE_VERIFICATION_FAILED = 'SIGNATURE_VERIFICATION_FAILED',
   INVALID_SIGNATURE = 'INVALID_SIGNATURE',
   SIGNATURE_EXPIRED = 'SIGNATURE_EXPIRED',
-  
+
   // Ошибки хэширования
   HASH_COMPUTATION_FAILED = 'HASH_COMPUTATION_FAILED',
   INVALID_HASH = 'INVALID_HASH',
   HASH_MISMATCH = 'HASH_MISMATCH',
-  
+
   // Ошибки HSM/KMS
   HSM_NOT_AVAILABLE = 'HSM_NOT_AVAILABLE',
   HSM_COMMUNICATION_ERROR = 'HSM_COMMUNICATION_ERROR',
   KMS_SERVICE_ERROR = 'KMS_SERVICE_ERROR',
   KMS_ACCESS_DENIED = 'KMS_ACCESS_DENIED',
-  
+
   // Ошибки постквантовой криптографии
   PQC_NOT_SUPPORTED = 'PQC_NOT_SUPPORTED',
   PQC_KEY_EXCHANGE_FAILED = 'PQC_KEY_EXCHANGE_FAILED',
   PQC_INVALID_PARAMETERS = 'PQC_INVALID_PARAMETERS',
-  
+
   // Ошибки безопасности
   SIDE_CHANNEL_DETECTED = 'SIDE_CHANNEL_DETECTED',
   TIMING_ATTACK_DETECTED = 'TIMING_ATTACK_DETECTED',
   MEMORY_SECURITY_VIOLATION = 'MEMORY_SECURITY_VIOLATION',
   ENTROPY_INSUFFICIENT = 'ENTROPY_INSUFFICIENT',
+
+  // Ошибки аутентификации (для совместимости)
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  TOKEN_INVALID = 'TOKEN_INVALID',
+  INVALID_KEY = 'INVALID_KEY',
+
+  // Дополнительные ошибки для совместимости
+  ACCESS_DENIED = 'ACCESS_DENIED',
 }
 
 // ============================================================================
@@ -269,6 +287,12 @@ export interface SignatureVerificationResult {
     notExpired: boolean;
     /** Ключ не отозван */
     notRevoked: boolean;
+    /** Алгоритм (опционально) */
+    algorithm?: string;
+    /** Метод верификации (опционально) */
+    verifiedWith?: string;
+    /** Ошибка (опционально) */
+    error?: string;
   };
   /** Время верификации */
   verifiedAt: Date;
@@ -598,7 +622,7 @@ export interface KeyGenerationParams {
 /**
  * Типы провайдеров HSM/KMS
  */
-export type KMSProviderType = 
+export type KMSProviderType =
   | 'AWS_KMS'
   | 'GCP_KMS'
   | 'AZURE_KEY_VAULT'
@@ -607,6 +631,199 @@ export type KMSProviderType =
   | 'YUBIKEY_HSM'
   | 'LOCAL_SECURE_ENCLAVE'
   | 'CUSTOM';
+
+// ============================================================================
+// ТИПЫ ДЛЯ HSM INTERFACE
+// ============================================================================
+
+/**
+ * Пара ключей HSM
+ */
+export interface HSMKeyPair {
+  /** Идентификатор пары ключей */
+  keyId: string;
+  /** Открытый ключ (если есть) */
+  publicKey?: Uint8Array;
+  /** Закрытый ключ (никогда не экспортируется из HSM) */
+  privateKey?: Uint8Array;
+  /** Алгоритм ключа */
+  algorithm: string;
+  /** Длина ключа в битах */
+  keySize: number;
+  /** Время создания */
+  createdAt: Date;
+}
+
+/**
+ * Конфигурация HSM
+ */
+export interface HSMConfig {
+  /** Тип HSM */
+  type: KMSProviderType;
+  /** Идентификатор провайдера */
+  providerId: string;
+  /** Конечная точка */
+  endpoint?: string;
+  /** Регион */
+  region?: string;
+  /** Учетные данные */
+  credentials?: Record<string, string>;
+  /** Таймаут в мс */
+  timeout: number;
+  /** Настройки повторных попыток */
+  retryConfig: {
+    maxRetries: number;
+    initialDelay: number;
+    maxDelay: number;
+  };
+}
+
+/**
+ * Информация о ключе HSM
+ */
+export interface HSMKeyInfo {
+  /** Идентификатор ключа */
+  keyId: string;
+  /** Тип ключа */
+  keyType: KeyType;
+  /** Алгоритм */
+  algorithm: string;
+  /** Длина ключа */
+  keySize: number;
+  /** Статус */
+  status: KeyStatus;
+  /** Время создания */
+  createdAt: Date;
+  /** Время последнего использования */
+  lastUsedAt?: Date;
+  /** Теги */
+  tags?: Record<string, string>;
+}
+
+/**
+ * Параметры для бэкапа ключа
+ */
+export interface HSMBackup {
+  /** Идентификатор ключа */
+  keyId: string;
+  /** Зашифрованные данные ключа */
+  encryptedKeyMaterial: Uint8Array;
+  /** Алгоритм шифрования бэкапа */
+  backupAlgorithm: string;
+  /** Временная метка бэкапа */
+  backedUpAt: Date;
+  /** Метаданные */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Параметры для восстановления ключа
+ */
+export interface HSMRestore {
+  /** Идентификатор ключа */
+  keyId: string;
+  /** Зашифрованные данные ключа */
+  encryptedKeyMaterial: Uint8Array;
+  /** Алгоритм шифрования бэкапа */
+  backupAlgorithm: string;
+  /** Метаданные */
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// ТИПЫ ДЛЯ POST-QUANTUM CRYPTO (ДОПОЛНЕНИЕ)
+// ============================================================================
+
+/**
+ * Конфигурация постквантовой криптографии
+ */
+export interface PQConfig {
+  /** Включить постквантовую криптографию */
+  enabled: boolean;
+  /** Алгоритмы KEM */
+  kemAlgorithms: PQCAlgorithm[];
+  /** Алгоритмы подписей */
+  signatureAlgorithms: PQCAlgorithm[];
+  /** Гибридный режим (классическая + PQC) */
+  hybridMode: boolean;
+  /** Использовать liboqs */
+  useLibOQS: boolean;
+}
+
+/**
+ * Параметры PQC ключа с metadata
+ */
+export interface PQCKeyPairWithMetadata extends PQCKeyPair {
+  /** Метаданные ключа */
+  metadata?: {
+    /** OQS алгоритм */
+    oqsAlgorithm?: string;
+    /** NIST уровень */
+    nistLevel?: number;
+    /** Время генерации */
+    generatedAt?: Date;
+    /** Гибридный режим */
+    hybridMode?: boolean;
+    /** Классический алгоритм */
+    classicAlgorithm?: string;
+  };
+}
+
+/**
+ * Результат PQC подписи
+ */
+export interface PQSignature {
+  /** Подпись */
+  signature: Uint8Array;
+  /** Алгоритм */
+  algorithm: PQCAlgorithm;
+  /** Идентификатор ключа */
+  keyId: string;
+  /** Хэш подписанных данных */
+  dataHash: Uint8Array;
+  /** Временная метка */
+  timestamp: number;
+}
+
+/**
+ * Результат KEM инкапсуляции с metadata
+ */
+export interface KEMEncapsulationResultWithMetadata extends KEMEncapsulationResult {
+  /** Метаданные */
+  metadata?: {
+    /** Алгоритм */
+    algorithm?: string;
+    /** Время инкапсуляции */
+    encapsulatedAt?: Date;
+    /** Гибридный режим */
+    hybridMode?: boolean;
+    /** Классический алгоритм */
+    classicAlgorithm?: string;
+    /** KDF */
+    kdf?: string;
+  };
+}
+
+/**
+ * Результат KEM деинкапсуляции с metadata
+ */
+export interface KEMDecapsulationResultWithMetadata extends KEMDecapsulationResult {
+  /** Метаданные */
+  metadata?: {
+    /** Алгоритм */
+    algorithm?: string;
+    /** Время деинкапсуляции */
+    decapsulatedAt?: Date;
+    /** Гибридный режим */
+    hybridMode?: boolean;
+    /** Классический алгоритм */
+    classicAlgorithm?: string;
+    /** KDF */
+    kdf?: string;
+  };
+  /** Ошибка (если есть) */
+  error?: string;
+}
 
 /**
  * Конфигурация KMS провайдера
@@ -666,7 +883,7 @@ export interface KMSConnectionStatus {
 /**
  * Алгоритмы постквантовой криптографии
  */
-export type PQCAlgorithm = 
+export type PQCAlgorithm =
   // KEM (Key Encapsulation Mechanism)
   | 'CRYSTALS-Kyber-512'
   | 'CRYSTALS-Kyber-768'
@@ -688,6 +905,17 @@ export type PQCAlgorithm =
   | 'SPHINCS+-256s';
 
 /**
+ * Расширенные алгоритмы PQC (для полной совместимости)
+ */
+export type PQCAlgorithmExtended = PQCAlgorithm
+  | 'NTRU-HPS-2048-509'
+  | 'NTRU-HPS-2048-677'
+  | 'NTRU-HPS-4096-821'
+  | 'SABER-LightSaber'
+  | 'SABER-Saber'
+  | 'SABER-FireSaber';
+
+/**
  * Тип PQC примитива
  */
 export type PQCPrimitiveType = 'KEM' | 'SIGNATURE';
@@ -706,6 +934,19 @@ export interface PQCKeyPair {
   primitiveType: PQCPrimitiveType;
   /** Идентификатор */
   keyId: string;
+  /** Метаданные (опционально) */
+  metadata?: {
+    /** OQS алгоритм */
+    oqsAlgorithm?: string;
+    /** NIST уровень */
+    nistLevel?: number;
+    /** Время генерации */
+    generatedAt?: Date;
+    /** Гибридный режим */
+    hybridMode?: boolean;
+    /** Классический алгоритм */
+    classicAlgorithm?: string;
+  };
 }
 
 /**
@@ -718,6 +959,19 @@ export interface KEMEncapsulationResult {
   sharedSecret: Uint8Array;
   /** Идентификатор ключа */
   keyId: string;
+  /** Метаданные (опционально) */
+  metadata?: {
+    /** Алгоритм */
+    algorithm?: string;
+    /** Время инкапсуляции */
+    encapsulatedAt?: Date;
+    /** Гибридный режим */
+    hybridMode?: boolean;
+    /** Классический алгоритм */
+    classicAlgorithm?: string;
+    /** KDF */
+    kdf?: string;
+  };
 }
 
 /**
@@ -728,6 +982,21 @@ export interface KEMDecapsulationResult {
   sharedSecret: Uint8Array;
   /** Успешность операции */
   success: boolean;
+  /** Метаданные (опционально) */
+  metadata?: {
+    /** Алгоритм */
+    algorithm?: string;
+    /** Время деинкапсуляции */
+    decapsulatedAt?: Date;
+    /** Гибридный режим */
+    hybridMode?: boolean;
+    /** Классический алгоритм */
+    classicAlgorithm?: string;
+    /** KDF */
+    kdf?: string;
+  };
+  /** Ошибка (если есть) */
+  error?: string;
 }
 
 // ============================================================================
@@ -778,7 +1047,7 @@ export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'AUDIT';
 /**
  * Типы событий для аудита
  */
-export type AuditEventType = 
+export type AuditEventType =
   | 'KEY_CREATED'
   | 'KEY_USED'
   | 'KEY_ROTATED'
@@ -792,7 +1061,20 @@ export type AuditEventType =
   | 'AUTH_FAILURE'
   | 'ACCESS_DENIED'
   | 'CONFIG_CHANGED'
-  | 'SECURITY_ALERT';
+  | 'SECURITY_ALERT'
+  | 'KEY_EXPIRED'
+  | 'KEY_GENERATION'
+  | 'KEM_ENCAPSULATE'
+  | 'KEM_DECAPSULATE'
+  | 'SIGN'
+  | 'VERIFY'
+  | 'KEM_ENCAPSULATE_HYBRID'
+  | 'KEM_DECAPSULATE_HYBRID'
+  | 'SIGN_HYBRID'
+  | 'VERIFY_HYBRID'
+  | 'HYBRID_ENCRYPT'
+  | 'HYBRID_DECRYPT'
+  | 'KEY_GENERATION_HYBRID';
 
 /**
  * Событие аудита
@@ -966,56 +1248,4 @@ export const DEFAULT_CRYPTO_CONFIG: CryptoServiceConfig = {
     lockoutAfterFailures: 5,
     lockoutDuration: 300000, // 5 минут
   },
-};
-
-// ============================================================================
-// ЭКСПОРТЫ
-// ============================================================================
-
-export type {
-  SecureBuffer,
-  CryptoResult,
-  SymmetricAlgorithm,
-  SymmetricEncryptParams,
-  SymmetricEncryptResult,
-  SymmetricDecryptResult,
-  AsymmetricAlgorithm,
-  AsymmetricKeyPair,
-  AsymmetricEncryptResult,
-  SignatureAlgorithm,
-  SigningKeyPair,
-  SignatureResult,
-  SignatureVerificationResult,
-  KDFAlgorithm,
-  Argon2Params,
-  PBKDF2Params,
-  HKDFParams,
-  ScryptParams,
-  KDFParams,
-  HashAlgorithm,
-  HashResult,
-  EncryptionEnvelope,
-  EnvelopeEncryptionParams,
-  KeyStatus,
-  KeyType,
-  KeyMetadata,
-  KeyUsagePolicy,
-  KeyOperation,
-  KeyGenerationResult,
-  KeyGenerationParams,
-  KMSProviderType,
-  KMSProviderConfig,
-  KMSConnectionStatus,
-  PQCAlgorithm,
-  PQCPrimitiveType,
-  PQCKeyPair,
-  KEMEncapsulationResult,
-  KEMDecapsulationResult,
-  SecureMemoryConfig,
-  MemoryStats,
-  LogLevel,
-  AuditEventType,
-  AuditEvent,
-  LoggingConfig,
-  CryptoServiceConfig,
 };

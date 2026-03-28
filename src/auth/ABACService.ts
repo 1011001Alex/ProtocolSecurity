@@ -761,32 +761,38 @@ export class ABACService {
    */
   constructor(config: ABACServiceConfig = DEFAULT_CONFIG) {
     this.policyEngine = new PolicyEngine(config);
+    // Инициализация стрелочных функций после создания policyEngine
+    this.createPolicy = this.policyEngine.createPolicy.bind(this.policyEngine);
+    this.updatePolicy = this.policyEngine.updatePolicy.bind(this.policyEngine);
+    this.deletePolicy = this.policyEngine.deletePolicy.bind(this.policyEngine);
+    this.getPolicyById = this.policyEngine.getPolicyById.bind(this.policyEngine);
+    this.getAllPolicies = this.policyEngine.getAllPolicies.bind(this.policyEngine);
   }
 
   /**
    * Создает policy через policy engine
    */
-  public createPolicy = this.policyEngine.createPolicy.bind(this.policyEngine);
-  
+  public createPolicy!: (...args: any[]) => any;
+
   /**
    * Обновляет policy через policy engine
    */
-  public updatePolicy = this.policyEngine.updatePolicy.bind(this.policyEngine);
-  
+  public updatePolicy!: (...args: any[]) => any;
+
   /**
    * Удаляет policy через policy engine
    */
-  public deletePolicy = this.policyEngine.deletePolicy.bind(this.policyEngine);
-  
+  public deletePolicy!: (...args: any[]) => any;
+
   /**
    * Получает policy по ID
    */
-  public getPolicyById = this.policyEngine.getPolicyById.bind(this.policyEngine);
-  
+  public getPolicyById!: (...args: any[]) => any;
+
   /**
    * Получает все policy
    */
-  public getAllPolicies = this.policyEngine.getAllPolicies.bind(this.policyEngine);
+  public getAllPolicies!: (...args: any[]) => any;
 
   /**
    * Проверяет доступ на основе атрибутов
@@ -879,12 +885,35 @@ export class ABACService {
     actionType: string,
     actionId: string
   ): AccessCheckResult {
+    const minimalUser: Partial<IUser> & { id: string; attributes: IUserAttributes; roles: string[] } = {
+      id: userId,
+      email: 'unknown',
+      passwordHash: '',
+      passwordAlgorithm: 'argon2id',
+      passwordVersion: 1,
+      attributes: userAttributes,
+      roles: [],
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      failedLoginAttempts: 0,
+      requirePasswordChange: false,
+      securityPreferences: {
+        requireMfa: false,
+        allowRememberDevice: false,
+        rememberDeviceDays: 30,
+        requireNewDeviceConfirmation: false,
+        notifyOnNewLogin: false,
+        restrictToTrustedIps: false,
+        trustedIps: [],
+        maxConcurrentSessions: 10,
+        reauthIntervalMinutes: 30,
+      },
+      enabledMfaMethods: [],
+    };
+
     return this.checkAccess(
-      {
-        id: userId,
-        attributes: userAttributes,
-        roles: [],
-      } as IUser,
+      minimalUser as IUser,
       {
         id: resourceId,
         type: resourceType,
@@ -924,8 +953,3 @@ export function createABACService(
 ): ABACService {
   return new ABACService({ ...DEFAULT_CONFIG, ...config });
 }
-
-/**
- * Экспорт PolicyEngine отдельно
- */
-export { PolicyEngine };

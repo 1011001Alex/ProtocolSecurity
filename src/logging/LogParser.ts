@@ -256,13 +256,13 @@ class DataMasker {
   
   constructor() {
     this.patterns = [
-      { pattern: PATTERNS.EMAIL, name: 'email' },
-      { pattern: /\b\d{16}\b/, name: 'credit_card' },
-      { pattern: /\b\d{3}-\d{2}-\d{4}\b/, name: 'ssn' },
-      { pattern: PATTERNS.JWT, name: 'jwt' },
-      { pattern: /\b[a-fA-F0-9]{32}\b/, name: 'md5_hash' },
-      { pattern: /\b[a-fA-F0-9]{40}\b/, name: 'sha1_hash' },
-      { pattern: /\b[a-fA-F0-9]{64}\b/, name: 'sha256_hash' },
+      { pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, name: 'email' },
+      { pattern: /\b\d{13,19}\b/g, name: 'credit_card' },
+      { pattern: /\b\d{3}-\d{2}-\d{4}\b/g, name: 'ssn' },
+      { pattern: /eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/g, name: 'jwt' },
+      { pattern: /\b[a-fA-F0-9]{32}\b/g, name: 'md5_hash' },
+      { pattern: /\b[a-fA-F0-9]{40}\b/g, name: 'sha1_hash' },
+      { pattern: /\b[a-fA-F0-9]{64}\b/g, name: 'sha256_hash' },
       { pattern: /password["']?\s*[:=]\s*["']?[^"'\s,}]+/gi, name: 'password' },
       { pattern: /secret["']?\s*[:=]\s*["']?[^"'\s,}]+/gi, name: 'secret' },
       { pattern: /api[_-]?key["']?\s*[:=]\s*["']?[^"'\s,}]+/gi, name: 'api_key' },
@@ -1360,11 +1360,12 @@ export class LogParser {
   private normalizeKeyValueLog(fields: Record<string, unknown>): LogEntry {
     const timestamp = this.extractTimestamp(fields) || new Date().toISOString();
     const level = this.extractLogLevel(fields);
-    const message = this.extractMessage(fields);
+    const rawMessage = this.extractMessage(fields);
+    const message = this.masker.mask(rawMessage); // Маскируем сообщение
     const source = this.extractLogSource(fields);
     const component = this.extractComponent(fields);
     const context = this.extractContext(fields);
-    
+
     return {
       id: crypto.randomUUID(),
       timestamp,

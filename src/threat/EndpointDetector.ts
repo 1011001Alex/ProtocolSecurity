@@ -899,8 +899,3 @@ interface EndpointDetectorStatistics {
   eventsByType: Map<EndpointEventType, number>;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { EndpointDetector };

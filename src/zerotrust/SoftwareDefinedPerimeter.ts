@@ -401,8 +401,8 @@ export class SoftwareDefinedPerimeter extends EventEmitter {
     // Проверяем доверие
     if (this.trustVerifier) {
       const currentTrust = this.trustVerifier.getTrustLevel(clientId);
-      
-      if (currentTrust < TrustLevel.LOW) {
+
+      if (!currentTrust || currentTrust < TrustLevel.LOW) {
         throw new Error('Недостаточный уровень доверия для создания сессии SDP');
       }
     }
@@ -700,6 +700,8 @@ export class SoftwareDefinedPerimeter extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'SESSION_CREATED',
@@ -709,15 +711,15 @@ export class SoftwareDefinedPerimeter extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[SDP] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[SDP] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

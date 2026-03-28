@@ -78,8 +78,10 @@ export class EHRIntegration extends EventEmitter {
     return {
       ...resource,
       meta: {
-        ...resource.meta,
-        lastUpdated: new Date().toISOString()
+        versionId: resource.meta?.versionId || '1',
+        lastUpdated: new Date().toISOString(),
+        profile: resource.meta?.profile,
+        tag: resource.meta?.tag
       }
     };
   }

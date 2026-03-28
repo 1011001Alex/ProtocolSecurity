@@ -25,7 +25,9 @@ import {
   AuthContext,
   DevicePosture,
   ResourceType,
-  PolicyOperation
+  PolicyOperation,
+  AuthenticationMethod,
+  SubjectType
 } from './zerotrust.types';
 import { PolicyDecisionPoint } from './PolicyDecisionPoint';
 import { TrustVerifier } from './TrustVerifier';
@@ -583,17 +585,32 @@ export class PolicyEnforcementPoint extends EventEmitter {
       try {
         // Извлечение контекста из HTTP запроса
         const identity: Identity = {
+          id: req.user?.id || req.headers['x-user-id'] as string || uuidv4(),
           subjectId: req.user?.id || req.headers['x-user-id'] as string || 'anonymous',
+          type: (req.user?.type as SubjectType) || SubjectType.USER,
           subjectType: req.user?.type || 'USER',
+          displayName: req.user?.displayName || req.user?.name || 'Anonymous',
           roles: req.user?.roles || [],
           permissions: req.user?.permissions || [],
+          groups: req.user?.groups || [],
+          labels: req.user?.labels || {},
+          domain: req.user?.domain,
+          createdAt: new Date(),
+          updatedAt: new Date(),
           attributes: req.user?.attributes || {}
         };
 
         const authContext: AuthContext = {
-          authenticationMethods: req.authMethods || ['JWT'],
+          method: AuthenticationMethod.JWT,
           authenticatedAt: req.authTime ? new Date(req.authTime) : new Date(),
-          sessionId: req.sessionId || req.headers['x-session-id'] as string,
+          expiresAt: new Date(Date.now() + 3600000),
+          levelOfAssurance: req.user?.loa || 1,
+          factors: [AuthenticationMethod.JWT],
+          sessionId: req.sessionId || req.headers['x-session-id'] as string || uuidv4(),
+          refreshTokenId: undefined,
+          mfaVerified: req.user?.mfaVerified || false,
+          mfaMethods: [],
+          authenticationMethods: req.authMethods || [AuthenticationMethod.JWT],
           tokenClaims: req.tokenClaims || {}
         };
 
@@ -647,14 +664,34 @@ export class PolicyEnforcementPoint extends EventEmitter {
         res.setHeader('X-Request-ID', decision.requestId);
 
         if (decision.metadata?.restrictions) {
-          res.setHeader('X-Access-Restrictions', decision.metadata.restrictions.join(','));
+          const restrictions = decision.metadata.restrictions as {
+            timeLimit?: number;
+            operationLimit?: PolicyOperation[];
+            dataLimit?: string[];
+            requireStepUp?: boolean;
+          };
+          
+          const restrictionsList: string[] = [];
+          if (restrictions.timeLimit) {
+            restrictionsList.push(`timeLimit=${restrictions.timeLimit}s`);
+          }
+          if (restrictions.operationLimit) {
+            restrictionsList.push(`operations=${restrictions.operationLimit.join(',')}`);
+          }
+          if (restrictions.dataLimit) {
+            restrictionsList.push(`dataLimit=${restrictions.dataLimit.join(',')}`);
+          }
+          if (restrictions.requireStepUp) {
+            restrictionsList.push('requireStepUp=true');
+          }
+          res.setHeader('X-Access-Restrictions', restrictionsList.join(','));
         }
 
         next();
 
       } catch (error) {
         this.emit('middleware_error', { error, path: req.url });
-        next(error);
+        next();
       }
     };
   }
@@ -677,6 +714,48 @@ export class PolicyEnforcementPoint extends EventEmitter {
       default:
         return PolicyOperation.READ;
     }
+  }
+
+  /**
+   * Принудить доступ (публичный метод для PEP)
+   */
+  async enforceAccess(context: {
+    identity: Identity;
+    authContext: AuthContext;
+    resourceType: ResourceType;
+    resourceId: string;
+    operation: PolicyOperation;
+    sourceIp: string;
+    destinationIp?: string;
+    destinationPort?: number;
+    protocol?: string;
+  }): Promise<AccessResponse> {
+    const pepRequest: PepRequest = {
+      requestId: uuidv4(),
+      identity: {
+        ...context.identity,
+        subjectId: context.identity.subjectId || context.identity.id,
+        subjectType: context.identity.subjectType || context.identity.type
+      },
+      authContext: {
+        ...context.authContext,
+        method: context.authContext.method || AuthenticationMethod.JWT,
+        expiresAt: context.authContext.expiresAt || new Date(Date.now() + 3600000),
+        levelOfAssurance: context.authContext.levelOfAssurance || 1,
+        factors: context.authContext.factors || context.authContext.authenticationMethods || [],
+        mfaVerified: context.authContext.mfaVerified || false,
+        mfaMethods: context.authContext.mfaMethods || []
+      },
+      resourceType: context.resourceType,
+      resourceId: context.resourceId,
+      operation: context.operation,
+      sourceIp: context.sourceIp,
+      destinationIp: context.destinationIp,
+      destinationPort: context.destinationPort,
+      protocol: context.protocol
+    };
+
+    return this.interceptRequest(pepRequest);
   }
 
   /**

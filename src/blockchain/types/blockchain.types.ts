@@ -25,7 +25,7 @@ export interface BlockchainSecurityConfig {
   zeroKnowledge: {
     enabled: boolean;
     provider: 'circom' | 'snarkjs' | 'halo2' | 'custom';
-    proofSystem: 'Groth16' | 'PLONK' | 'Halo2';
+    proofSystem: 'groth16' | 'plonk' | 'halo2';
   };
 
   /** MEV Protection настройки */
@@ -92,6 +92,7 @@ export interface PQSignature {
   hybrid?: {
     ecdsaSignature: string;
     pqcSignature: string;
+    combinedHash?: string;
   };
 
   /** Timestamp */
@@ -116,6 +117,9 @@ export interface ZKProof {
 
   /** Timestamp */
   timestamp: Date;
+
+  /** Additional metadata */
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -139,6 +143,9 @@ export interface ZKAuthResult {
 
   /** Timestamp */
   timestamp: Date;
+
+  /** Verification time in ms */
+  verificationTime?: number;
 }
 
 /**

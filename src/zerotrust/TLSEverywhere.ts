@@ -1,9 +1,9 @@
 /**
  * TLS Everywhere - TLS 1.3 Везде
- * 
+ *
  * Компонент управляет TLS конфигурацией для обеспечения
  * шифрования всего трафика в системе.
- * 
+ *
  * @version 1.0.0
  * @author grigo
  * @date 22 марта 2026 г.
@@ -27,31 +27,31 @@ import {
 export interface TlsEverywhereConfig {
   /** Минимальная версия TLS */
   minTlsVersion: TlsVersion;
-  
+
   /** Предпочтительная версия TLS */
   preferredTlsVersion: TlsVersion;
-  
+
   /** Разрешённые cipher suites */
   cipherSuites: string[];
-  
+
   /** Кривые для ECDHE */
   curves: string[];
-  
+
   /** Включить HSTS */
   enableHsts: boolean;
-  
+
   /** HSTS max-age */
   hstsMaxAge: number;
-  
+
   /** Включить OCSP stapling */
   enableOcspStapling: boolean;
-  
+
   /** Включить session tickets */
   enableSessionTickets: boolean;
-  
+
   /** Session timeout (секунды) */
   sessionTimeout: number;
-  
+
   /** Включить детальное логирование */
   enableVerboseLogging: boolean;
 }
@@ -59,50 +59,50 @@ export interface TlsEverywhereConfig {
 /**
  * TLS сертификат
  */
-interface TlsCertificate {
+export interface TlsCertificate {
   /** ID сертификата */
   id: string;
-  
+
   /** Common Name */
   commonName: string;
-  
+
   /** SAN */
   subjectAltNames: string[];
-  
+
   /** PEM сертификат */
   certificatePem: string;
-  
+
   /** PEM ключ */
   privateKeyPem: string;
-  
+
   /** PEM CA */
   caCertificatePem: string;
-  
+
   /** Дата выдачи */
   issuedAt: Date;
-  
+
   /** Дата истечения */
   expiresAt: Date;
-  
+
   /** Отпечаток */
   fingerprint: string;
 }
 
 /**
  * TLS Everywhere Manager
- * 
+ *
  * Управляет TLS конфигурацией для всех компонентов.
  */
 export class TlsEverywhere extends EventEmitter {
   /** Конфигурация */
   private config: TlsEverywhereConfig;
-  
+
   /** Сертификаты */
   private certificates: Map<string, TlsCertificate>;
-  
+
   /** TLS контексты */
-  private tlsContexts: Map<string, tls.TLSOptions>;
-  
+  private tlsContexts: Map<string, tls.TlsOptions>;
+
   /** Статистика */
   private stats: {
     /** Сертификатов */
@@ -115,7 +115,7 @@ export class TlsEverywhere extends EventEmitter {
 
   constructor(config: Partial<TlsEverywhereConfig> = {}) {
     super();
-    
+
     this.config = {
       minTlsVersion: config.minTlsVersion ?? TlsVersion.TLS1_3,
       preferredTlsVersion: config.preferredTlsVersion ?? TlsVersion.TLS1_3,
@@ -136,16 +136,16 @@ export class TlsEverywhere extends EventEmitter {
       sessionTimeout: config.sessionTimeout ?? 600,
       enableVerboseLogging: config.enableVerboseLogging ?? false
     };
-    
+
     this.certificates = new Map();
     this.tlsContexts = new Map();
-    
+
     this.stats = {
       certificateCount: 0,
       contextCount: 0,
       expiringCertificates: 0
     };
-    
+
     this.log('TLS', 'TlsEverywhere инициализирован');
   }
 
@@ -184,59 +184,59 @@ export class TlsEverywhere extends EventEmitter {
   public createServerTlsContext(
     contextId: string,
     certificateId: string
-  ): tls.TLSOptions {
+  ): tls.TlsOptions {
     const certificate = this.certificates.get(certificateId);
-    
+
     if (!certificate) {
       throw new Error(`Сертификат не найден: ${certificateId}`);
     }
-    
-    const tlsOptions: tls.TLSOptions = {
+
+    const tlsOptions: tls.TlsOptions = {
       // Версия TLS
       minVersion: this.tlsVersionToString(this.config.minTlsVersion),
       maxVersion: this.tlsVersionToString(this.config.preferredTlsVersion),
-      
+
       // Cipher suites
       ciphers: this.config.cipherSuites.join(':'),
       honorCipherOrder: true,
-      
+
       // Кривые
       ecdhCurve: this.config.curves.join(':'),
-      
+
       // Сертификаты
       key: certificate.privateKeyPem,
       cert: certificate.certificatePem,
       ca: certificate.caCertificatePem,
-      
+
       // mTLS
       requestCert: true,
       rejectUnauthorized: true,
-      
+
       // Session
       sessionTimeout: this.config.sessionTimeout
     };
-    
+
     // Session tickets
     if (this.config.enableSessionTickets) {
       // В Node.js session tickets управляются автоматически
-      tlsOptions.sessionTickets = true;
+      (tlsOptions as any).sessionTickets = true;
     }
-    
+
     // OCSP
     if (this.config.enableOcspStapling) {
-      tlsOptions.OCSPStapling = true;
+      (tlsOptions as any).OCSPStapling = true;
     }
-    
+
     this.tlsContexts.set(contextId, tlsOptions);
     this.stats.contextCount = this.tlsContexts.size;
-    
+
     this.log('TLS', 'TLS контекст сервера создан', {
       contextId,
       certificateId
     });
-    
+
     this.emit('tls:context_created', { contextId, type: 'server' });
-    
+
     return tlsOptions;
   }
 
@@ -248,51 +248,51 @@ export class TlsEverywhere extends EventEmitter {
     certificateId?: string
   ): tls.ConnectionOptions {
     const certificate = certificateId ? this.certificates.get(certificateId) : undefined;
-    
+
     const tlsOptions: tls.ConnectionOptions = {
       // Версия TLS
       minVersion: this.tlsVersionToString(this.config.minTlsVersion),
       maxVersion: this.tlsVersionToString(this.config.preferredTlsVersion),
-      
+
       // Cipher suites
       ciphers: this.config.cipherSuites.join(':'),
-      
+
       // Кривые
       ecdhCurve: this.config.curves.join(':'),
-      
+
       // Проверка сервера
       rejectUnauthorized: true,
-      
+
       // CA для проверки сервера
       ca: certificate?.caCertificatePem
     };
-    
+
     // Клиентский сертификат для mTLS
     if (certificate) {
       tlsOptions.key = certificate.privateKeyPem;
       tlsOptions.cert = certificate.certificatePem;
     }
-    
-    this.tlsContexts.set(contextId, tlsOptions as tls.TLSOptions);
+
+    this.tlsContexts.set(contextId, tlsOptions as tls.TlsOptions);
     this.stats.contextCount = this.tlsContexts.size;
-    
+
     this.log('TLS', 'TLS контекст клиента создан', { contextId });
     this.emit('tls:context_created', { contextId, type: 'client' });
-    
+
     return tlsOptions;
   }
 
   /**
    * Конвертировать TLS версию в строку
    */
-  private tlsVersionToString(version: TlsVersion): string {
-    const mapping: Record<TlsVersion, string> = {
+  private tlsVersionToString(version: TlsVersion): 'TLSv1' | 'TLSv1.1' | 'TLSv1.2' | 'TLSv1.3' {
+    const mapping: Record<TlsVersion, 'TLSv1' | 'TLSv1.1' | 'TLSv1.2' | 'TLSv1.3'> = {
       [TlsVersion.TLS1_0]: 'TLSv1',
       [TlsVersion.TLS1_1]: 'TLSv1.1',
       [TlsVersion.TLS1_2]: 'TLSv1.2',
       [TlsVersion.TLS1_3]: 'TLSv1.3'
     };
-    
+
     return mapping[version];
   }
 
@@ -302,13 +302,13 @@ export class TlsEverywhere extends EventEmitter {
   public addCertificate(certificate: TlsCertificate): void {
     this.certificates.set(certificate.id, certificate);
     this.stats.certificateCount = this.certificates.size;
-    
+
     this.log('TLS', 'Сертификат добавлен', {
       certificateId: certificate.id,
       commonName: certificate.commonName,
       expiresAt: certificate.expiresAt
     });
-    
+
     this.emit('tls:certificate_added', certificate);
   }
 
@@ -317,13 +317,13 @@ export class TlsEverywhere extends EventEmitter {
    */
   public removeCertificate(certificateId: string): boolean {
     const removed = this.certificates.delete(certificateId);
-    
+
     if (removed) {
       this.stats.certificateCount = this.certificates.size;
       this.log('TLS', 'Сертификат удалён', { certificateId });
       this.emit('tls:certificate_removed', { certificateId });
     }
-    
+
     return removed;
   }
 
@@ -333,35 +333,35 @@ export class TlsEverywhere extends EventEmitter {
   public checkExpiringCertificates(daysThreshold: number = 30): TlsCertificate[] {
     const now = new Date();
     const threshold = new Date(now.getTime() + daysThreshold * 24 * 60 * 60 * 1000);
-    
+
     const expiring: TlsCertificate[] = [];
-    
+
     for (const cert of this.certificates.values()) {
       if (cert.expiresAt <= threshold) {
         expiring.push(cert);
       }
     }
-    
+
     this.stats.expiringCertificates = expiring.length;
-    
+
     if (expiring.length > 0) {
       this.log('TLS', `Найдено ${expiring.length} истекающих сертификатов`, {
         certificates: expiring.map(c => c.id)
       });
-      
+
       this.emit('tls:certificates_expiring', {
         certificates: expiring,
         daysThreshold
       });
     }
-    
+
     return expiring;
   }
 
   /**
    * Получить TLS контекст
    */
-  public getTlsContext(contextId: string): tls.TLSOptions | undefined {
+  public getTlsContext(contextId: string): tls.TlsOptions | undefined {
     return this.tlsContexts.get(contextId);
   }
 
@@ -404,13 +404,13 @@ export class TlsEverywhere extends EventEmitter {
         format: 'pem'
       }
     });
-    
+
     // В реальной реализации здесь было бы создание сертификата
     // с использованием crypto.createCertificate или external CA
-    
+
     const now = new Date();
     const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-    
+
     const certificate: TlsCertificate = {
       id: uuidv4(),
       commonName,
@@ -422,9 +422,9 @@ export class TlsEverywhere extends EventEmitter {
       expiresAt,
       fingerprint: crypto.createHash('sha256').update(publicKey).digest('hex')
     };
-    
+
     this.addCertificate(certificate);
-    
+
     return certificate;
   }
 
@@ -432,6 +432,8 @@ export class TlsEverywhere extends EventEmitter {
    * Логирование
    */
   private log(component: string, message: string, data?: unknown): void {
+    const logData = typeof data === 'object' && data !== null ? data : { data };
+    
     const event: ZeroTrustEvent = {
       eventId: uuidv4(),
       eventType: 'CERTIFICATE_ISSUED',
@@ -441,15 +443,15 @@ export class TlsEverywhere extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...logData },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[TLS] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      logger.debug(`[TLS] ${message}`, { timestamp: new Date().toISOString(), ...logData });
     }
   }
 }

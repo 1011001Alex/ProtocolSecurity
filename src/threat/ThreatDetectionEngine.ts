@@ -21,6 +21,7 @@ import {
   PrioritizedAlert,
   ThreatDetectionConfig,
   ThreatSeverity,
+  ThreatStatus,
   ThreatCategory,
   AttackType,
   EntityType,
@@ -502,9 +503,9 @@ export class ThreatDetectionEngine {
     if (!this.config.uebaEnabled) {
       return [];
     }
-    
+
     try {
-      return await this.uebaService.processEvent(event) || [];
+      return await this.uebaService.processEvent(event);
     } catch (error) {
       console.error('[ThreatDetectionEngine] Ошибка UEBA анализа:', error);
       return [];
@@ -578,7 +579,7 @@ export class ThreatDetectionEngine {
       title: `ML Anomaly Detection: ${prediction.modelId}`,
       description: `Обнаружена аномалия с score ${prediction.anomalyScore?.toFixed(3)}`,
       severity: this.mlScoreToSeverity(prediction.anomalyScore || 0),
-      status: 'new',
+      status: ThreatStatus.NEW,
       category: ThreatCategory.ANOMALY,
       attackType: AttackType.ANOMALY,
       source: 'ML',
@@ -615,14 +616,14 @@ export class ThreatDetectionEngine {
    */
   private createThreatIntelAlert(event: SecurityEvent, matches: StixIndicator[]): SecurityAlert {
     const maxConfidence = Math.max(...matches.map(m => m.confidence));
-    
+
     return {
       id: uuidv4(),
       timestamp: new Date(),
       title: `Threat Intelligence Match: ${matches.length} индикаторов`,
       description: `Обнаружено совпадение с threat intelligence индикаторами`,
       severity: this.confidenceToSeverity(maxConfidence),
-      status: 'new',
+      status: ThreatStatus.NEW,
       category: ThreatCategory.UNKNOWN,
       attackType: AttackType.UNKNOWN,
       source: 'ThreatIntelligence',
@@ -638,7 +639,7 @@ export class ThreatDetectionEngine {
         findings: [],
         evidenceCollected: []
       },
-      tags: ['threat-intel', 'stiх'],
+      tags: ['threat-intel', 'stix'],
       timeline: [],
       evidence: [],
       response: {
@@ -1110,14 +1111,14 @@ export class ThreatDetectionEngine {
    * Отметка ложного срабатывания
    */
   markFalsePositive(alertId: string): void {
-    this.updateAlertStatus(alertId, 'false_positive');
+    this.updateAlertStatus(alertId, ThreatStatus.FALSE_POSITIVE);
   }
 
   /**
    * Закрытие алерта
    */
   closeAlert(alertId: string): void {
-    this.updateAlertStatus(alertId, 'closed');
+    this.updateAlertStatus(alertId, ThreatStatus.CLOSED);
   }
 
   /**
@@ -1146,8 +1147,3 @@ interface ThreatDetectionStatistics {
   falsePositiveRate: number;
   lastUpdated: Date;
 }
-
-/**
- * Экспорт основного класса
- */
-export { ThreatDetectionEngine };

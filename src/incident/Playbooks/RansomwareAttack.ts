@@ -12,6 +12,7 @@ import {
   PlaybookStep,
   PlaybookStepCategory,
   PlaybookActionType,
+  PlaybookStepStatus,
   IncidentCategory,
   IncidentSeverity,
   ConditionType,
@@ -46,7 +47,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 1,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -69,7 +70,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -93,7 +94,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -117,7 +118,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -144,7 +145,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 3,
       retryInterval: 1000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true,
       rollbackAction: {
@@ -156,7 +157,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
         parameters: {
           scriptType: 'reconnect_network'
         },
-        status: 'pending'
+        status: PlaybookStepStatus.PENDING
       }
     },
 
@@ -178,7 +179,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 2,
       retryInterval: 2000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -203,7 +204,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 2,
       retryInterval: 3000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -226,7 +227,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 2,
       retryInterval: 3000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -249,7 +250,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -277,7 +278,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -301,7 +302,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 900000,
       retryCount: 1,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -324,7 +325,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 1800000,
       retryCount: 1,
       retryInterval: 60000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -355,7 +356,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -383,7 +384,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -413,7 +414,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 7200000,
       retryCount: 1,
       retryInterval: 300000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -443,7 +444,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 3600000,
       retryCount: 1,
       retryInterval: 300000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -473,7 +474,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 14400000,
       retryCount: 1,
       retryInterval: 600000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -502,7 +503,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 3600000,
       retryCount: 1,
       retryInterval: 300000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -525,7 +526,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 1800000,
       retryCount: 1,
       retryInterval: 300000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -553,7 +554,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 1,
       retryInterval: 10000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -576,7 +577,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 300000,
       retryCount: 3,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -606,7 +607,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 60000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -629,7 +630,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 3600000,
       retryCount: 1,
       retryInterval: 300000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -655,7 +656,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 60000,
       retryCount: 5,
       retryInterval: 1000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -678,7 +679,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 5,
       retryInterval: 2000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -701,7 +702,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 180000,
       retryCount: 3,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -723,7 +724,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 120000,
       retryCount: 2,
       retryInterval: 5000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: true,
       requiresApproval: false
     },
@@ -753,7 +754,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 600000,
       retryCount: 1,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -776,7 +777,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 900000,
       retryCount: 1,
       retryInterval: 30000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: false
     },
@@ -801,7 +802,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 3600000,
       retryCount: 1,
       retryInterval: 300000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     },
@@ -825,7 +826,7 @@ export function createRansomwareAttackPlaybook(): PlaybookConfiguration {
       timeout: 1800000,
       retryCount: 1,
       retryInterval: 60000,
-      status: 'pending',
+      status: PlaybookStepStatus.PENDING,
       automatic: false,
       requiresApproval: true
     }

@@ -196,7 +196,8 @@ export type ConsentType =
   | 'SUBSTANCE_ABUSE'
   | 'HIV_STATUS'
   | 'GENETIC_TESTING'
-  | 'ORGAN_DONATION';
+  | 'ORGAN_DONATION'
+  | 'REPRODUCTIVE_HEALTH';
 
 /**
  * Статус согласия

@@ -439,14 +439,14 @@ export class PostIncidentReview extends EventEmitter {
       throw new Error(`Отчет ${reviewId} не найден`);
     }
 
-    review.status = 'completed';
+    review.status = 'approved';
     review.approvedBy = completedBy;
     review.approvedAt = new Date();
 
     // Событие завершения
     this.emit(PostIncidentReviewEvent.REVIEW_COMPLETED, {
       reviewId,
-      status: 'completed'
+      status: 'approved'
     });
 
     this.log(`Анализ после инцидента ${reviewId} завершен`);
@@ -530,8 +530,3 @@ export class PostIncidentReview extends EventEmitter {
     };
   }
 }
-
-/**
- * Экспорт событий модуля
- */
-export { PostIncidentReviewEvent };

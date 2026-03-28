@@ -458,30 +458,46 @@ export class DevicePostureChecker extends EventEmitter {
     // Вычисляем health status и risk score
     const healthStatus = this.calculateHealthStatus(results);
     const riskScore = this.calculateRiskScore(results);
-    
+
     // Создаём posture
     const now = new Date();
+    
+    // Получаем результаты проверок
+    const antivirusActive = this.getCheckResultField(results, 'antivirus', 'active') === true;
+    const antivirusUpdated = this.getCheckResultField(results, 'antivirus', 'updated') === true;
+    const firewallActive = this.getCheckResultField(results, 'firewall', 'active') === true;
+    const diskEncrypted = this.getCheckResultField(results, 'diskEncryption', 'encrypted') === true;
+    const secureBootEnabled = this.getCheckResultField(results, 'secureBoot', 'enabled') === true;
+    const tpmPresent = this.getCheckResultField(results, 'tpm', 'present') === true;
+    const lastUpdateCheck = this.getCheckResultField<Date>(results, 'osUpdates', 'lastCheck') ?? now;
+    const criticalUpdatesInstalled = this.getCheckResultField(results, 'osUpdates', 'criticalInstalled') === true;
+    const jailbreakDetected = this.getCheckResultField(results, 'jailbreak', 'detected') === true;
+
     const posture: DevicePosture = {
       deviceId,
       deviceType: deviceInfo.deviceType,
       operatingSystem: deviceInfo.operatingSystem,
       healthStatus,
       compliance: {
-        antivirusActive: this.getCheckResult(results, 'antivirus', 'details')?.active ?? false,
-        antivirusUpdated: this.getCheckResult(results, 'antivirus', 'details')?.updated ?? false,
-        firewallActive: this.getCheckResult(results, 'firewall', 'details')?.active ?? false,
-        diskEncrypted: this.getCheckResult(results, 'diskEncryption', 'details')?.encrypted ?? false,
-        secureBootEnabled: this.getCheckResult(results, 'secureBoot', 'details')?.enabled ?? false,
-        tpmPresent: this.getCheckResult(results, 'tpm', 'details')?.present ?? false,
-        lastUpdateCheck: this.getCheckResult(results, 'osUpdates', 'details')?.lastCheck ?? now,
-        criticalUpdatesInstalled: this.getCheckResult(results, 'osUpdates', 'details')?.criticalInstalled ?? false,
-        jailbreakDetected: this.getCheckResult(results, 'jailbreak', 'details')?.detected ?? false
+        antivirusActive,
+        antivirusUpdated,
+        firewallActive,
+        diskEncrypted,
+        secureBootEnabled,
+        tpmPresent,
+        lastUpdateCheck,
+        criticalUpdatesInstalled,
+        jailbreakDetected
       },
       network: deviceInfo.network,
       location: undefined, // Может быть заполнено агентом
       lastCheckedAt: now,
       nextCheckAt: new Date(now.getTime() + this.config.checkInterval * 1000),
-      riskScore
+      riskScore,
+      // Вычисляемые поля
+      isCompliant: healthStatus === DeviceHealthStatus.HEALTHY || healthStatus === DeviceHealthStatus.DEGRADED,
+      isEncrypted: diskEncrypted,
+      hasAntivirus: antivirusActive
     };
     
     // Эмитим событие изменения posture
@@ -516,20 +532,27 @@ export class DevicePostureChecker extends EventEmitter {
    */
   private getCheckResult(
     results: CheckResult[],
+    checkName: string
+  ): CheckResult | undefined {
+    return results.find(r => r.checkName === checkName);
+  }
+
+  /**
+   * Получить поле из результата проверки
+   */
+  private getCheckResultField<T = unknown>(
+    results: CheckResult[],
     checkName: string,
-    field?: string
-  ): Record<string, unknown> | boolean {
+    field: string
+  ): T | undefined {
     const result = results.find(r => r.checkName === checkName);
-    
-    if (!result) {
-      return field ? false : {};
+
+    if (!result || typeof result.details !== 'object' || result.details === null) {
+      return undefined;
     }
-    
-    if (field && typeof result.details === 'object' && result.details !== null) {
-      return (result.details as Record<string, unknown>)[field] as Record<string, unknown>;
-    }
-    
-    return result.details;
+
+    const details = result.details as Record<string, T>;
+    return details[field];
   }
 
   /**
@@ -607,7 +630,7 @@ export class DevicePostureChecker extends EventEmitter {
    */
   private createUnknownPosture(deviceId: string): DevicePosture {
     const now = new Date();
-    
+
     return {
       deviceId,
       deviceType: DeviceType.WORKSTATION,
@@ -636,7 +659,11 @@ export class DevicePostureChecker extends EventEmitter {
       },
       lastCheckedAt: now,
       nextCheckAt: new Date(now.getTime() + this.config.checkInterval * 1000),
-      riskScore: 50 // Средний риск для неизвестных устройств
+      riskScore: 50, // Средний риск для неизвестных устройств
+      // Вычисляемые поля
+      isCompliant: false,
+      isEncrypted: false,
+      hasAntivirus: false
     };
   }
 
@@ -855,15 +882,19 @@ export class DevicePostureChecker extends EventEmitter {
         type: SubjectType.SYSTEM,
         name: component
       },
-      details: { message, ...data },
+      details: { message, ...(typeof data === 'object' && data !== null ? data : { data }) },
       severity: 'INFO',
       correlationId: uuidv4()
     };
-    
+
     this.emit('log', event);
 
     if (this.config.enableVerboseLogging) {
-      logger.debug(`[DPC] ${message}`, { timestamp: new Date().toISOString(), ...data });
+      const logData = typeof data === 'object' && data !== null ? data : { data };
+      logger.debug(`[DPC] ${message}`, { 
+        timestamp: new Date().toISOString(), 
+        ...logData 
+      });
     }
   }
 }

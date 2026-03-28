@@ -14,7 +14,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { logger } from './Logger';
+import { logger } from '../logging/Logger';
 import { CircuitBreaker, CircuitBreakerError } from './CircuitBreaker';
 
 /**
