@@ -202,9 +202,8 @@ export class SecretRotator extends EventEmitter {
           const maxValidValue = Math.floor(256 / chars.length) * chars.length;
           
           do {
-            crypto.randomBytes(1).forEach(byte => {
-              randomValue = byte;
-            });
+            const randByte = randomBytes(1)[0];
+            randomValue = randByte;
           } while (randomValue! >= maxValidValue);
           
           password += chars[randomValue! % chars.length];
