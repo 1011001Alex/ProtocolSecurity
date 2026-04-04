@@ -680,7 +680,7 @@ export class BaselineManager extends EventEmitter {
       
       return {
         success: verifyResult.success,
-        data: { verified: verifyResult.success && verifyResult.data?.verified },
+        data: { verified: verifyResult.success && (verifyResult.data?.verified ?? false) },
         errors: verifyResult.errors,
         warnings: verifyResult.warnings,
         executionTime: 0

@@ -9,7 +9,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { FinanceSecurityConfig, TransactionData, FraudScore, AMLCheckResult } from '../types/finance.types';
+import { FinanceSecurityConfig, TransactionData, FraudScore, AMLCheckResult } from './types/finance.types';
 import { PaymentCardEncryption } from './payment/PaymentCardEncryption';
 import { TokenizationService } from './payment/TokenizationService';
 import { FraudDetectionEngine } from './fraud/FraudDetectionEngine';

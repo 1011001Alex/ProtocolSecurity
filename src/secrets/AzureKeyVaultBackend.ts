@@ -27,13 +27,11 @@ import {
   ISecretBackend,
   SecretBackendError
 } from '../types/secrets.types';
-// Реальные импорты Azure SDK
-import {
-  SecretClient,
-  KeyClient,
-  CertificateClient,
-  DefaultAzureCredential
-} from '@azure/keyvault-secrets';
+// Реальные импорты Azure SDK - из разных пакетов
+import { SecretClient } from '@azure/keyvault-secrets';
+import { KeyClient } from '@azure/keyvault-keys';
+import { CertificateClient } from '@azure/keyvault-certificates';
+import { DefaultAzureCredential, ClientSecretCredential, ClientCertificateCredential } from '@azure/identity';
 import type { KeyVaultSecret, SecretProperties, DeletedSecret } from '@azure/keyvault-secrets';
 
 /**
@@ -41,9 +39,23 @@ import type { KeyVaultSecret, SecretProperties, DeletedSecret } from '@azure/key
  * Обёртка над реальными типами Azure SDK
  */
 interface KeyVaultClient {
-  secretClient: SecretClient;
-  keyClient: KeyClient;
-  certificateClient: CertificateClient;
+  getSecret(vaultUrl: string, secretName: string, secretVersion?: string): Promise<any>;
+  setSecret(vaultUrl: string, secretName: string, value: string, options?: any): Promise<any>;
+  updateSecret(vaultUrl: string, secretName: string, version: string, options?: any): Promise<any>;
+  deleteSecret(vaultUrl: string, secretName: string): Promise<any>;
+  getDeletedSecret(vaultUrl: string, secretName: string): Promise<any>;
+  purgeDeletedSecret(vaultUrl: string, secretName: string): Promise<void>;
+  recoverDeletedSecret(vaultUrl: string, secretName: string): Promise<any>;
+  getSecretVersions(vaultUrl: string, secretName: string, maxResults?: number): Promise<any[]>;
+  getKey(vaultUrl: string, keyName: string, keyVersion?: string): Promise<any>;
+  createKey(vaultUrl: string, keyName: string, keyType: string, options?: any): Promise<any>;
+  deleteKey(vaultUrl: string, keyName: string): Promise<any>;
+  getCertificate(vaultUrl: string, certName: string, certVersion?: string): Promise<any>;
+  createCertificate(vaultUrl: string, certName: string, policy: any): Promise<any>;
+  deleteCertificate(vaultUrl: string, certName: string): Promise<any>;
+  getAccessPolicy(): Promise<any[]>;
+  setAccessPolicy(policy: any): Promise<void>;
+  close(): void;
 }
 
 /**
@@ -360,69 +372,71 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
       // Создание клиента
       this.client = {
         // Реализация через Azure SDK или моки
-        getSecret: async (vaultUrl, secretName, secretVersion) => {
+        getSecret: async (vaultUrl: string, secretName: string, secretVersion?: string) => {
           const client = new SecretClient(vaultUrl, credential);
           return client.getSecret(secretName, { version: secretVersion });
         },
-        setSecret: async (vaultUrl, secretName, value, options) => {
+        setSecret: async (vaultUrl: string, secretName: string, value: string, options?: any) => {
           const client = new SecretClient(vaultUrl, credential);
           return client.setSecret(secretName, value, options);
         },
-        updateSecret: async (vaultUrl, secretName, version, options) => {
+        updateSecret: async (vaultUrl: string, secretName: string, version: string, options?: any) => {
           const client = new SecretClient(vaultUrl, credential);
           return client.updateSecretProperties(
             { name: secretName, version },
             options
           );
         },
-        deleteSecret: async (vaultUrl, secretName) => {
+        deleteSecret: async (vaultUrl: string, secretName: string) => {
           const client = new SecretClient(vaultUrl, credential);
           const poller = await client.beginDeleteSecret(secretName);
           return poller.pollUntilDone();
         },
-        getDeletedSecret: async (vaultUrl, secretName) => {
+        getDeletedSecret: async (vaultUrl: string, secretName: string) => {
           const client = new SecretClient(vaultUrl, credential);
           return client.getDeletedSecret(secretName);
         },
-        purgeDeletedSecret: async (vaultUrl, secretName) => {
+        purgeDeletedSecret: async (vaultUrl: string, secretName: string) => {
           const client = new SecretClient(vaultUrl, credential);
           await client.purgeDeletedSecret(secretName);
         },
-        recoverDeletedSecret: async (vaultUrl, secretName) => {
+        recoverDeletedSecret: async (vaultUrl: string, secretName: string) => {
           const client = new SecretClient(vaultUrl, credential);
-          return client.recoverDeletedSecret(secretName);
+          const poller = await client.beginRecoverDeletedSecret(secretName);
+          return poller.pollUntilDone();
         },
-        getSecretVersions: async (vaultUrl, secretName, maxResults) => {
+        getSecretVersions: async (vaultUrl: string, secretName: string, maxResults?: number) => {
           const client = new SecretClient(vaultUrl, credential);
-          const versions: SecretVersionItem[] = [];
+          const versions: any[] = [];
           for await (const version of client.listPropertiesOfSecretVersions(secretName)) {
-            versions.push(version as SecretVersionItem);
+            versions.push(version);
             if (maxResults && versions.length >= maxResults) break;
           }
           return versions;
         },
-        getKey: async (vaultUrl, keyName, keyVersion) => {
+        getKey: async (vaultUrl: string, keyName: string, keyVersion?: string) => {
           const client = new KeyClient(vaultUrl, credential);
           return client.getKey(keyName, { version: keyVersion });
         },
-        createKey: async (vaultUrl, keyName, keyType, options) => {
+        createKey: async (vaultUrl: string, keyName: string, keyType: string, options?: any) => {
           const client = new KeyClient(vaultUrl, credential);
           return client.createKey(keyName, keyType, options);
         },
-        deleteKey: async (vaultUrl, keyName) => {
+        deleteKey: async (vaultUrl: string, keyName: string) => {
           const client = new KeyClient(vaultUrl, credential);
           const poller = await client.beginDeleteKey(keyName);
           return poller.pollUntilDone();
         },
-        getCertificate: async (vaultUrl, certName, certVersion) => {
+        getCertificate: async (vaultUrl: string, certName: string, certVersion?: string) => {
           const client = new CertificateClient(vaultUrl, credential);
           return client.getCertificate(certName, { version: certVersion });
         },
-        createCertificate: async (vaultUrl, certName, policy) => {
+        createCertificate: async (vaultUrl: string, certName: string, policy: any) => {
           const client = new CertificateClient(vaultUrl, credential);
-          return client.createCertificate(certName, policy);
+          const poller = await client.beginCreateCertificate(certName, policy);
+          return poller.pollUntilDone();
         },
-        deleteCertificate: async (vaultUrl, certName) => {
+        deleteCertificate: async (vaultUrl: string, certName: string) => {
           const client = new CertificateClient(vaultUrl, credential);
           const poller = await client.beginDeleteCertificate(certName);
           return poller.pollUntilDone();
@@ -459,16 +473,17 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
     KeyClient: typeof KeyClient;
     CertificateClient: typeof CertificateClient;
     DefaultAzureCredential: typeof DefaultAzureCredential;
-    ClientSecretCredential: any;
-    ClientCertificateCredential: any;
+    ClientSecretCredential: typeof ClientSecretCredential;
+    ClientCertificateCredential: typeof ClientCertificateCredential;
   }> {
-    // Импортируем реальные Azure SDK - моки больше не нужны
-    const keyvault = await import('@azure/keyvault-secrets');
+    const keyvaultSecrets = await import('@azure/keyvault-secrets');
+    const keyvaultKeys = await import('@azure/keyvault-keys');
+    const keyvaultCerts = await import('@azure/keyvault-certificates');
     const identity = await import('@azure/identity');
     return {
-      SecretClient: keyvault.SecretClient,
-      KeyClient: keyvault.KeyClient,
-      CertificateClient: keyvault.CertificateClient,
+      SecretClient: keyvaultSecrets.SecretClient,
+      KeyClient: keyvaultKeys.KeyClient,
+      CertificateClient: keyvaultCerts.CertificateClient,
       DefaultAzureCredential: identity.DefaultAzureCredential,
       ClientSecretCredential: identity.ClientSecretCredential,
       ClientCertificateCredential: identity.ClientCertificateCredential

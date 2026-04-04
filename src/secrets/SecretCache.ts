@@ -532,9 +532,9 @@ export class SecretCache extends EventEmitter {
       
       // Создание cipher
       const cipher = createCipheriv('aes-256-gcm', this.encryptionKey, iv);
-      
+
       // Шифрование
-      let encrypted = cipher.update(value, 'utf8', 'buffer');
+      let encrypted = cipher.update(value, 'utf8');
       encrypted = Buffer.concat([encrypted, cipher.final()]);
       
       // Получение auth tag
@@ -571,9 +571,9 @@ export class SecretCache extends EventEmitter {
       // Создание decipher
       const decipher = createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
       decipher.setAuthTag(authTag!);
-      
+
       // Расшифровка
-      let decrypted = decipher.update(encrypted, 'buffer', 'utf8');
+      let decrypted = decipher.update(encrypted);
       decrypted += decipher.final('utf8');
       
       return decrypted;

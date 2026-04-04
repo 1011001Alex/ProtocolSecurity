@@ -19,7 +19,7 @@
 import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { HSMIntegration } from './hsm/HSMIntegration';
+import { HSMIntegration } from '../hsm/HSMIntegration';
 
 /**
  * Типы платёжных карт
@@ -110,13 +110,13 @@ export interface PaymentCardEncryptionConfig {
   /** HSM integration */
   hsm?: HSMIntegration;
   /** Алгоритм шифрования */
-  algorithm: 'AES-256-GCM' | 'AES-128-GCM';
+  algorithm?: 'AES-256-GCM' | 'AES-128-GCM';
   /** Включить токенизацию */
-  enableTokenization: boolean;
+  enableTokenization?: boolean;
   /** TTL токена (часы) */
-  tokenTtlHours: number;
+  tokenTtlHours?: number;
   /** Включить аудит */
-  enableAudit: boolean;
+  enableAudit?: boolean;
 }
 
 /**

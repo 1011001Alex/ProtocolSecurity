@@ -169,7 +169,7 @@ export class ArtifactSigner extends EventEmitter {
   private cachedCertificate: string | null = null;
 
   /** Приватный ключ для подписания (ephemeral) */
-  private ephemeralKeyPair: crypto.KeyPairKeyObject | null = null;
+  private ephemeralKeyPair: { publicKey: crypto.KeyObject; privateKey: crypto.KeyObject } | null = null;
 
   /**
    * Создает экземпляр ArtifactSigner

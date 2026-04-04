@@ -626,7 +626,7 @@ export interface TransparencyLogEntry {
   /** Уникальный ID записи */
   uuid: string;
   /** Тип записи */
-  kind: 'intoto' | 'hashedrekord' | 'dsse' | 'rpm' | 'jar' | 'other';
+  kind: 'intoto' | 'hashedrekord' | 'dsse' | 'rpm' | 'jar' | 'apk' | 'tuf' | 'helm' | 'rfc3161' | 'alpine' | 'cosign' | 'other';
   /** API версия */
   apiVersion: string;
   /** Spec записи */

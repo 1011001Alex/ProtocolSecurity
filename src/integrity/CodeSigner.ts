@@ -643,7 +643,7 @@ export class CodeSigner extends EventEmitter {
    */
   getCertificateStatus(certificatePath?: string): OperationResult<CertificateStatus> {
     try {
-      const certPath = certificatePath || (this.keyConfig.options as X509SigningConfig)?.certificatePath;
+      const certPath = certificatePath || (this.keyConfig.options as unknown as unknown as X509SigningConfig)?.certificatePath;
       
       if (!certPath) {
         return {
@@ -741,11 +741,11 @@ export class CodeSigner extends EventEmitter {
       let keyPath: string | undefined;
       
       if (this.keyConfig.type === 'GPG') {
-        keyPath = (this.keyConfig.options as GPGSigningConfig)?.publicKeyPath;
+        keyPath = (this.keyConfig.options as unknown as GPGSigningConfig)?.publicKeyPath;
       } else if (this.keyConfig.type === 'SSH') {
-        keyPath = (this.keyConfig.options as SSHSigningConfig)?.publicKeyPath;
+        keyPath = (this.keyConfig.options as unknown as SSHSigningConfig)?.publicKeyPath;
       } else if (this.keyConfig.type === 'X509') {
-        keyPath = (this.keyConfig.options as X509SigningConfig)?.certificatePath;
+        keyPath = (this.keyConfig.options as unknown as X509SigningConfig)?.certificatePath;
       }
       
       if (!keyPath || !fs.existsSync(keyPath)) {
@@ -798,11 +798,11 @@ export class CodeSigner extends EventEmitter {
       let keyPath: string | undefined;
       
       if (this.keyConfig.type === 'GPG') {
-        keyPath = (this.keyConfig.options as GPGSigningConfig)?.keyPath;
+        keyPath = (this.keyConfig.options as unknown as GPGSigningConfig)?.keyPath;
       } else if (this.keyConfig.type === 'SSH') {
-        keyPath = (this.keyConfig.options as SSHSigningConfig)?.privateKeyPath;
+        keyPath = (this.keyConfig.options as unknown as SSHSigningConfig)?.privateKeyPath;
       } else if (this.keyConfig.type === 'X509') {
-        keyPath = (this.keyConfig.options as X509SigningConfig)?.privateKeyPath;
+        keyPath = (this.keyConfig.options as unknown as X509SigningConfig)?.privateKeyPath;
       }
       
       if (!keyPath) {
@@ -864,7 +864,7 @@ export class CodeSignerFactory {
       keyId: config.keyId,
       keyPath: config.keyPath,
       keyStore: 'file',
-      options: config
+      options: config as unknown as Record<string, unknown>
     });
   }
 
@@ -880,7 +880,7 @@ export class CodeSignerFactory {
       keyId: config.privateKeyPath,
       keyPath: config.privateKeyPath,
       keyStore: 'file',
-      options: config
+      options: config as unknown as Record<string, unknown>
     });
   }
 
@@ -896,7 +896,7 @@ export class CodeSignerFactory {
       keyId: config.certificatePath,
       keyPath: config.privateKeyPath,
       keyStore: 'file',
-      options: config
+      options: config as unknown as Record<string, unknown>
     });
   }
 

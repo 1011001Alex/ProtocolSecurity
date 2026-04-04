@@ -235,13 +235,42 @@ export class MultiBranchSecuritySystem extends EventEmitter {
         minimumScore: 80
       },
       modules: {
-        phiProtection: {},
-        consentManager: {},
-        ehrIntegration: { ehrSystem: 'epic' },
-        fhirSecurity: { baseUrl: 'https://fhir.example.com' },
-        deviceSecurity: {},
-        telehealthSecurity: {},
-        identity: { defaultIAL: 'IAL2' }
+        phiProtection: {
+          encryptionAlgorithm: 'AES-256-GCM',
+          deidentificationMethod: 'SAFE_HARBOR'
+        },
+        consentManager: {
+          consentTypes: ['TPO'],
+          researchConsentRequired: false,
+          emergencyAccessEnabled: true
+        },
+        ehrIntegration: {
+          ehrSystem: 'epic',
+          fhirBaseUrl: 'https://fhir.example.com'
+        },
+        fhirSecurity: {
+          baseUrl: 'https://fhir.example.com',
+          smartOnFHIR: true,
+          allowedResources: ['Patient', 'Observation', 'Condition']
+        },
+        deviceSecurity: {
+          postureCheckEnabled: true,
+          postureCheckInterval: 15,
+          autoQuarantineEnabled: true
+        },
+        telehealthSecurity: {
+          videoProvider: 'twilio',
+          e2eEncryptionRequired: true,
+          maxSessionDuration: 60
+        },
+        identity: {
+          defaultIAL: 'IAL2',
+          npiVerificationRequired: true,
+          mpiIntegration: {
+            enabled: true,
+            provider: 'verato'
+          }
+        }
       }
     };
   }
@@ -293,7 +322,7 @@ export class MultiBranchSecuritySystem extends EventEmitter {
       zeroKnowledge: {
         enabled: true,
         provider: 'circom',
-        proofSystem: 'Groth16'
+        proofSystem: 'groth16'
       },
       mevProtection: {
         enabled: true,
@@ -479,12 +508,12 @@ export class MultiBranchSecuritySystem extends EventEmitter {
     return {
       finance: this.finance.getStatus(),
       healthcare: {
-        initialized: this.healthcare.isInitialized(),
+        initialized: this.healthcare.checkInitialized(),
         hipaaCompliant: this.healthcare.isHipaaCompliant(),
         ehrConnected: this.healthcare.isEHRConnected()
       },
       ecommerce: {
-        initialized: this.ecommerce.isInitialized(),
+        initialized: this.ecommerce.checkInitialized(),
         botProtectionActive: this.ecommerce.isBotProtectionActive(),
         fraudDetectionActive: this.ecommerce.isFraudDetectionActive()
       },
@@ -519,9 +548,9 @@ export class MultiBranchSecuritySystem extends EventEmitter {
       timestamp: new Date(),
       uptime: this.initializedAt ? Date.now() - this.initializedAt.getTime() : 0,
       branches: {
-        finance: this.finance.getDashboard?.() || this.finance.getStatus(),
-        healthcare: this.healthcare.getDashboard?.() || { initialized: this.healthcare.isInitialized() },
-        ecommerce: this.ecommerce.getDashboard?.() || { initialized: this.ecommerce.isInitialized() }
+        finance: (this.finance as any).getDashboard?.() || this.finance.getStatus(),
+        healthcare: (this.healthcare as any).getDashboard?.() || { initialized: this.healthcare.checkInitialized() },
+        ecommerce: (this.ecommerce as any).getDashboard?.() || { initialized: this.ecommerce.checkInitialized() }
       },
       alerts: {
         last24h: this.calculateAlertsLast24h(),
@@ -543,7 +572,7 @@ export class MultiBranchSecuritySystem extends EventEmitter {
       this.healthcare,
       this.ecommerce,
       this.blockchain
-    ].filter(m => m && (m.isInitialized?.() || m.getStatus?.().initialized));
+    ].filter(m => m && ((m as any).checkInitialized?.() || (m as any).isReady?.() || (m as any).getStatus?.()?.initialized));
 
     return activeModules.length * Math.floor(Math.random() * 10);
   }

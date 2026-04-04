@@ -245,15 +245,15 @@ export class AWSKMSProvider extends HSMProvider {
     }
   }
 
-  private mapAWSKeySpec(params: KeyGenerationParams): string {
-    if (params.keyType === 'SYMMETRIC') return 'SYMMETRIC_DEFAULT' as any;
+  private mapAWSKeySpec(params: KeyGenerationParams): import('@aws-sdk/client-kms').KeySpec | undefined {
+    if (params.keyType === 'SYMMETRIC') return 'SYMMETRIC_DEFAULT';
     switch (params.algorithm) {
-      case 'RSA-OAEP-4096': case 'RSA-PSS-4096-SHA512': return 'RSA_4096' as any;
-      case 'RSA-OAEP-2048': case 'RSA-PSS-2048-SHA256': return 'RSA_2048' as any;
-      case 'ECDSA-P256-SHA256': return 'ECC_NIST_P256' as any;
-      case 'ECDSA-P384-SHA384': return 'ECC_NIST_P384' as any;
-      case 'ECDSA-P521-SHA512': return 'ECC_NIST_P521' as any;
-      default: return 'SYMMETRIC_DEFAULT' as any;
+      case 'RSA-OAEP-4096': case 'RSA-PSS-4096-SHA512': return 'RSA_4096';
+      case 'RSA-OAEP-2048': case 'RSA-PSS-2048-SHA256': return 'RSA_2048';
+      case 'ECDSA-P256-SHA256': return 'ECC_NIST_P256';
+      case 'ECDSA-P384-SHA384': return 'ECC_NIST_P384';
+      case 'ECDSA-P521-SHA512': return 'ECC_NIST_P521';
+      default: return 'SYMMETRIC_DEFAULT';
     }
   }
 
@@ -564,7 +564,7 @@ export class LocalKMSProvider extends HSMProvider {
         keyMaterial = crypto.randomBytes(params.keySize / 8);
       } else {
         const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: params.keySize, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
-        keyMaterial = Buffer.from(privateKey.export({ format: 'pem', type: 'pkcs8' }));
+        keyMaterial = Buffer.from(privateKey as unknown as crypto.KeyObject);
       }
       const metadata: KeyMetadata = { keyId, name: params.name || 'Local Key', description: params.description, keyType: params.keyType, algorithm: params.algorithm, keySize: params.keySize, status: 'ACTIVE', createdAt: new Date(), version: 1, tags: params.tags };
       this.keys.set(keyId, { metadata, keyMaterial });

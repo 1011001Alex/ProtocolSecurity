@@ -29,29 +29,35 @@ import {
 } from '../types/secrets.types';
 // Реальные импорты GCP SDK
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
-import type { google as GCPTypes } from '@google-cloud/secret-manager/build/protos/v1';
 
 /**
  * Интерфейс GCP Secret Manager клиент
+ * Используем unknown для типов запросов/ответов так как GCP proto типы не экспортируются напрямую
  */
+type GcpSecretResponse = {
+  name?: string;
+  payload?: { data?: Buffer };
+  labels?: Record<string, string>;
+  createTime?: { toDate: () => Date };
+  updateTime?: { toDate: () => Date };
+  versionIds?: string[];
+  replication?: unknown;
+  topics?: Array<{ name: string }>;
+};
+
 interface SecretManagerClient {
-  accessSecretVersion(request: GCPTypes.cloud.v1.AccessSecretVersionRequest): Promise<[GCPTypes.cloud.v1.AccessSecretVersionResponse]>;
-  addSecretVersion(request: GCPTypes.cloud.v1.AddSecretVersionRequest): Promise<[GCPTypes.cloud.v1.SecretVersion]>;
-  createSecret(request: GCPTypes.cloud.v1.CreateSecretRequest): Promise<[GCPTypes.cloud.v1.Secret]>;
-  updateSecret(request: GCPTypes.cloud.v1.UpdateSecretRequest): Promise<[GCPTypes.cloud.v1.Secret]>;
-  deleteSecret(request: GCPTypes.cloud.v1.DeleteSecretRequest): Promise<void>;
-  getSecret(request: GCPTypes.cloud.v1.GetSecretRequest): Promise<[GCPTypes.cloud.v1.Secret]>;
-  listSecretVersions(request: GCPTypes.cloud.v1.ListSecretVersionsRequest): Promise<[GCPTypes.cloud.v1.SecretVersion[]]>;
-  destroySecretVersion(request: GCPTypes.cloud.v1.DestroySecretVersionRequest): Promise<[GCPTypes.cloud.v1.SecretVersion]>;
-  setIamPolicy(request: GCPTypes.iam.v1.SetIamPolicyRequest): Promise<[GCPTypes.iam.v1.Policy]>;
-  getIamPolicy(request: GCPTypes.iam.v1.GetIamPolicyRequest): Promise<[GCPTypes.iam.v1.Policy]>;
+  accessSecretVersion(request: unknown): Promise<[GcpSecretResponse]>;
+  addSecretVersion(request: unknown): Promise<[GcpSecretResponse]>;
+  createSecret(request: unknown): Promise<[GcpSecretResponse]>;
+  updateSecret(request: unknown): Promise<[GcpSecretResponse]>;
+  deleteSecret(request: unknown): Promise<void>;
+  getSecret(request: unknown): Promise<[GcpSecretResponse]>;
+  listSecretVersions(request: unknown): Promise<[GcpSecretResponse[]]>;
+  destroySecretVersion(request: unknown): Promise<[GcpSecretResponse]>;
+  setIamPolicy(request: unknown): Promise<[unknown]>;
+  getIamPolicy(request: unknown): Promise<[unknown]>;
   close(): void;
 }
-
-/**
- * Запросы и ответы GCP API используют типы из GCPTypes.cloud.v1 и GCPTypes.iam.v1
- * Все необходимые типы импортированы из @google-cloud/secret-manager
- */
 
 /**
  * Класс бэкенда для GCP Secret Manager
@@ -72,13 +78,13 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   private readonly config: GCPSecretsBackendConfig;
   
   /** GCP клиент */
-  private client?: SecretManagerClient;
+  private client!: SecretManagerClient;
   
   /** Флаг инициализации */
   private isInitialized = false;
   
   /** Кэш секретов */
-  private secretCache: Map<string, Secret>;
+  private secretCache: Map<string, unknown>;
   
   /** Префикс пути для секретов */
   private readonly pathPrefix: string;
@@ -112,7 +118,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
     try {
       // Используем реальный GCP Secret Manager SDK
-      const clientOptions: Record<string, unknown> = {
+      const clientOptions: any = {
         retryOptions: {
           retryCodes: [
             4, // DEADLINE_EXCEEDED
@@ -468,7 +474,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   /**
    * Получить метаданные секрета
    */
-  private async getSecretMetadata(secretId: string): Promise<GCPTypes.cloud.v1.Secret | null> {
+  private async getSecretMetadata(secretId: string): Promise<unknown | null> {
     // Проверка кэша
     const cached = this.secretCache.get(secretId);
     if (cached) {
@@ -496,7 +502,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   /**
    * Внутренний список секретов
    */
-  private async listSecretsInternal(): Promise<GCPTypes.cloud.v1.Secret[]> {
+  private async listSecretsInternal(): Promise<unknown[]> {
     // Реальный API не поддерживает прямой список секретов, только через IAM policy
     // Для health check просто проверим что клиент работает
     return [];
@@ -558,7 +564,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
    * @param secretId - ID секрета
    * @param policy - IAM policy
    */
-  async setIamPolicy(secretId: string, policy: GCPTypes.iam.v1.IPolicy): Promise<void> {
+  async setIamPolicy(secretId: string, policy: Record<string, unknown>): Promise<void> {
     await this.ensureInitialized();
 
     await this.client.setIamPolicy({
@@ -576,7 +582,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
    * @param secretId - ID секрета
    * @returns IAM policy
    */
-  async getIamPolicy(secretId: string): Promise<GCPTypes.iam.v1.IPolicy | null> {
+  async getIamPolicy(secretId: string): Promise<GcpSecretResponse | null> {
     await this.ensureInitialized();
 
     try {

@@ -218,8 +218,8 @@ export class DigitalSignatureService {
   }
 
   private generateEdDSAKeyPair(algorithm: SignatureAlgorithm): { publicKey: KeyObject; privateKey: KeyObject } {
-    const curve = algorithm === 'Ed448' ? 'Ed448' : 'Ed25519';
-    const keyPair = crypto.generateKeyPairSync(curve.toLowerCase() as 'ed25519' | 'ed448');
+    const curve = algorithm === 'Ed448' ? 'ed448' : 'ed25519';
+    const keyPair = crypto.generateKeyPairSync(curve);
     return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey };
   }
 

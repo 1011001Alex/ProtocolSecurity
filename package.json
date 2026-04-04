@@ -55,9 +55,12 @@
     "snyk:monitor": "snyk monitor"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudhsm": "^3.1024.0",
     "@aws-sdk/client-kms": "^3.1017.0",
     "@aws-sdk/client-secrets-manager": "^3.450.0",
     "@azure/identity": "^4.13.1",
+    "@azure/keyvault-admin": "^4.7.0",
+    "@azure/keyvault-certificates": "^4.10.0",
     "@azure/keyvault-keys": "^4.10.0",
     "@azure/keyvault-secrets": "^4.7.0",
     "@google-cloud/kms": "^5.4.0",

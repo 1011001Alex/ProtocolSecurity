@@ -273,6 +273,7 @@ export class SupplyChainVerifier extends EventEmitter {
           severity: 'high',
           filePath: component.name,
           description: `Подпись компонента отсутствует или невалидна`,
+          details: 'Signature missing or invalid',
           detectedAt: new Date(),
           remediation: ['Запросить подпись у издателя', 'Использовать подписанную версию']
         });
@@ -289,6 +290,7 @@ export class SupplyChainVerifier extends EventEmitter {
           severity: 'medium',
           filePath: component.name,
           description: `Provenance информация отсутствует`,
+          details: 'Provenance information missing',
           detectedAt: new Date(),
           remediation: ['Запросить provenance у издателя']
         });
@@ -430,7 +432,7 @@ export class SupplyChainVerifier extends EventEmitter {
       return {
         name: 'Registry Trust Check',
         description: 'Проверка доверенного registry',
-        passed: isTrusted,
+        passed: isTrusted ?? false,
         details: isTrusted
           ? `Доверенный registry: ${registryUrl}`
           : `Недоверенный registry: ${registryUrl}`

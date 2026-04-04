@@ -573,7 +573,7 @@ export class IntegrityService extends EventEmitter {
    * @param sbom - SBOM документ
    * @returns Результат верификации
    */
-  async verifySupplyChain(sbom: SBOMDocument): Promise<OperationResult> {
+  async verifySupplyChain(sbom: SBOMDocument): Promise<OperationResult<any>> {
     if (!this.supplyChainVerifier) {
       return {
         success: false,
@@ -615,7 +615,7 @@ export class IntegrityService extends EventEmitter {
   async createBaseline(
     name: string,
     files: FileHash[]
-  ): Promise<OperationResult> {
+  ): Promise<OperationResult<any>> {
     if (!this.baselineManager) {
       return {
         success: false,

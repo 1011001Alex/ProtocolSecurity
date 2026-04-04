@@ -1004,7 +1004,7 @@ export class SBOMGenerator extends EventEmitter {
       version: pkg.versionInfo as string || '',
       licenses: [pkg.licenseConcluded as string || 'UNKNOWN'],
       hashes: [],
-      purl: pkg.externalRefs?.find((r: Record<string, unknown>) => 
+      purl: (pkg.externalRefs as Array<{referenceType: string; referenceLocator: string}>)?.find((r) =>
         r.referenceType === 'purl'
       )?.referenceLocator as string
     }));
@@ -1049,10 +1049,10 @@ export class SBOMGenerator extends EventEmitter {
       format: 'CycloneDX',
       specVersion: cycloneDX.specVersion as string || '1.5',
       id: crypto.randomBytes(8).toString('hex'),
-      productName: (cycloneDX.metadata as Record<string, unknown>)?.component?.name as string || '',
-      productVersion: (cycloneDX.metadata as Record<string, unknown>)?.component?.version as string || '1.0.0',
+      productName: ((cycloneDX.metadata as Record<string, unknown>)?.component as Record<string, unknown>)?.name as string || '',
+      productVersion: ((cycloneDX.metadata as Record<string, unknown>)?.component as Record<string, unknown>)?.version as string || '1.0.0',
       supplier: { name: 'Unknown' },
-      createdAt: new Date(cycloneDX.metadata?.timestamp as string || Date.now()),
+      createdAt: new Date((cycloneDX.metadata as Record<string, unknown>)?.timestamp as string || Date.now()),
       components: sbomComponents,
       dependencies: [],
       licenses: [],

@@ -328,8 +328,8 @@ export class SLSAVerifier extends EventEmitter {
       level: 1,
       check: 'build_type',
       requirement: 'Должен быть определен тип сборки',
-      passed: !!provenance.buildType,
-      evidence: provenance.buildType ? [provenance.buildType] : []
+      passed: !!provenance.build?.buildType,
+      evidence: provenance.build?.buildType ? [provenance.build.buildType] : []
     });
     
     // Проверка 1.3: Наличие хотя бы одного resolved dependency или пустой список
@@ -478,8 +478,8 @@ export class SLSAVerifier extends EventEmitter {
       level: 3,
       check: 'controlled_build_process',
       requirement: 'Процесс сборки должен быть контролируемым',
-      passed: !!provenance.buildType && provenance.buildType !== '',
-      evidence: [provenance.buildType]
+      passed: !!provenance.build?.buildType && provenance.build.buildType !== '',
+      evidence: [provenance.build.buildType]
     });
     
     return checks;
@@ -581,7 +581,7 @@ export class SLSAVerifier extends EventEmitter {
   private getCacheKey(provenance: SLSAProvenance): string {
     const data = JSON.stringify({
       builder: provenance.builder.id,
-      buildType: provenance.buildType,
+      buildType: provenance.build?.buildType,
       artifacts: provenance.artifacts
     });
     
@@ -621,31 +621,35 @@ export class SLSAVerifier extends EventEmitter {
       }
       
       // Конвертируем в SLSAProvenance
-      const predicate = statement.predicate as SLSAProvenancePredicate;
+      const predicate = statement.predicate as unknown as SLSAProvenancePredicate;
       
       const provenance: SLSAProvenance = {
         format: 'SLSA',
         specVersion: statement.predicateType.split('/').pop() || '1.0',
         builder: {
           id: predicate.builder.id,
-          version: predicate.builder.version
+          version: typeof predicate.builder.version === 'string' ? predicate.builder.version : undefined
         },
         build: {
           buildType: predicate.buildType,
-          invokedBy: predicate.invokedBy,
+          invokedBy: predicate.invokedBy ? { id: predicate.invokedBy.id, caller: typeof predicate.invokedBy.caller === 'object' ? predicate.invokedBy.caller?.id : predicate.invokedBy.caller } : undefined,
           externalParameters: predicate.externalParameters,
           internalParameters: predicate.internalParameters,
           resolvedDependencies: predicate.resolvedDependencies
         },
         metadata: {
           buildInvocationId: predicate.metadata?.buildInvocationId || '',
-          buildStartedOn: predicate.metadata?.buildStartedOn 
-            ? new Date(predicate.metadata.buildStartedOn) 
+          buildStartedOn: predicate.metadata?.buildStartedOn
+            ? new Date(predicate.metadata.buildStartedOn)
             : undefined,
           buildFinishedOn: predicate.metadata?.buildFinishedOn
             ? new Date(predicate.metadata.buildFinishedOn)
             : undefined,
-          completeness: predicate.metadata?.completeness,
+          completeness: predicate.metadata?.completeness ? {
+            parameters: predicate.metadata.completeness.parameters ?? false,
+            environment: predicate.metadata.completeness.environment ?? false,
+            materials: predicate.metadata.completeness.materials ?? false
+          } : undefined,
           reproducible: predicate.metadata?.reproducible
         },
         artifacts: statement.subject.map(s => ({

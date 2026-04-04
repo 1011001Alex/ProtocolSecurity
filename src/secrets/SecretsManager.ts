@@ -1161,6 +1161,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
 
     const fullEntry: AuditLogEntry = {
       ...entry,
+      ipAddress: entry.ipAddress ?? 'system',
       entryId: randomUUID(),
       timestamp: new Date(),
       backend: this.primaryBackend?.type ?? SecretBackendType.LOCAL

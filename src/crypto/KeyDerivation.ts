@@ -542,7 +542,7 @@ export class KeyDerivationService {
       infoWithCounter.set(info, t.length);
       infoWithCounter[infoWithCounter.length - 1] = i;
       
-      t = this.hashService.hmac(infoWithCounter, prk, hash === 'SHA-256' ? 'SHA-256' : 'SHA-512');
+      t = new Uint8Array(this.hashService.hmac(infoWithCounter, prk, hash === 'SHA-256' ? 'SHA-256' : 'SHA-512'));
       okm.set(t, (i - 1) * hashLength);
     }
     

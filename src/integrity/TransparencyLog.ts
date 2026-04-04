@@ -216,9 +216,9 @@ export class TransparencyLogClient extends EventEmitter {
   private createEntrySpec(kind: TLogEntryKind, data: Record<string, unknown>): Record<string, unknown> {
     switch (kind) {
       case 'hashedrekord':
-        return this.createHashedRekordSpec(data as HashedRekordData);
+        return this.createHashedRekordSpec(data as unknown as HashedRekordData);
       case 'intoto':
-        return this.createIntotoSpec(data as IntotoData);
+        return this.createIntotoSpec(data as unknown as IntotoData);
       case 'dsse':
         return this.createDSSESpec(data);
       default:
