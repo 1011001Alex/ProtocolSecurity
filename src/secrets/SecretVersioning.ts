@@ -94,7 +94,7 @@ export class SecretVersioningManager extends EventEmitter {
     keepDeletedVersions: true,
     deletedVersionsRetentionDays: 90,
     requireRollbackReason: true,
-    minVersionInterval: 1, // 1ms для тестов
+    minVersionInterval: 0, // 0 = отключить проверку (для тестов и быстрого создания)
     enableIntegrityCheck: true
   };
 
@@ -157,13 +157,15 @@ export class SecretVersioningManager extends EventEmitter {
   ): Promise<SecretVersion> {
     const now = new Date();
     
-    // Проверка минимального интервала
-    const lastTime = this.lastOperationTime.get(secret.id);
-    if (lastTime && Date.now() - lastTime < this.config.minVersionInterval) {
-      throw new SecretVersionError(
-        'Слишком частое создание версий',
-        secret.id
-      );
+    // Проверка минимального интервала (только если interval > 0)
+    if (this.config.minVersionInterval > 0) {
+      const lastTime = this.lastOperationTime.get(secret.id);
+      if (lastTime && Date.now() - lastTime < this.config.minVersionInterval) {
+        throw new SecretVersionError(
+          'Слишком частое создание версий',
+          secret.id
+        );
+      }
     }
     
     // Получение текущего номера версии

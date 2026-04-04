@@ -7,11 +7,21 @@ module.exports = {
   roots: ['<rootDir>/tests', '<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest'
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true
+    }]
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(jose)/)'
+    'node_modules/(?!(jose|@tensorflow/tfjs)/)'
   ],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@integrity/(.*)$': '<rootDir>/src/integrity/$1',
+    '^@types/(.*)$': '<rootDir>/src/types/$1',
+    '^@utils/(.*)$': '<rootDir>/src/utils/$1',
+    '^@tensorflow/tfjs-node$': '<rootDir>/tests/__mocks__/@tensorflow/tfjs-node.js',
+    '^jose$': '<rootDir>/tests/__mocks__/jose.js'
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/types/**',
@@ -30,11 +40,7 @@ module.exports = {
   },
   verbose: true,
   testTimeout: 30000,
-  setupFilesAfterEnv: [],
-  moduleNameMapper: {
-    '^@integrity/(.*)$': '<rootDir>/src/integrity/$1',
-    '^@types/(.*)$': '<rootDir>/src/types/$1',
-    '^@utils/(.*)$': '<rootDir>/src/utils/$1',
-    '^@tensorflow/tfjs-node$': '<rootDir>/tests/__mocks__/@tensorflow/tfjs-node.ts'
-  }
+  setupFilesAfterEnv: ['<rootDir>/tests/__setup__.ts'],
+  // ESM support для Jest 29
+  extensionsToTreatAsEsm: []
 };

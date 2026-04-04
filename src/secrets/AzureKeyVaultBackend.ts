@@ -27,41 +27,23 @@ import {
   ISecretBackend,
   SecretBackendError
 } from '../types/secrets.types';
-// Mock импорты для Azure SDK
-import { 
-  SecretClient as MockSecretClient, 
-  KeyClient as MockKeyClient, 
-  CertificateClient as MockCertificateClient,
-  type SecretClientOptions as MockSecretClientOptions,
-  type KeyVaultKey,
-  type KeyVaultCertificate,
-  type CertificatePolicy,
-  type CertificateOperation,
-  type PollerLike,
-  type OperationState
-} from './azure.mock';
+// Реальные импорты Azure SDK
+import {
+  SecretClient,
+  KeyClient,
+  CertificateClient,
+  DefaultAzureCredential
+} from '@azure/keyvault-secrets';
+import type { KeyVaultSecret, SecretProperties, DeletedSecret } from '@azure/keyvault-secrets';
 
 /**
  * Интерфейс Azure Key Vault клиент
+ * Обёртка над реальными типами Azure SDK
  */
 interface KeyVaultClient {
-  getSecret(vaultUrl: string, secretName: string, secretVersion?: string): Promise<SecretBundle>;
-  setSecret(vaultUrl: string, secretName: string, value: string, options?: SecretOptions): Promise<SecretBundle>;
-  updateSecret(vaultUrl: string, secretName: string, version: string, options?: SecretAttributes): Promise<SecretBundle>;
-  deleteSecret(vaultUrl: string, secretName: string): Promise<DeletedSecretBundle>;
-  getDeletedSecret(vaultUrl: string, secretName: string): Promise<DeletedSecretBundle>;
-  purgeDeletedSecret(vaultUrl: string, secretName: string): Promise<void>;
-  recoverDeletedSecret(vaultUrl: string, secretName: string): Promise<SecretBundle>;
-  getSecretVersions(vaultUrl: string, secretName: string, maxResults?: number): Promise<SecretVersionItem[]>;
-  getKey(vaultUrl: string, keyName: string, keyVersion?: string): Promise<KeyBundle>;
-  createKey(vaultUrl: string, keyName: string, keyType: string, options?: KeyOptions): Promise<KeyBundle>;
-  deleteKey(vaultUrl: string, keyName: string): Promise<DeletedKeyBundle>;
-  getCertificate(vaultUrl: string, certName: string, certVersion?: string): Promise<CertificateBundle>;
-  createCertificate(vaultUrl: string, certName: string, policy: CertificatePolicy): Promise<CertificateOperation>;
-  deleteCertificate(vaultUrl: string, certName: string): Promise<DeletedCertificateBundle>;
-  getAccessPolicy(vaultUrl: string): Promise<AccessPolicy[]>;
-  setAccessPolicy(vaultUrl: string, policies: AccessPolicy[]): Promise<void>;
-  close(): void;
+  secretClient: SecretClient;
+  keyClient: KeyClient;
+  certificateClient: CertificateClient;
 }
 
 /**
@@ -473,44 +455,24 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
    * Загрузка Azure SDK
    */
   private async loadAzureSDK(): Promise<{
-    SecretClient: typeof MockSecretClient;
-    KeyClient: typeof MockKeyClient;
-    CertificateClient: typeof MockCertificateClient;
-    DefaultAzureCredential: any;
+    SecretClient: typeof SecretClient;
+    KeyClient: typeof KeyClient;
+    CertificateClient: typeof CertificateClient;
+    DefaultAzureCredential: typeof DefaultAzureCredential;
     ClientSecretCredential: any;
     ClientCertificateCredential: any;
   }> {
-    try {
-      // Пытаемся загрузить реальный Azure SDK
-      const keyvault = await import('@azure/keyvault-secrets');
-      const identity = await import('@azure/identity');
-      return { 
-        SecretClient: keyvault.SecretClient, 
-        KeyClient: keyvault.KeyClient, 
-        CertificateClient: keyvault.CertificateClient,
-        DefaultAzureCredential: identity.DefaultAzureCredential,
-        ClientSecretCredential: identity.ClientSecretCredential,
-        ClientCertificateCredential: identity.ClientCertificateCredential
-      };
-    } catch (error) {
-      logger.warn('[AzureKeyVaultBackend] Azure SDK не найден, используется mock режим');
-
-      // Mock credentials
-      class MockCredential {
-        async getToken(): Promise<any> {
-          return { token: 'mock-token', expiresOnTimestamp: Date.now() + 3600000 };
-        }
-      }
-
-      return {
-        SecretClient: MockSecretClient,
-        KeyClient: MockKeyClient,
-        CertificateClient: MockCertificateClient,
-        DefaultAzureCredential: MockCredential,
-        ClientSecretCredential: MockCredential,
-        ClientCertificateCredential: MockCredential
-      };
-    }
+    // Импортируем реальные Azure SDK - моки больше не нужны
+    const keyvault = await import('@azure/keyvault-secrets');
+    const identity = await import('@azure/identity');
+    return {
+      SecretClient: keyvault.SecretClient,
+      KeyClient: keyvault.KeyClient,
+      CertificateClient: keyvault.CertificateClient,
+      DefaultAzureCredential: identity.DefaultAzureCredential,
+      ClientSecretCredential: identity.ClientSecretCredential,
+      ClientCertificateCredential: identity.ClientCertificateCredential
+    };
   }
 
   /**

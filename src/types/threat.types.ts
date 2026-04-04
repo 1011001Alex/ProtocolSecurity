@@ -260,6 +260,8 @@ export interface ModelMetrics {
   loss?: number;
   confusionMatrix?: number[][];
   rocCurve?: { falsePositiveRate: number; truePositiveRate: number }[];
+  isTrained?: boolean;
+  numClasses?: number;
 }
 
 // ============================================================================

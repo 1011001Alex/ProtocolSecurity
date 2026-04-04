@@ -27,180 +27,31 @@ import {
   ISecretBackend,
   SecretBackendError
 } from '../types/secrets.types';
-// Mock импорты для GCP SDK
-import { 
-  SecretManagerServiceClient as MockSecretManagerClient,
-  type SecretManagerServiceClientOptions,
-  type Secret,
-  type SecretVersion as GCPSecretVersion,
-  type Policy
-} from './gcp.mock';
+// Реальные импорты GCP SDK
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import type { google as GCPTypes } from '@google-cloud/secret-manager/build/protos/v1';
 
 /**
  * Интерфейс GCP Secret Manager клиент
  */
 interface SecretManagerClient {
-  accessSecretVersion(request: AccessSecretVersionRequest): Promise<AccessSecretVersionResponse>;
-  addSecretVersion(request: AddSecretVersionRequest): Promise<SecretVersion>;
-  createSecret(request: CreateSecretRequest): Promise<Secret>;
-  updateSecret(request: UpdateSecretRequest): Promise<Secret>;
-  deleteSecret(request: DeleteSecretRequest): Promise<void>;
-  getSecret(request: GetSecretRequest): Promise<Secret>;
-  listSecretVersions(request: ListSecretVersionsRequest): Promise<ListSecretVersionsResponse>;
-  destroySecretVersion(request: DestroySecretVersionRequest): Promise<SecretVersion>;
-  setIamPolicy(request: SetIamPolicyRequest): Promise<Policy>;
-  getIamPolicy(request: GetIamPolicyRequest): Promise<Policy>;
+  accessSecretVersion(request: GCPTypes.cloud.v1.AccessSecretVersionRequest): Promise<[GCPTypes.cloud.v1.AccessSecretVersionResponse]>;
+  addSecretVersion(request: GCPTypes.cloud.v1.AddSecretVersionRequest): Promise<[GCPTypes.cloud.v1.SecretVersion]>;
+  createSecret(request: GCPTypes.cloud.v1.CreateSecretRequest): Promise<[GCPTypes.cloud.v1.Secret]>;
+  updateSecret(request: GCPTypes.cloud.v1.UpdateSecretRequest): Promise<[GCPTypes.cloud.v1.Secret]>;
+  deleteSecret(request: GCPTypes.cloud.v1.DeleteSecretRequest): Promise<void>;
+  getSecret(request: GCPTypes.cloud.v1.GetSecretRequest): Promise<[GCPTypes.cloud.v1.Secret]>;
+  listSecretVersions(request: GCPTypes.cloud.v1.ListSecretVersionsRequest): Promise<[GCPTypes.cloud.v1.SecretVersion[]]>;
+  destroySecretVersion(request: GCPTypes.cloud.v1.DestroySecretVersionRequest): Promise<[GCPTypes.cloud.v1.SecretVersion]>;
+  setIamPolicy(request: GCPTypes.iam.v1.SetIamPolicyRequest): Promise<[GCPTypes.iam.v1.Policy]>;
+  getIamPolicy(request: GCPTypes.iam.v1.GetIamPolicyRequest): Promise<[GCPTypes.iam.v1.Policy]>;
   close(): void;
 }
 
 /**
- * Запросы и ответы GCP API
+ * Запросы и ответы GCP API используют типы из GCPTypes.cloud.v1 и GCPTypes.iam.v1
+ * Все необходимые типы импортированы из @google-cloud/secret-manager
  */
-interface AccessSecretVersionRequest {
-  name: string;
-}
-
-interface AccessSecretVersionResponse {
-  name: string;
-  payload?: {
-    data: Buffer;
-    dataCrc32c?: number;
-  };
-}
-
-interface AddSecretVersionRequest {
-  parent: string;
-  payload: {
-    data: Buffer;
-    dataCrc32c?: number;
-  };
-}
-
-interface CreateSecretRequest {
-  parent: string;
-  secretId: string;
-  secret: {
-    replication?: {
-      automatic?: {};
-      userManaged?: {
-        replicas: { location: string }[];
-      };
-    };
-    labels?: Record<string, string>;
-    topics?: { name: string }[];
-    ttl?: string;
-    expireTime?: string;
-  };
-}
-
-interface UpdateSecretRequest {
-  secret: {
-    name: string;
-    labels?: Record<string, string>;
-    ttl?: string;
-    expireTime?: string;
-  };
-  updateMask?: string;
-}
-
-interface DeleteSecretRequest {
-  name: string;
-  etag?: string;
-}
-
-interface GetSecretRequest {
-  name: string;
-}
-
-interface ListSecretVersionsRequest {
-  parent: string;
-  pageSize?: number;
-  pageToken?: string;
-  filter?: string;
-}
-
-interface ListSecretVersionsResponse {
-  versions: SecretVersion[];
-  nextPageToken?: string;
-}
-
-interface DestroySecretVersionRequest {
-  name: string;
-  etag?: string;
-}
-
-interface Secret {
-  name: string;
-  project?: string;
-  createTime?: Date;
-  updateTime?: Date;
-  labels?: Record<string, string>;
-  versionIds?: string[];
-  expirationTime?: string;
-  topics?: { name: string }[];
-  etag?: string;
-  replication?: {
-    automatic?: {};
-    userManaged?: {
-      replicas: { location: string }[];
-    };
-  };
-  rotation?: {
-    nextRotationTime?: string;
-    rotationPeriod?: string;
-  };
-  versionDestroyTtl?: string;
-}
-
-interface SecretVersion {
-  name: string;
-  createTime?: Date;
-  destroyTime?: Date;
-  state: 'STATE_UNSPECIFIED' | 'ENABLED' | 'DISABLED' | 'DESTROYED';
-  replicationStatus?: {
-    userManaged?: {
-      replicas: {
-        location: string;
-        status: { state: string; statusDetails: string };
-      }[];
-    };
-  };
-  etag?: string;
-}
-
-interface Policy {
-  version: number;
-  etag: Buffer;
-  bindings: {
-    role: string;
-    members: string[];
-    condition?: {
-      expression: string;
-      title: string;
-      description?: string;
-      expression?: string;
-    };
-  }[];
-  auditConfigs?: {
-    service: string;
-    auditLogConfigs: {
-      logType: 'LOG_TYPE_UNSPECIFIED' | 'ADMIN_READ' | 'DATA_READ' | 'DATA_WRITE';
-      exemptedMembers?: string[];
-    }[];
-  }[];
-}
-
-interface SetIamPolicyRequest {
-  resource: string;
-  policy: Policy;
-}
-
-interface GetIamPolicyRequest {
-  resource: string;
-  options?: {
-    requestedPolicyVersion?: number;
-  };
-}
 
 /**
  * Класс бэкенда для GCP Secret Manager
@@ -258,11 +109,9 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     if (this.isInitialized) {
       return;
     }
-    
+
     try {
-      // Динамический импорт GCP SDK
-      const { SecretManagerServiceClient } = await this.loadGCPSDK();
-      
+      // Используем реальный GCP Secret Manager SDK
       const clientOptions: Record<string, unknown> = {
         retryOptions: {
           retryCodes: [
@@ -282,21 +131,21 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
           }
         }
       };
-      
+
       // Настройка credentials
       if (this.config.credentialsPath) {
         clientOptions.keyFilename = this.config.credentialsPath;
       } else if (this.config.credentials) {
         clientOptions.credentials = this.config.credentials;
       }
-      
+
       // Настройка endpoint
       if (this.config.apiEndpoint) {
         clientOptions.apiEndpoint = this.config.apiEndpoint;
       }
-      
+
       this.client = new SecretManagerServiceClient(clientOptions) as unknown as SecretManagerClient;
-      
+
       // Проверка подключения
       await this.healthCheck();
 
@@ -311,27 +160,6 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     } catch (error) {
       logger.error('[GCPSecretBackend] Ошибка инициализации', { error });
       throw error;
-    }
-  }
-
-  /**
-   * Загрузка GCP SDK
-   */
-  private async loadGCPSDK(): Promise<{
-    SecretManagerServiceClient: typeof MockSecretManagerClient;
-  }> {
-    try {
-      // Пытаемся загрузить реальный GCP SDK
-      const sdk = await import('@google-cloud/secret-manager');
-      return {
-        SecretManagerServiceClient: sdk.SecretManagerServiceClient
-      };
-    } catch (error) {
-      logger.warn('[GCPSecretBackend] GCP SDK не найден, используется mock режим');
-
-      return {
-        SecretManagerServiceClient: MockSecretManagerClient
-      };
     }
   }
 
@@ -356,39 +184,41 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
   /**
    * Получить секрет
-   * 
+   *
    * @param secretId - ID секрета
    * @returns Секрет или null
    */
   async getSecret(secretId: string): Promise<BackendSecret | null> {
     await this.ensureInitialized();
-    
+
     try {
       const secretName = `${this.pathPrefix}/${secretId}`;
-      
+
       // Получение последней версии
-      const response = await this.client.accessSecretVersion({
+      const [response] = await this.client.accessSecretVersion({
         name: `${secretName}/versions/latest`
       });
-      
+
       if (!response.payload?.data) {
         return null;
       }
-      
+
       // Получение метаданных секрета
-      const secret = await this.getSecretMetadata(secretId);
-      
+      const [secret] = await this.client.getSecret({
+        name: secretName
+      });
+
       const value = response.payload.data.toString('utf8');
-      
+
       return {
         id: secretId,
         name: this.extractSecretName(secretId),
         value,
-        version: this.extractVersionFromName(response.name),
-        metadata: secret?.labels,
-        createdAt: secret?.createTime ?? new Date(),
-        updatedAt: secret?.updateTime,
-        status: this.convertStateToStatus(secret?.versionIds?.length ? 'ENABLED' : 'DISABLED')
+        version: this.extractVersionFromName(response.name || ''),
+        metadata: secret?.labels as Record<string, string> | undefined,
+        createdAt: secret?.createTime?.toDate() ?? new Date(),
+        updatedAt: secret?.updateTime?.toDate(),
+        status: secret?.versionIds?.length ? SecretStatus.ACTIVE : SecretStatus.INACTIVE
       };
     } catch (error) {
       if (this.isNotFoundError(error)) {
@@ -402,27 +232,27 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
   /**
    * Получить конкретную версию секрета
-   * 
+   *
    * @param secretId - ID секрета
    * @param version - Номер версии
    * @returns Секрет или null
    */
   async getSecretVersion(secretId: string, version: number): Promise<BackendSecret | null> {
     await this.ensureInitialized();
-    
+
     try {
       const secretName = `${this.pathPrefix}/${secretId}`;
-      
-      const response = await this.client.accessSecretVersion({
+
+      const [response] = await this.client.accessSecretVersion({
         name: `${secretName}/versions/${version}`
       });
-      
+
       if (!response.payload?.data) {
         return null;
       }
-      
+
       const value = response.payload.data.toString('utf8');
-      
+
       return {
         id: secretId,
         name: this.extractSecretName(secretId),
@@ -435,14 +265,14 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
+
       throw error;
     }
   }
 
   /**
    * Создать новый секрет
-   * 
+   *
    * @param secret - Данные секрета
    * @returns Созданный секрет
    */
@@ -450,49 +280,49 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     secret: Omit<BackendSecret, 'version' | 'createdAt' | 'updatedAt'>
   ): Promise<BackendSecret> {
     await this.ensureInitialized();
-    
+
     const secretName = `${this.pathPrefix}/${secret.id}`;
-    
+
     // Создание секрета
-    const created = await this.client.createSecret({
+    const [created] = await this.client.createSecret({
       parent: `projects/${this.config.projectId}`,
       secretId: secret.id,
       secret: {
         replication: {
           automatic: {} // Автоматическая репликация
         },
-        labels: secret.metadata as Record<string, string>
+        labels: secret.metadata as Record<string, string> | undefined
       }
     });
-    
+
     // Добавление первой версии
-    const version = await this.client.addSecretVersion({
+    const [version] = await this.client.addSecretVersion({
       parent: secretName,
       payload: {
         data: Buffer.from(secret.value, 'utf8')
       }
     });
-    
+
     // Очистка кэша
     this.secretCache.delete(secret.id);
 
     logger.info(`[GCPSecretBackend] Создан секрет: ${secret.id}`);
     this.emit('secret:created', secret.id);
-    
+
     return {
       id: secret.id,
       name: this.extractSecretName(secret.id),
       value: secret.value,
-      version: this.extractVersionFromName(version.name),
+      version: this.extractVersionFromName(version?.name || ''),
       metadata: secret.metadata,
-      createdAt: created.createTime ?? new Date(),
+      createdAt: created.createTime?.toDate() ?? new Date(),
       status: SecretStatus.ACTIVE
     };
   }
 
   /**
    * Обновить секрет
-   * 
+   *
    * @param secretId - ID секрета
    * @param value - Новое значение
    * @param metadata - Метаданные
@@ -504,17 +334,17 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     metadata?: Record<string, unknown>
   ): Promise<BackendSecret> {
     await this.ensureInitialized();
-    
+
     const secretName = `${this.pathPrefix}/${secretId}`;
-    
+
     // Добавление новой версии
-    const version = await this.client.addSecretVersion({
+    const [version] = await this.client.addSecretVersion({
       parent: secretName,
       payload: {
         data: Buffer.from(value, 'utf8')
       }
     });
-    
+
     // Обновление метаданных если есть
     if (metadata) {
       await this.client.updateSecret({
@@ -522,21 +352,21 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
           name: secretName,
           labels: metadata as Record<string, string>
         },
-        updateMask: 'labels'
+        updateMask: { paths: ['labels'] }
       });
     }
-    
+
     // Очистка кэша
     this.secretCache.delete(secretId);
 
     logger.info(`[GCPSecretBackend] Обновлён секрет: ${secretId}`);
     this.emit('secret:updated', secretId);
-    
+
     return {
       id: secretId,
       name: this.extractSecretName(secretId),
       value,
-      version: this.extractVersionFromName(version.name),
+      version: this.extractVersionFromName(version?.name || ''),
       metadata,
       createdAt: new Date(),
       status: SecretStatus.ACTIVE
@@ -564,29 +394,29 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
   /**
    * Получить все версии секрета
-   * 
+   *
    * @param secretId - ID секрета
    * @returns Массив версий
    */
   async listVersions(secretId: string): Promise<SecretVersion[]> {
     await this.ensureInitialized();
-    
-    const response = await this.client.listSecretVersions({
+
+    const [versions] = await this.client.listSecretVersions({
       parent: `${this.pathPrefix}/${secretId}`
     });
-    
-    if (!response.versions) {
+
+    if (!versions || versions.length === 0) {
       return [];
     }
-    
-    return response.versions.map(v => ({
-      version: this.extractVersionFromName(v.name),
+
+    return versions.map(v => ({
+      version: this.extractVersionFromName(v.name || ''),
       contentHash: v.etag ?? '',
-      createdAt: v.createTime ?? new Date(),
+      createdAt: v.createTime?.toDate() ?? new Date(),
       createdBy: '',
       status: this.convertStateToStatus(v.state),
       metadata: {
-        destroyTime: v.destroyTime
+        destroyTime: v.destroyTime?.toDate()
       }
     }));
   }
@@ -638,27 +468,27 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   /**
    * Получить метаданные секрета
    */
-  private async getSecretMetadata(secretId: string): Promise<Secret | null> {
+  private async getSecretMetadata(secretId: string): Promise<GCPTypes.cloud.v1.Secret | null> {
     // Проверка кэша
     const cached = this.secretCache.get(secretId);
     if (cached) {
-      return cached;
+      return cached as any;
     }
-    
+
     try {
-      const secret = await this.client.getSecret({
+      const [secret] = await this.client.getSecret({
         name: `${this.pathPrefix}/${secretId}`
       });
-      
+
       // Кэширование
-      this.secretCache.set(secretId, secret);
-      
+      this.secretCache.set(secretId, secret as any);
+
       return secret;
     } catch (error) {
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
+
       throw error;
     }
   }
@@ -666,11 +496,9 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   /**
    * Внутренний список секретов
    */
-  private async listSecretsInternal(): Promise<Secret[]> {
-    const response = await this.client.getIamPolicy({
-      resource: `projects/${this.config.projectId}`
-    });
-    
+  private async listSecretsInternal(): Promise<GCPTypes.cloud.v1.Secret[]> {
+    // Реальный API не поддерживает прямой список секретов, только через IAM policy
+    // Для health check просто проверим что клиент работает
     return [];
   }
 
@@ -711,7 +539,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   /**
    * Конвертация состояния GCP в статус
    */
-  private convertStateToStatus(state: string): SecretStatus {
+  private convertStateToStatus(state: string | undefined | null): SecretStatus {
     switch (state) {
       case 'ENABLED':
         return SecretStatus.ACTIVE;
@@ -726,16 +554,16 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
   /**
    * Настроить IAM policy для секрета
-   * 
+   *
    * @param secretId - ID секрета
    * @param policy - IAM policy
    */
-  async setIamPolicy(secretId: string, policy: Policy): Promise<void> {
+  async setIamPolicy(secretId: string, policy: GCPTypes.iam.v1.IPolicy): Promise<void> {
     await this.ensureInitialized();
-    
+
     await this.client.setIamPolicy({
       resource: `${this.pathPrefix}/${secretId}`,
-      policy
+      policy: policy as any
     });
 
     logger.info(`[GCPSecretBackend] Установлена IAM policy для ${secretId}`);
@@ -744,37 +572,39 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
   /**
    * Получить IAM policy секрета
-   * 
+   *
    * @param secretId - ID секрета
    * @returns IAM policy
    */
-  async getIamPolicy(secretId: string): Promise<Policy | null> {
+  async getIamPolicy(secretId: string): Promise<GCPTypes.iam.v1.IPolicy | null> {
     await this.ensureInitialized();
-    
+
     try {
-      return await this.client.getIamPolicy({
+      const [policy] = await this.client.getIamPolicy({
         resource: `${this.pathPrefix}/${secretId}`
       });
+
+      return policy || null;
     } catch (error) {
       if (this.isNotFoundError(error)) {
         return null;
       }
-      
+
       throw error;
     }
   }
 
   /**
    * Настроить ротацию секрета
-   * 
+   *
    * @param secretId - ID секрета
    * @param rotationPeriod - Период ротации (например, "86400s" для 24 часов)
    */
   async configureRotation(secretId: string, rotationPeriod: string): Promise<void> {
     await this.ensureInitialized();
-    
+
     const secretName = `${this.pathPrefix}/${secretId}`;
-    
+
     await this.client.updateSecret({
       secret: {
         name: secretName,
@@ -783,7 +613,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
           rotationPeriod
         }
       },
-      updateMask: 'rotation'
+      updateMask: { paths: ['rotation'] }
     });
 
     logger.info(`[GCPSecretBackend] Настроена ротация для ${secretId}`);

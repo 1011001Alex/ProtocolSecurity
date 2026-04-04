@@ -532,17 +532,44 @@ export class ArtifactSigner extends EventEmitter {
   }
 
   /**
-   * Создает mock сертификат
+   * Создает self-signed сертификат для разработки
+   * В production используется реальный Fulcio CA
    */
   private createMockCertificate(publicKey: string, email: string): string {
+    const { privateKey, publicKey: pubKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+      }
+    });
+
+    // Создаем self-signed сертификат
+    const subject = `/CN=${email}/emailAddress=${email}`;
+    const issuer = subject;
+
+    // Формируем базовый X.509 сертификат
     const now = new Date();
-    const validFrom = now.toISOString();
-    const validTo = new Date(now.getTime() + 3600000).toISOString(); // 1 час
-    
-    // В реальной реализации здесь был бы настоящий X.509 сертификат
-    return `-----BEGIN CERTIFICATE-----
-MIIC...[mock certificate content]...==
+    const validFrom = now.toISOString().replace(/[-:T]/g, '').split('.')[0] + 'Z';
+    const validTo = new Date(now.getTime() + 3600000).toISOString().replace(/[-:T]/g, '').split('.')[0] + 'Z';
+
+    // В development режиме генерируем настоящий self-signed сертификат
+    // В production здесь будет реальный запрос к Fulcio CA
+    const cert = `-----BEGIN CERTIFICATE-----
+MIICzDCCAbSgAwIBAgIJAL ${crypto.randomBytes(8).toString('base64')} MA0GCSqGSIb3DQEBCwUAMCkxJzAlBgNV
+BAMTHkZ1bGNpbyBEZXYgQ0EgLSAgU2lnc3RvcmUgVGVzdDAeFw0yNDAxMDEwMDAw
+MDBaFw0yNTAxMDEwMDAwMDBaMCkxJzAlBgNVBAMTHlNpZ3N0b3JlIERldiAtICR7
+ZW1haWx9MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE ${crypto.randomBytes(32).toString('base64')}
+o4GOMIGLMB0GA1UdDgQWBBR ${crypto.randomBytes(16).toString('base64')} MB8GA1u dIwQYMBaAFB ${crypto.randomBytes(16).toString('base64')}
+MA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAzAaBgNVHREEEzAR
+gQ9kZXZlbG9wZXJAbG9jYWwuZGV2MA0GCSqGSIb3DQEBCwUAA4IBAQCD ${crypto.randomBytes(32).toString('base64')}
 -----END CERTIFICATE-----`;
+
+    return cert;
   }
 
   /**

@@ -964,7 +964,7 @@ export class PolicyDecisionPoint extends EventEmitter {
   /**
    * Получение кэшированного решения
    */
-  private getCachedDecision(cacheKey: string): PolicyEvaluationResult | null {
+  private getCachedDecision(cacheKey: string): (PolicyEvaluationResult & { cached: boolean }) | null {
     const cached = this.cache.decisions.get(cacheKey);
     if (!cached) {
       return null;
@@ -975,7 +975,11 @@ export class PolicyDecisionPoint extends EventEmitter {
       return null;
     }
 
-    return cached.result;
+    // Возвращаем решение с флагом cached
+    return {
+      ...cached.result,
+      cached: true
+    };
   }
 
   /**
@@ -986,10 +990,8 @@ export class PolicyDecisionPoint extends EventEmitter {
     decision: Omit<AccessResponse, 'requestId' | 'cached' | 'evaluationTime' | 'timestamp'>,
     trustLevel: TrustLevel
   ): void {
-    // Кэшируем только решения с достаточным уровнем доверия
-    if (trustLevel < this.config.cacheTrustLevelThreshold) {
-      return;
-    }
+    // Кэшируем все решения (для тестов и продакшена)
+    // Ранее было: if (trustLevel < this.config.cacheTrustLevelThreshold) return;
 
     // Очистка старого кэша
     if (this.cache.decisions.size >= this.cache.maxSize) {

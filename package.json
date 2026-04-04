@@ -74,6 +74,7 @@
     "bcrypt": "^6.0.0",
     "chokidar": "^3.5.3",
     "elastic-apm-node": "^4.5.0",
+    "express": "^5.2.1",
     "geoip-lite": "^1.4.10",
     "jose": "^6.2.2",
     "jsonwebtoken": "^9.0.3",
