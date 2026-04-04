@@ -35,9 +35,9 @@ secrets.yml
 # Dependencies
 # =============================================================================
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
+# package-lock.json — НЕ игнорировать! Нужен для CI/CD кэширования
+# yarn.lock
+# pnpm-lock.yaml
 
 # Build output
 dist/
