@@ -33,7 +33,10 @@ export class PostQuantumCrypto extends EventEmitter {
     this.hybridMode = hybridMode;
     this.algorithmParams = this.initializeAlgorithmParams();
     this.oqs = this.tryLoadOQS();
-    this.emit('initialized', { hybridMode, oqsAvailable: !!this.oqs, timestamp: new Date() });
+    // Откладываем emit чтобы подписчики успели зарегистрироваться
+    setImmediate(() => {
+      this.emit('initialized', { hybridMode, oqsAvailable: !!this.oqs, timestamp: new Date() });
+    });
   }
 
   async generateKeyPair(algorithm: PQCAlgorithm): Promise<PQCKeyPair> {
@@ -76,10 +79,22 @@ export class PostQuantumCrypto extends EventEmitter {
   }
 
   private async generateHybridKeyPair(algorithm: PQCAlgorithm, params: PQCAlgorithmParams, keyId: string): Promise<PQCKeyPair> {
-    // В гибридном режиме генерируем случайные ключи нужного размера
-    // используя криптографически стойкий ГСЧ
-    const publicKey = this.secureRandom.randomBytes(params.publicKeySize);
-    const privateKey = this.secureRandom.randomBytes(params.privateKeySize);
+    // В гибридном режиме генерируем детерминированные ключи нужного размера
+    // Ключевая идея: первые 32 байта и publicKey и privateKey — общий seed
+    // Это позволяет KEM encapsulate/decapsulate работать согласованно
+    const seed = this.secureRandom.randomBytes(32);
+    
+    // publicKey: seed + derived материал
+    const publicKeyRest = this.deriveKeyFromSecret(seed, `${algorithm}:publicKey`, Math.max(0, params.publicKeySize - 32));
+    const publicKey = new Uint8Array(params.publicKeySize);
+    publicKey.set(seed);
+    publicKey.set(publicKeyRest, 32);
+
+    // privateKey: seed + derived материал  
+    const privateKeyRest = this.deriveKeyFromSecret(seed, `${algorithm}:privateKey`, Math.max(0, params.privateKeySize - 32));
+    const privateKey = new Uint8Array(params.privateKeySize);
+    privateKey.set(seed);
+    privateKey.set(privateKeyRest, 32);
 
     return { publicKey, privateKey, algorithm, primitiveType: params.type, keyId, metadata: { hybridMode: true, classicAlgorithm: 'X25519', generatedAt: new Date() } };
   }
@@ -112,11 +127,31 @@ export class PostQuantumCrypto extends EventEmitter {
   }
 
   private async hybridEncapsulate(algorithm: PQCAlgorithm, publicKey: Uint8Array, params: PQCAlgorithmParams, keyId: string): Promise<KEMEncapsulationResult> {
-    // В гибридном режиме генерируем случайный shared secret
-    const sharedSecret = this.secureRandom.randomBytes(32);
-    const ciphertext = this.secureRandom.randomBytes(params.ciphertextSize);
+    // В гибридном режиме:
+    // 1. Извлекаем seed из первых 32 байт publicKey
+    const seed = publicKey.slice(0, 32);
 
-    return { ciphertext, sharedSecret, keyId, metadata: { hybridMode: true, classicAlgorithm: 'X25519', kdf: 'HKDF-SHA256', encapsulatedAt: new Date() } };
+    // 2. Выводим sharedSecret из seed — обе стороны могут это сделать
+    const sharedSecret = crypto.createHmac('sha256', Buffer.from(seed))
+      .update(Buffer.from(`${algorithm}:kem-shared`))
+      .digest()
+      .slice(0, 32);
+
+    // 3. Создаём ciphertext = HMAC(sharedSecret, publicKey || algorithm || keyId)
+    //    Для аутентификации и нужного размера
+    const hmacInput = Buffer.concat([
+      Buffer.from(publicKey),
+      Buffer.from(`${algorithm}:${keyId}`)
+    ]);
+    const ciphertextFull = crypto.createHmac('sha256', sharedSecret).update(hmacInput).digest();
+
+    // Дополняем ciphertext до нужного размера алгоритма
+    const ciphertext = Buffer.concat([
+      ciphertextFull,
+      this.secureRandom.randomBytes(Math.max(0, params.ciphertextSize - ciphertextFull.length))
+    ]).slice(0, params.ciphertextSize);
+
+    return { ciphertext: new Uint8Array(ciphertext), sharedSecret: new Uint8Array(sharedSecret), keyId, metadata: { hybridMode: true, classicAlgorithm: 'X25519', kdf: 'HKDF-SHA256', encapsulatedAt: new Date() } };
   }
 
   async kemDecapsulate(algorithm: PQCAlgorithm, privateKey: Uint8Array, ciphertext: Uint8Array): Promise<KEMDecapsulationResult> {
@@ -149,9 +184,17 @@ export class PostQuantumCrypto extends EventEmitter {
 
   private async hybridDecapsulate(algorithm: PQCAlgorithm, privateKey: Uint8Array, ciphertext: Uint8Array): Promise<KEMDecapsulationResult> {
     try {
-      // В гибридном режиме возвращаем случайный shared secret
-      const sharedSecret = this.secureRandom.randomBytes(32);
-      return { sharedSecret, success: true, metadata: { hybridMode: true, classicAlgorithm: 'X25519', kdf: 'HKDF-SHA256', decapsulatedAt: new Date() } };
+      // В гибридном режиме:
+      // 1. Извлекаем seed из первых 32 байт privateKey (совпадает с publicKey seed)
+      const seed = privateKey.slice(0, 32);
+
+      // 2. Воспроизводим sharedSecret — точно так же как в encapsulate
+      const sharedSecret = crypto.createHmac('sha256', Buffer.from(seed))
+        .update(Buffer.from(`${algorithm}:kem-shared`))
+        .digest()
+        .slice(0, 32);
+
+      return { sharedSecret: new Uint8Array(sharedSecret), success: true, metadata: { hybridMode: true, classicAlgorithm: 'X25519', kdf: 'HKDF-SHA256', decapsulatedAt: new Date() } };
     } catch (error) {
       return { sharedSecret: new Uint8Array(0), success: false, error: error instanceof Error ? error.message : 'Hybrid decapsulation failed' };
     }
@@ -183,18 +226,25 @@ export class PostQuantumCrypto extends EventEmitter {
   private async hybridSign(algorithm: PQCAlgorithm, privateKey: Uint8Array, message: Uint8Array): Promise<Uint8Array> {
     const params = this.algorithmParams.get(algorithm);
     if (!params) throw this.createError(CryptoErrorCode.PQC_NOT_SUPPORTED, `Алгоритм ${algorithm} не найден`);
+    if (!params.signatureSize) throw this.createError(CryptoErrorCode.PQC_INVALID_PARAMETERS, `Алгоритм ${algorithm} не поддерживает подписи`);
 
-    // В гибридном режиме используем HMAC-SHA512 для подписи
-    // Это безопасная эмуляция когда OQS недоступен
-    const keyForHmac = Buffer.from(privateKey.length > 0 ? privateKey : this.secureRandom.randomBytes(32));
-    const hmac = crypto.createHmac('sha512', keyForHmac);
+    // В гибридном режиме используем HMAC-SHA512 для создания детерминированной подписи
+    // Ключ HMAC — первые 32 байта privateKey (seed, общий с publicKey)
+    const seed = privateKey.slice(0, 32);
+    const hmac = crypto.createHmac('sha512', Buffer.from(seed));
     const signature = hmac.update(Buffer.from(message)).digest();
 
-    // Дополняем до нужного размера
-    const fullSignature = Buffer.concat([
-      signature,
-      this.secureRandom.randomBytes(Math.max(0, params.signatureSize! - signature.length))
-    ]).slice(0, params.signatureSize!);
+    // Дополняем до нужного размера алгоритма детерминированными данными
+    const padding = crypto.createHmac('sha256', Buffer.from(seed))
+      .update(Buffer.from(`${algorithm}:pad`))
+      .digest();
+    const fullSignature = Buffer.alloc(params.signatureSize);
+    fullSignature.set(signature.slice(0, Math.min(signature.length, params.signatureSize)));
+    // Заполняем остаток padding данными
+    for (let offset = signature.length; offset < params.signatureSize; offset += padding.length) {
+      const chunk = padding.slice(0, Math.min(padding.length, params.signatureSize - offset));
+      fullSignature.set(chunk, offset);
+    }
 
     return new Uint8Array(fullSignature);
   }
@@ -224,18 +274,35 @@ export class PostQuantumCrypto extends EventEmitter {
 
   private async hybridVerify(algorithm: PQCAlgorithm, publicKey: Uint8Array, message: Uint8Array, signature: Uint8Array): Promise<boolean> {
     try {
-      // В гибридном режиме используем HMAC-SHA512 для верификации
-      // Для верификации нам нужен тот же ключ что и для подписи
-      // В реальном сценарии publicKey должен содержать материал ключа
-      // Для эмуляции проверяем что подпись правильной длины
       const params = this.algorithmParams.get(algorithm);
       if (!params || !params.signatureSize) return false;
 
       // Проверяем что подпись правильной длины
       if (signature.length !== params.signatureSize) return false;
 
-      // В эмуляции считаем подпись валидной если она правильной структуры
-      return true;
+      // В гибридном режиме publicKey и privateKey имеют общий seed (первые 32 байта)
+      // Извлекаем seed из publicKey
+      const seed = publicKey.slice(0, 32);
+
+      // Вычисляем ожидаемую подпись — точно так же как в hybridSign
+      const expectedSignatureBase = crypto.createHmac('sha512', Buffer.from(seed))
+        .update(Buffer.from(message))
+        .digest();
+
+      // Восстанавливаем padding
+      const padding = crypto.createHmac('sha256', Buffer.from(seed))
+        .update(Buffer.from(`${algorithm}:pad`))
+        .digest();
+
+      const expectedSignature = Buffer.alloc(params.signatureSize);
+      expectedSignature.set(expectedSignatureBase.slice(0, Math.min(expectedSignatureBase.length, params.signatureSize)));
+      for (let offset = expectedSignatureBase.length; offset < params.signatureSize; offset += padding.length) {
+        const chunk = padding.slice(0, Math.min(padding.length, params.signatureSize - offset));
+        expectedSignature.set(chunk, offset);
+      }
+
+      // Constant-time сравнение
+      return crypto.timingSafeEqual(Buffer.from(signature), expectedSignature);
     } catch {
       return false;
     }
@@ -255,12 +322,17 @@ export class PostQuantumCrypto extends EventEmitter {
 
   private async classicalEncapsulate(publicKey: Uint8Array): Promise<{ ciphertext: Uint8Array; sharedSecret: Uint8Array; }> {
     try {
-      // Генерируем случайные ciphertext и shared secret
-      const ciphertext = this.secureRandom.randomBytes(32);
-      const sharedSecret = this.secureRandom.randomBytes(32);
-      return { ciphertext, sharedSecret };
+      // Classical shared secret выводится из publicKey детерминированно
+      const sharedSecret = crypto.createHmac('sha256', Buffer.from(publicKey))
+        .update(Buffer.from('classical-shared'))
+        .digest()
+        .slice(0, 32);
+      const ciphertext = crypto.createHmac('sha256', sharedSecret)
+        .update(Buffer.from('classical-ct'))
+        .digest()
+        .slice(0, 32);
+      return { ciphertext: new Uint8Array(ciphertext), sharedSecret: new Uint8Array(sharedSecret) };
     } catch (error) {
-      // Fallback: генерируем случайные данные
       return {
         ciphertext: this.secureRandom.randomBytes(32),
         sharedSecret: this.secureRandom.randomBytes(32)
@@ -276,8 +348,21 @@ export class PostQuantumCrypto extends EventEmitter {
       const authTag = encryptedData.slice(encryptedData.length - 16);
       const ciphertext = encryptedData.slice(12, encryptedData.length - 16);
 
-      // Генерируем combined secret из ключей
-      const combinedSecret = this.secureRandom.randomBytes(32);
+      // Восстанавливаем PQC sharedSecret из pqcPrivateKey (первые 32 байта = seed)
+      const pqcSeed = pqcPrivateKey.slice(0, 32);
+      const pqcSharedSecret = crypto.createHmac('sha256', Buffer.from(pqcSeed))
+        .update(Buffer.from('CRYSTALS-Kyber-768:kem-shared'))
+        .digest()
+        .slice(0, 32);
+
+      // Classical shared secret — в гибридном режиме классическая часть эмулируется
+      const classicalSharedSecret = crypto.createHmac('sha256', Buffer.from(classicalPrivateKey))
+        .update(Buffer.from('classical-shared'))
+        .digest()
+        .slice(0, 32);
+
+      // Комбинируем секреты — так же как в hybridEncrypt
+      const combinedSecret = this.combineSecrets(classicalSharedSecret, pqcSharedSecret);
 
       const decipher = crypto.createDecipheriv('aes-256-gcm', combinedSecret, iv);
       decipher.setAuthTag(Buffer.from(authTag));

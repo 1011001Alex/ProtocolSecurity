@@ -236,7 +236,9 @@ export class DigitalSignatureService {
   }
 
   private async createEdDSASignature(data: Uint8Array, privateKey: crypto.KeyObject, algorithm: SignatureAlgorithm): Promise<Buffer> {
-    return crypto.sign(algorithm === 'Ed448' ? 'ED448' : 'ED25519', data, privateKey);
+    // EdDSA (Ed25519/Ed448) не использует digest — передаем undefined
+    // Node.js crypto.sign для EdDSA ожидает undefined вместо названия digest
+    return crypto.sign(undefined, data, privateKey);
   }
 
   private async createECDSASignature(hash: Uint8Array, privateKey: crypto.KeyObject, algorithm: SignatureAlgorithm): Promise<Buffer> {
@@ -253,7 +255,8 @@ export class DigitalSignatureService {
   }
 
   private async verifyEdDSASignature(data: Uint8Array, signature: Buffer, publicKey: crypto.KeyObject, algorithm: SignatureAlgorithm): Promise<boolean> {
-    return crypto.verify(algorithm === 'Ed448' ? 'ED448' : 'ED25519', data, publicKey, signature);
+    // EdDSA (Ed25519/Ed448) не использует digest — передаем undefined
+    return crypto.verify(undefined, data, publicKey, signature);
   }
 
   private async verifyECDSASignature(hash: Uint8Array, signature: Buffer, publicKey: crypto.KeyObject, algorithm: SignatureAlgorithm): Promise<boolean> {

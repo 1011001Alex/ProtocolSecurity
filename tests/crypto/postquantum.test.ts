@@ -32,13 +32,7 @@ describe('PostQuantumCrypto', () => {
     });
 
     it('должен эмитить событие initialized', (done) => {
-      pqc.on('initialized', (data) => {
-        assert.ok(data.hybridMode !== undefined);
-        assert.ok(data.oqsAvailable !== undefined);
-        done();
-      });
-      
-      // Создаем новый для теста
+      // Создаем новый экземпляр для отлова события initialized
       const newPqc = new PostQuantumCrypto({
         noSwap: true,
         autoZero: true,
@@ -47,8 +41,20 @@ describe('PostQuantumCrypto', () => {
         maxBufferSize: 50 * 1024 * 1024,
         defaultTTL: 60000
       }, true);
-      newPqc.removeAllListeners();
-    });
+
+      const timeout = setTimeout(() => {
+        newPqc.removeAllListeners();
+        done(new Error('Timeout waiting for initialized event'));
+      }, 10000);
+
+      newPqc.on('initialized', (data) => {
+        clearTimeout(timeout);
+        assert.ok(data.hybridMode !== undefined);
+        assert.ok(data.oqsAvailable !== undefined);
+        newPqc.removeAllListeners();
+        done();
+      });
+    }, 15000);
   });
 
   describe('getSupportedAlgorithms', () => {

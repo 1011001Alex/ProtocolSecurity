@@ -20,7 +20,10 @@ module.exports = {
     '^@types/(.*)$': '<rootDir>/src/types/$1',
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
     '^@tensorflow/tfjs-node$': '<rootDir>/tests/__mocks__/@tensorflow/tfjs-node.js',
-    '^jose$': '<rootDir>/tests/__mocks__/jose.js'
+    '^jose$': '<rootDir>/tests/__mocks__/jose.js',
+    '^ioredis$': '<rootDir>/tests/__mocks__/ioredis.js',
+    '^elasticsearch$': '<rootDir>/tests/__mocks__/elasticsearch.js',
+    '^@elastic/elasticsearch$': '<rootDir>/tests/__mocks__/elasticsearch.js'
   },
   collectCoverageFrom: [
     'src/**/*.ts',
