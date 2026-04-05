@@ -691,7 +691,13 @@ export function createInputValidationMiddleware(config: InputValidationConfig = 
       }
 
       // Проверка skip методов (в strictMode не пропускаем если есть schema)
-      if (!mergedConfig.strictMode && mergedConfig.skipMethods?.includes(req.method)) {
+      const hasRelevantSchema = mergedConfig.schema && (
+        (req.method === 'GET' && mergedConfig.schema.query) ||
+        (req.method === 'GET' && mergedConfig.schema.params) ||
+        (req.method !== 'GET' && mergedConfig.schema.body)
+      );
+
+      if (!mergedConfig.strictMode && mergedConfig.skipMethods?.includes(req.method) && !hasRelevantSchema) {
         logger?.debug(
           `[InputValidation] Пропуск метода: ${req.method}`,
           LogSource.APPLICATION,

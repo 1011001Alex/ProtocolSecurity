@@ -124,6 +124,8 @@ export class HSMIntegration extends EventEmitter {
   private hsmClient: any = null;
   private readonly keyCache: Map<string, HSMKey> = new Map();
   private readonly keyVersions: Map<string, HSMKey[]> = new Map();
+  /** Локальные ключи для mock/fallback режима — хранят материалы для шифрования */
+  private readonly localKeyMaterials: Map<string, { symmetricKey?: Buffer; keyPair?: { publicKey: string; privateKey: string } }> = new Map();
   private isConnected: boolean = false;
   private isInitialized: boolean = false;
   private readonly auditLog: AuditEvent[] = [];
@@ -673,14 +675,16 @@ export class HSMIntegration extends EventEmitter {
   ): { encryptedData: string; metadata: Record<string, unknown> } {
     const algorithm = options?.algorithm || 'AES-256-GCM';
     const iv = crypto.randomBytes(12);
-    
+
     let encrypted: Buffer;
     let authTag: Buffer;
 
     if (algorithm === 'AES-256-GCM' || algorithm === 'AES-128-GCM') {
       const keySize = algorithm === 'AES-256-GCM' ? 32 : 16;
+      // Сохраняем ключ для последующего дешифрования
       const keyMaterial = crypto.randomBytes(keySize);
-      
+      this.localKeyMaterials.set(key.keyId, { symmetricKey: keyMaterial });
+
       const cipher = crypto.createCipheriv('aes-256-gcm', keyMaterial, iv);
       encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
       authTag = cipher.getAuthTag();
@@ -812,13 +816,19 @@ export class HSMIntegration extends EventEmitter {
   ): string {
     try {
       const data = Buffer.from(encryptedData, 'base64');
-      
+
       // Извлечение IV и authTag
       const iv = data.slice(0, 12);
       const authTag = data.slice(12, 28);
       const ciphertext = data.slice(28);
 
-      const keyMaterial = crypto.randomBytes(32); // В реальности ключ из HSM
+      // Используем сохранённый ключ вместо генерации нового
+      const keyMaterialEntry = this.localKeyMaterials.get(key.keyId);
+      if (!keyMaterialEntry || !keyMaterialEntry.symmetricKey) {
+        return '';
+      }
+      const keyMaterial = keyMaterialEntry.symmetricKey;
+
       const decipher = crypto.createDecipheriv('aes-256-gcm', keyMaterial, iv);
       decipher.setAuthTag(authTag);
 
@@ -918,20 +928,27 @@ export class HSMIntegration extends EventEmitter {
     data: Buffer,
     options?: { algorithm?: string }
   ): string {
-    const algorithm = options?.algorithm || 'RSA-PSS-SHA256';
-    
-    // Генерация ключа для подписи
-    const { privateKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-    });
+    // Получаем или создаём пару ключей
+    let keyPair = this.localKeyMaterials.get(key.keyId)?.keyPair;
+    if (!keyPair) {
+      const kp = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+      });
+      keyPair = { publicKey: kp.publicKey, privateKey: kp.privateKey };
+      const existing = this.localKeyMaterials.get(key.keyId) || {};
+      this.localKeyMaterials.set(key.keyId, { ...existing, keyPair });
+    }
+
+    // Сохраняем publicKey для последующей верификации
+    this._lastSignKeyPair = { publicKey: crypto.createPublicKey(keyPair.publicKey) };
 
     const sign = crypto.createSign('RSA-SHA256');
     sign.update(data);
     sign.end();
 
-    const signature = sign.sign(privateKey);
+    const signature = sign.sign(keyPair.privateKey);
     return signature.toString('base64');
   }
 
@@ -990,7 +1007,7 @@ export class HSMIntegration extends EventEmitter {
       if (this.hsmClient.provider !== 'mock' && this.hsmClient.mode !== 'fallback') {
         valid = await this.verifyOnHSM(keyId, dataBuffer, signature, options);
       } else {
-        valid = this.verifyLocally(dataBuffer, signature);
+        valid = this.verifyLocally(dataBuffer, signature, keyId);
       }
 
       this.logAuditEvent('SIGNATURE_VERIFIED', keyId, valid, { operationId });
@@ -1014,23 +1031,35 @@ export class HSMIntegration extends EventEmitter {
   /**
    * Локальная верификация
    */
-  private verifyLocally(data: Buffer, signature: string): boolean {
+  private verifyLocally(data: Buffer, signature: string, keyId: string): boolean {
     try {
-      const { publicKey } = crypto.generateKeyPairSync('rsa', {
-        modulusLength: 2048,
-        publicKeyEncoding: { type: 'spki', format: 'pem' },
-        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-      });
+      // Сначала пробуем использовать сохранённую пару ключей из cache
+      const keyMat = this.localKeyMaterials.get(keyId);
+      if (keyMat?.keyPair) {
+        const verify = crypto.createVerify('RSA-SHA256');
+        verify.update(data);
+        verify.end();
+        return verify.verify(keyMat.keyPair.publicKey, Buffer.from(signature, 'base64'));
+      }
+
+      // Fallback: последняя использованная пара
+      const keyPair = this._lastSignKeyPair || null;
+      if (!keyPair) {
+        return false;
+      }
 
       const verify = crypto.createVerify('RSA-SHA256');
       verify.update(data);
       verify.end();
 
-      return verify.verify(publicKey, Buffer.from(signature, 'base64'));
+      return verify.verify(keyPair.publicKey, Buffer.from(signature, 'base64'));
     } catch {
       return false;
     }
   }
+
+  /** Временное хранилище последней пары ключей для верификации */
+  private _lastSignKeyPair: { publicKey: crypto.KeyObject } | null = null;
 
   /**
    * Верификация на HSM

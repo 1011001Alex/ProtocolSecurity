@@ -479,55 +479,61 @@ export class DeviceFingerprintService {
     totalWeight += weights.platform;
 
     // 6. Hardware match
+    const inputCpuArch = input.cpuArchitecture ?? '';
+    const existingCpuArch = existing.cpuArchitecture ?? '';
+    const inputCpuCores = input.cpuCores ?? 0;
+    const existingCpuCores = existing.cpuCores ?? 0;
+    const inputDevMem = input.deviceMemory ?? 0;
+    const existingDevMem = existing.deviceMemory ?? 0;
+
     if (
-      input.cpuArchitecture === existing.cpuArchitecture &&
-      input.cpuCores === existing.cpuCores &&
-      input.deviceMemory === existing.deviceMemory
+      inputCpuArch === existingCpuArch &&
+      inputCpuCores === existingCpuCores &&
+      inputDevMem === existingDevMem
     ) {
       totalScore += weights.hardware;
     }
     totalWeight += weights.hardware;
 
     // 7. Canvas fingerprint match
-    if (
-      this.config.enableCanvasFingerprint &&
-      input.canvasFingerprint &&
-      input.canvasFingerprint === existing.canvasFingerprint
-    ) {
-      totalScore += weights.canvas;
+    if (this.config.enableCanvasFingerprint) {
+      if (input.canvasFingerprint && existing.canvasFingerprint) {
+        totalWeight += weights.canvas;
+        if (input.canvasFingerprint === existing.canvasFingerprint) {
+          totalScore += weights.canvas;
+        }
+      }
     }
-    totalWeight += weights.canvas;
 
     // 8. WebGL fingerprint match
-    if (
-      this.config.enableWebglFingerprint &&
-      input.webglFingerprint &&
-      input.webglFingerprint === existing.webglFingerprint
-    ) {
-      totalScore += weights.webgl;
+    if (this.config.enableWebglFingerprint) {
+      if (input.webglFingerprint && existing.webglFingerprint) {
+        totalWeight += weights.webgl;
+        if (input.webglFingerprint === existing.webglFingerprint) {
+          totalScore += weights.webgl;
+        }
+      }
     }
-    totalWeight += weights.webgl;
 
     // 9. Audio fingerprint match
-    if (
-      this.config.enableAudioFingerprint &&
-      input.audioFingerprint &&
-      input.audioFingerprint === existing.audioFingerprint
-    ) {
-      totalScore += weights.audio;
+    if (this.config.enableAudioFingerprint) {
+      if (input.audioFingerprint && existing.audioFingerprint) {
+        totalWeight += weights.audio;
+        if (input.audioFingerprint === existing.audioFingerprint) {
+          totalScore += weights.audio;
+        }
+      }
     }
-    totalWeight += weights.audio;
 
     // 10. Fonts match
-    if (
-      this.config.enableFontFingerprint &&
-      input.fonts &&
-      existing.fonts &&
-      this.arraysEqual(input.fonts, existing.fonts)
-    ) {
-      totalScore += weights.fonts;
+    if (this.config.enableFontFingerprint) {
+      if (input.fonts && existing.fonts) {
+        totalWeight += weights.fonts;
+        if (this.arraysEqual(input.fonts, existing.fonts)) {
+          totalScore += weights.fonts;
+        }
+      }
     }
-    totalWeight += weights.fonts;
 
     return totalWeight > 0 ? totalScore / totalWeight : 0;
   }

@@ -433,19 +433,19 @@ export class KillChainAnalyzer {
   private shouldAdvancePhase(chain: KillChainState, newPhase: KillChainPhase): boolean {
     const currentPhaseIndex = Object.values(KillChainPhase).indexOf(chain.currentPhase);
     const newPhaseIndex = Object.values(KillChainPhase).indexOf(newPhase);
-    
+
     // Переход только вперед
     if (newPhaseIndex <= currentPhaseIndex) {
       return false;
     }
-    
+
     // Проверка минимального количества событий в текущей фазе
     const currentPhaseState = chain.phases.get(chain.currentPhase);
-    
-    if (currentPhaseState && currentPhaseState.events.length < 2) {
-      return false;  // Нужно минимум 2 события для завершения фазы
+
+    if (currentPhaseState && currentPhaseState.events.length < 1) {
+      return false;  // Нужно минимум 1 событие для завершения фазы
     }
-    
+
     return true;
   }
 

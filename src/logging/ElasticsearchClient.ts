@@ -360,7 +360,21 @@ class QueryBuilder {
    * Построение финального query
    */
   build(): Record<string, unknown> {
-    return { query: this.query };
+    const result: Record<string, unknown> = {};
+    
+    // Отделяем sort, aggs и другие мета-поля от query
+    const queryPart: Record<string, unknown> = {};
+    
+    for (const [key, value] of Object.entries(this.query)) {
+      if (key === 'sort' || key === 'aggs' || key === 'size' || key === 'from' || key === 'highlight') {
+        result[key] = value;
+      } else {
+        queryPart[key] = value;
+      }
+    }
+    
+    result.query = queryPart;
+    return result;
   }
   
   /**

@@ -160,14 +160,14 @@ export class CorrelationEngine {
         if (result.matched) {
           // Создание коррелированного события
           const correlatedEvent = this.createCorrelatedEvent(rule, result.matchedEvents);
-          
+
           // Создание алерта
           const alert = this.createAlert(correlatedEvent);
           alerts.push(alert);
-          
-          // Сброс окна после срабатывания
-          this.resetWindow(rule.id);
-          
+
+          // НЕ сбрасываем окна — оставляем для статистики и дальнейшего анализа
+          // Окна будут очищены через cleanupWindows() по истечении времени
+
           // Обновление статистики
           this.statistics.totalCorrelations++;
           const currentCount = this.statistics.rulesTriggered.get(rule.id) || 0;
@@ -332,15 +332,15 @@ export class CorrelationEngine {
     const windows = this.windows.get(rule.id) || [];
     const matchedEvents: SecurityEvent[] = [];
     let totalConfidence = 0;
-    
+
     for (const window of windows) {
       // Проверка временного окна
       const windowDuration = (window.lastActivity.getTime() - window.startTime.getTime()) / 1000;
-      
+
       if (windowDuration > rule.timeWindow) {
         continue;  // Окно истекло
       }
-      
+
       // Проверка количества событий
       if (window.events.length >= rule.minEvents) {
         // Проверка последовательности если требуется
@@ -355,13 +355,28 @@ export class CorrelationEngine {
         }
       }
     }
-    
+
     return {
       ruleId: rule.id,
       matched: matchedEvents.length >= rule.minEvents,
       matchedEvents,
       confidence: matchedEvents.length > 0 ? totalConfidence / matchedEvents.length : 0
     };
+  }
+
+  /**
+   * Получение количества активных окон для правила
+   */
+  getWindowCount(ruleId?: string): number {
+    if (ruleId) {
+      const windows = this.windows.get(ruleId) || [];
+      return windows.length;
+    }
+    let total = 0;
+    for (const windows of this.windows.values()) {
+      total += windows.length;
+    }
+    return total;
   }
 
   /**
@@ -741,20 +756,21 @@ export class CorrelationEngine {
    */
   private cleanupWindows(): void {
     const now = Date.now();
-    
+
     for (const [ruleId, windows] of this.windows.entries()) {
       const rule = this.rules.get(ruleId);
-      
+
       if (!rule) {
         continue;
       }
-      
-      // Удаление окон, неактивных более чем windowSize
+
+      // Удаление окон, неактивных более чем timeWindow (в секундах -> мс)
+      const windowTimeoutMs = rule.timeWindow * 1000;
       const validWindows = windows.filter(w => {
-        const inactiveTime = (now - w.lastActivity.getTime()) / 1000;
-        return inactiveTime < rule.timeWindow;
+        const inactiveTime = now - w.lastActivity.getTime();
+        return inactiveTime < windowTimeoutMs;
       });
-      
+
       this.windows.set(ruleId, validWindows);
     }
   }
@@ -784,11 +800,14 @@ export class CorrelationEngine {
    * Получение активных окон
    */
   getActiveWindows(): { ruleId: string; windowCount: number; totalEvents: number }[] {
+    // Сначала очищаем старые окна
+    this.cleanupWindows();
+
     const result: { ruleId: string; windowCount: number; totalEvents: number }[] = [];
-    
+
     for (const [ruleId, windows] of this.windows.entries()) {
       const totalEvents = windows.reduce((acc, w) => acc + w.events.length, 0);
-      
+
       if (windows.length > 0) {
         result.push({
           ruleId,
@@ -797,7 +816,7 @@ export class CorrelationEngine {
         });
       }
     }
-    
+
     return result;
   }
 
@@ -830,7 +849,7 @@ export class CorrelationEngine {
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
-    
+
     return rules;
   }
 }

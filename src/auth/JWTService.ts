@@ -554,12 +554,8 @@ export class JwtService {
       const alg = keyPair.config.algorithm as string;
       const token = await new SignJWT(payload as any)
         .setProtectedHeader({ alg, kid: keyPair.config.kid })
-        .setIssuedAt()
-        .setIssuer(this.config.issuer)
-        .setAudience(this.config.audience)
-        .setExpirationTime(Math.floor(this.config.accessTokenLifetime / 1000))
         .sign(keyPair.privateKey);
-      
+
       return token;
     } catch (error) {
       throw new AuthError(
@@ -612,10 +608,6 @@ export class JwtService {
       const alg = keyPair.config.algorithm as string;
       const token = await new SignJWT(payload as any)
         .setProtectedHeader({ alg, kid: keyPair.config.kid })
-        .setIssuedAt()
-        .setIssuer(this.config.issuer)
-        .setAudience(this.config.audience)
-        .setExpirationTime(now + this.config.refreshTokenLifetime)
         .sign(keyPair.privateKey);
 
       // Создаем fingerprint если включена защита
@@ -748,10 +740,6 @@ export class JwtService {
       const alg = keyPair.config.algorithm as string;
       return await new SignJWT(payload as any)
         .setProtectedHeader({ alg, kid: keyPair.config.kid })
-        .setIssuedAt()
-        .setIssuer(this.config.issuer)
-        .setAudience(this.config.audience)
-        .setExpirationTime(now + this.config.idTokenLifetime)
         .sign(keyPair.privateKey);
     } catch (error) {
       throw new AuthError(

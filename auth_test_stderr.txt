@@ -1,0 +1,401 @@
+FAIL tests/auth.test.ts (5.139 s)
+  PasswordService
+    validatePasswordStrength
+      √ должен принимать надежный пароль (4 ms)
+      √ должен отклонять слабый пароль (1 ms)
+      √ должен отклонять короткий пароль (1 ms)
+      √ должен обнаруживать последовательности (1 ms)
+    hashPassword
+      √ должен хэшировать пароль с bcrypt (67 ms)
+      √ должен создавать разные хэши для одного пароля (115 ms)
+    verifyPassword
+      √ должен верифицировать правильный пароль (115 ms)
+      √ должен отклонять неправильный пароль (116 ms)
+      √ должен определять необходимость rehash (2 ms)
+    generateSecurePassword
+      √ должен генерировать пароль заданной длины (1 ms)
+      √ должен генерировать пароль с разными типами символов (1 ms)
+  MFService
+    TOTP
+      × должен генерировать TOTP секрет
+      × должен верифицировать правильный TOTP код
+      × должен отклонять неправильный TOTP код (1 ms)
+      × должен возвращать оставшееся время для кода
+    HOTP
+      × должен генерировать HOTP секрет
+      × должен верифицировать правильный HOTP код
+    Backup Codes
+      × должен генерировать набор backup кодов
+      × должен верифицировать правильный backup код
+      × должен отклонять использованный backup код
+    Base32
+      × должен кодировать и декодировать Base32
+      × должен валидировать TOTP секрет
+  DeviceFingerprintService
+    generateFingerprint
+      √ должен генерировать fingerprint из данных устройства (1 ms)
+      √ должен генерировать одинаковый fingerprint для одинаковых данных (1 ms)
+      √ должен генерировать разный fingerprint для разных данных
+    analyzeFingerprint
+      √ должен определять новое устройство (14 ms)
+      × должен распознавать существующее устройство (12 ms)
+    trustDevice
+      √ должен отмечать устройство как доверенное (5 ms)
+    getGeoLocation
+      √ должен получать geo-информацию из IP (1 ms)
+  RBACService
+    Role Management
+      √ должен создавать новую роль
+      √ должен обновлять роль (1 ms)
+      √ должен получать роль по имени
+    Role Assignment
+      √ должен назначать роль пользователю (1 ms)
+      √ должен получать назначения ролей пользователя
+      √ должен отменять назначение роли
+    Permission Check
+      √ должен проверять разрешение пользователя
+      √ должен проверять несколько разрешений (OR)
+      √ должен проверять несколько разрешений (AND) (1 ms)
+      √ должен проверять наличие роли
+    Wildcard Permissions
+      √ должен поддерживать wildcard разрешения
+  ABACService
+    Policy Creation
+      √ должен создавать permit policy (1 ms)
+      √ должен создавать policy с несколькими условиями
+    Policy Evaluation
+      √ должен разрешать доступ при matching policy (1 ms)
+      √ должен запрещать доступ при отсутствии policy (1 ms)
+    Condition Operators
+      × должен поддерживать оператор eq (1 ms)
+      × должен поддерживать оператор gte (1 ms)
+      × должен поддерживать оператор contains
+  RateLimiterService
+    Fixed Window
+      √ должен разрешать запросы в пределах лимита
+    Sliding Window
+      √ должен правильно считать запросы в sliding window
+    Block Management
+      √ должен создавать блокировку (7 ms)
+      √ должен очищать блокировку (1 ms)
+    Predefined Rules
+      √ должен создавать auth rule (1 ms)
+      √ должен создавать password reset rule
+  OAuthService
+    Client Management
+      √ должен регистрировать OAuth клиента
+      √ должен получать клиента по ID
+      √ должен валидировать redirect URI
+    Authorization Code
+      √ должен создавать authorization code (1 ms)
+      √ должен создавать authorization URL
+    PKCE
+      √ должен генерировать code verifier
+      √ должен вычислять code challenge (S256)
+      √ должен вычислять code challenge (plain) (1 ms)
+    Device Authorization
+      √ должен создавать device authorization
+      √ должен авторизовать device code (1 ms)
+    Discovery
+      √ должен возвращать конфигурацию discovery
+  AuthService Integration
+    Registration Flow
+      √ должен регистрировать пользователя с надежным паролем (86 ms)
+      √ должен отклонять регистрацию с слабым паролем (11 ms)
+      √ должен отклонять дубликат email (85 ms)
+    Login Flow
+      × должен выполнять успешный login (160 ms)
+      √ должен отклонять login с неверным паролем (180 ms)
+      × должен блокировать аккаунт после多次 failed attempts (488 ms)
+    Logout Flow
+      × должен выполнять logout (172 ms)
+    Security Events
+      √ должен логировать security events (83 ms)
+  Security Tests
+    Timing Attack Protection
+      √ должен иметь constant-time верификацию пароля (1666 ms)
+    Password Enumeration Protection
+      √ должен иметь одинаковое время ответа для существующих и несуществующих пользователей (547 ms)
+
+  ● MFService › TOTP › должен генерировать TOTP секрет
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › TOTP › должен верифицировать правильный TOTP код
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › TOTP › должен отклонять неправильный TOTP код
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › TOTP › должен возвращать оставшееся время для кода
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › HOTP › должен генерировать HOTP секрет
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › HOTP › должен верифицировать правильный HOTP код
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › Backup Codes › должен генерировать набор backup кодов
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › Backup Codes › должен верифицировать правильный backup код
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › Backup Codes › должен отклонять использованный backup код
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › Base32 › должен кодировать и декодировать Base32
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● MFService › Base32 › должен валидировать TOTP секрет
+
+    ReferenceError: createMFService is not defined
+
+    [0m [90m 129 |[39m
+     [90m 130 |[39m   beforeEach(() [33m=>[39m {
+    [31m[1m>[22m[39m[90m 131 |[39m     mfService [33m=[39m createMFService()[33m;[39m
+     [90m     |[39m     [31m[1m^[22m[39m
+     [90m 132 |[39m   })[33m;[39m
+     [90m 133 |[39m
+     [90m 134 |[39m   describe([32m'TOTP'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:131:5)
+
+  ● DeviceFingerprintService › analyzeFingerprint › должен распознавать существующее устройство
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+    [0m [90m 366 |[39m       [36mconst[39m result [33m=[39m fingerprintService[33m.[39manalyzeFingerprint(inputData[33m,[39m [existingDevice])[33m;[39m
+     [90m 367 |[39m
+    [31m[1m>[22m[39m[90m 368 |[39m       expect(result[33m.[39misNewDevice)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+     [90m     |[39m                                  [31m[1m^[22m[39m
+     [90m 369 |[39m       expect(result[33m.[39mmatchScore)[33m.[39mtoBeGreaterThan([35m0.7[39m)[33m;[39m
+     [90m 370 |[39m     })[33m;[39m
+     [90m 371 |[39m   })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:368:34)
+
+  ● ABACService › Condition Operators › должен поддерживать оператор eq
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 662 |[39m       )[33m;[39m
+     [90m 663 |[39m
+    [31m[1m>[22m[39m[90m 664 |[39m       expect(result[33m.[39mallowed)[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+     [90m     |[39m                              [31m[1m^[22m[39m
+     [90m 665 |[39m     })[33m;[39m
+     [90m 666 |[39m
+     [90m 667 |[39m     it([32m'должен поддерживать оператор gte'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:664:30)
+
+  ● ABACService › Condition Operators › должен поддерживать оператор gte
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 687 |[39m       )[33m;[39m
+     [90m 688 |[39m
+    [31m[1m>[22m[39m[90m 689 |[39m       expect(result[33m.[39mallowed)[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+     [90m     |[39m                              [31m[1m^[22m[39m
+     [90m 690 |[39m     })[33m;[39m
+     [90m 691 |[39m
+     [90m 692 |[39m     it([32m'должен поддерживать оператор contains'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:689:30)
+
+  ● ABACService › Condition Operators › должен поддерживать оператор contains
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 712 |[39m       )[33m;[39m
+     [90m 713 |[39m       
+    [31m[1m>[22m[39m[90m 714 |[39m       expect(result[33m.[39mallowed)[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+     [90m     |[39m                              [31m[1m^[22m[39m
+     [90m 715 |[39m     })[33m;[39m
+     [90m 716 |[39m   })[33m;[39m
+     [90m 717 |[39m })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/auth.test.ts:714:30)
+
+  ● AuthService Integration › Login Flow › должен выполнять успешный login
+
+    AuthError: Нет активного ключа для подписи
+
+    [0m [90m 444 |[39m   [36mprivate[39m getActiveSigningKey()[33m:[39m [33mKeyPair[39m {
+     [90m 445 |[39m     [36mif[39m ([33m![39m[36mthis[39m[33m.[39mactiveSigningKeyId) {
+    [31m[1m>[22m[39m[90m 446 |[39m       [36mthrow[39m [36mnew[39m [33mAuthError[39m(
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 447 |[39m         [32m'Нет активного ключа для подписи'[39m[33m,[39m
+     [90m 448 |[39m         [33mAuthErrorCode[39m[33m.[39m[33mINTERNAL_ERROR[39m[33m,[39m
+     [90m 449 |[39m         [35m500[39m[0m
+
+      at JwtService.getActiveSigningKey (src/auth/JWTService.ts:446:13)
+      at JwtService.createAccessToken (src/auth/JWTService.ts:512:26)
+      at AuthService.completeAuthentication (src/auth/AuthService.ts:602:47)
+      at Object.<anonymous> (tests/auth.test.ts:1047:22)
+
+  ● AuthService Integration › Login Flow › должен блокировать аккаунт после多次 failed attempts
+
+    expect(received).rejects.toThrow(expected)
+
+    Expected substring: "заблокирован"
+    Received message:   "Слишком много попыток входа"
+
+        [0m [90m 375 |[39m       })[33m;[39m
+         [90m 376 |[39m       
+        [31m[1m>[22m[39m[90m 377 |[39m       [36mthrow[39m [36mnew[39m [33mAuthError[39m(
+         [90m     |[39m             [31m[1m^[22m[39m
+         [90m 378 |[39m         [32m'Слишком много попыток входа'[39m[33m,[39m
+         [90m 379 |[39m         [33mAuthErrorCode[39m[33m.[39m[33mRATE_LIMIT_EXCEEDED[39m[33m,[39m
+         [90m 380 |[39m         [35m429[39m[0m
+
+      at AuthService.login (src/auth/AuthService.ts:377:13)
+      at Object.<anonymous> (tests/auth.test.ts:1097:7)
+      at Object.toThrow (node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (tests/auth.test.ts:1104:17)
+
+  ● AuthService Integration › Logout Flow › должен выполнять logout
+
+    AuthError: Нет активного ключа для подписи
+
+    [0m [90m 444 |[39m   [36mprivate[39m getActiveSigningKey()[33m:[39m [33mKeyPair[39m {
+     [90m 445 |[39m     [36mif[39m ([33m![39m[36mthis[39m[33m.[39mactiveSigningKeyId) {
+    [31m[1m>[22m[39m[90m 446 |[39m       [36mthrow[39m [36mnew[39m [33mAuthError[39m(
+     [90m     |[39m             [31m[1m^[22m[39m
+     [90m 447 |[39m         [32m'Нет активного ключа для подписи'[39m[33m,[39m
+     [90m 448 |[39m         [33mAuthErrorCode[39m[33m.[39m[33mINTERNAL_ERROR[39m[33m,[39m
+     [90m 449 |[39m         [35m500[39m[0m
+
+      at JwtService.getActiveSigningKey (src/auth/JWTService.ts:446:13)
+      at JwtService.createAccessToken (src/auth/JWTService.ts:512:26)
+      at AuthService.completeAuthentication (src/auth/AuthService.ts:602:47)
+      at Object.<anonymous> (tests/auth.test.ts:1116:27)
+
+Test Suites: 1 failed, 1 total
+Tests:       18 failed, 56 passed, 74 total
+Snapshots:   0 total
+Time:        5.483 s, estimated 6 s
+Ran all test suites matching /tests\\auth.test.ts|;|echo|Exit code: 0/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

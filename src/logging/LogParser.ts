@@ -70,13 +70,13 @@ const PATTERNS = {
   ],
   
   // IP Address
-  IP_ADDRESS: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/,
-  
+  IP_ADDRESS: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+
   // Email
-  EMAIL: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
-  
+  EMAIL: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+
   // URL
-  URL: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
+  URL: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
   
   // JWT Token
   JWT: /eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/,
@@ -600,16 +600,16 @@ export class LogParser {
     }
     
     this.statistics.totalParsed++;
-    
+
     try {
       // Определение формата
-      const format = this.config.autoDetectFormat 
+      const format = this.config.autoDetectFormat
         ? this.formatDetector.detect(line)
         : this.config.defaultFormat!;
-      
+
       // Парсинг в зависимости от формата
       let result: ParseResult;
-      
+
       switch (format) {
         case 'json':
           result = this.parseJson(line);
@@ -1303,13 +1303,13 @@ export class LogParser {
    */
   private parseKeyValue(line: string): ParseResult {
     const fields = this.parseLogfmt(line);
-    
+
     if (Object.keys(fields).length === 0) {
       return this.parseGeneric(line);
     }
-    
+
     const log = this.normalizeKeyValueLog(fields);
-    
+
     return {
       success: true,
       format: 'logfmt',
@@ -1387,7 +1387,7 @@ export class LogParser {
   private parseGeneric(line: string): ParseResult {
     // Попытка извлечь что-то полезное из строки
     const extractedFields: Record<string, unknown> = {};
-    
+
     // Извлечение IP адресов
     const ipMatches = line.matchAll(PATTERNS.IP_ADDRESS);
     const ips = Array.from(ipMatches, m => m[0]);
@@ -1395,24 +1395,24 @@ export class LogParser {
       extractedFields.ips = ips;
       extractedFields.clientIp = ips[0];
     }
-    
+
     // Извлечение email
     const emailMatches = line.matchAll(PATTERNS.EMAIL);
     const emails = Array.from(emailMatches, m => m[0]);
     if (emails.length > 0) {
       extractedFields.emails = emails;
     }
-    
+
     // Извлечение URL
     const urlMatches = line.matchAll(PATTERNS.URL);
     const urls = Array.from(urlMatches, m => m[0]);
     if (urls.length > 0) {
       extractedFields.urls = urls;
     }
-    
+
     // Детектирование уровня логирования из текста
     const level = this.detectLevelFromText(line);
-    
+
     const log: LogEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -1429,7 +1429,7 @@ export class LogParser {
       fields: extractedFields,
       schemaVersion: '1.0.0'
     };
-    
+
     return {
       success: true,
       format: 'custom',

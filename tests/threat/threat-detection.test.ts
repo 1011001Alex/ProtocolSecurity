@@ -57,7 +57,8 @@ const createMockEvent = (overrides: Partial<SecurityEvent> = {}): SecurityEvent 
     loginAttempts: 5,
     failureReason: 'invalid_password'
   },
-  normalizedEvent: {}
+  normalizedEvent: {},
+  ...overrides
 });
 
 const createMockNetworkPacket = () => ({
@@ -325,6 +326,7 @@ describe('CorrelationEngine', () => {
   });
 
   test('должен очищать старые окна', () => {
+    jest.useFakeTimers();
     const event = createMockEvent();
     engine.processEvent(event);
 
@@ -333,6 +335,7 @@ describe('CorrelationEngine', () => {
 
     const activeWindows = engine.getActiveWindows();
     expect(activeWindows.length).toBe(0);
+    jest.useRealTimers();
   });
 });
 

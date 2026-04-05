@@ -591,16 +591,16 @@ export class MITREAttackMapper {
       confidence: number;
       evidence: string[];
     }> = [];
-    
+
     // Маппинг по имени события
     const eventType = event.eventType.toLowerCase();
-    
+
     // PowerShell / Command execution
-    if (eventType.includes('powershell') || eventType.includes('cmd') || eventType.includes('bash')) {
+    if (eventType.includes('powershell') || eventType.includes('cmd') || eventType.includes('bash') || eventType.includes('command') || eventType.includes('script') || eventType.includes('shell')) {
       mappings.push({
         techniqueId: 'T1059',
         confidence: 0.9,
-        evidence: [`Выполнение команды: ${event.commandLine || event.processName}`]
+        evidence: [`Выполнение команды: ${event.commandLine || event.processName || event.eventType}`]
       });
     }
     

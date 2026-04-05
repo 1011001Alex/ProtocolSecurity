@@ -999,6 +999,13 @@ export const authService = new AuthService(DEFAULT_CONFIG);
 /**
  * Фабричная функция для создания сервиса с кастомной конфигурацией
  */
-export function createAuthService(config: Partial<AuthServiceConfig>): AuthService {
-  return new AuthService({ ...DEFAULT_CONFIG, ...config });
+export async function createAuthService(config: Partial<AuthServiceConfig>): Promise<AuthService> {
+  const service = new AuthService({ ...DEFAULT_CONFIG, ...config });
+  // Генерируем JWT signing key
+  const keyConfig = await service.jwtService.generateKeyPair('RS256', 'auth-default-key');
+  await service.jwtService.addKey({
+    ...keyConfig,
+    isActive: true,
+  });
+  return service;
 }

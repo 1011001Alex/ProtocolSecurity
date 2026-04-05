@@ -135,12 +135,12 @@ export class EndpointDetector {
       enabled: true,
       eventType: EndpointEventType.PROCESS_CREATE,
       conditions: [
-        { field: 'process.name', operator: 'in', value: Array.from(this.config.monitoredProcesses) }
+        { field: 'rawEvent.processName', operator: 'in', value: Array.from(this.config.monitoredProcesses) }
       ],
       severity: ThreatSeverity.MEDIUM,
       mitreTechniques: ['T1059']
     });
-    
+
     // Правило: Процесс из временной директории
     this.addDetectionRule({
       id: 'EDR-002',
@@ -148,7 +148,8 @@ export class EndpointDetector {
       enabled: true,
       eventType: EndpointEventType.PROCESS_CREATE,
       conditions: [
-        { field: 'process.path', operator: 'contains', value: 'Temp' }
+        { field: 'rawEvent.path', operator: 'contains', value: 'Temp' },
+        { field: 'rawEvent.commandLine', operator: 'contains', value: 'Temp' }
       ],
       severity: ThreatSeverity.HIGH,
       mitreTechniques: ['T1059', 'T1547']
@@ -174,7 +175,7 @@ export class EndpointDetector {
       enabled: true,
       eventType: EndpointEventType.PROCESS_CREATE,
       conditions: [
-        { field: 'process.commandLine', operator: 'regex', value: 'lsass|dump|credential' }
+        { field: 'rawEvent.commandLine', operator: 'regex', value: 'lsass|dump|credential' }
       ],
       severity: ThreatSeverity.CRITICAL,
       mitreTechniques: ['T1003']
@@ -187,7 +188,7 @@ export class EndpointDetector {
       enabled: true,
       eventType: EndpointEventType.FILE_CREATE,
       conditions: [
-        { field: 'file.hash.sha256', operator: 'in', value: Array.from(this.config.knownMaliciousHashes) }
+        { field: 'rawEvent.hash', operator: 'in', value: Array.from(this.config.knownMaliciousHashes) }
       ],
       severity: ThreatSeverity.CRITICAL,
       mitreTechniques: ['T1204']
@@ -200,7 +201,7 @@ export class EndpointDetector {
       enabled: true,
       eventType: EndpointEventType.NETWORK_CONNECTION,
       conditions: [
-        { field: 'network.remotePort', operator: 'in', value: [4444, 5555, 6666, 8080, 1337] }
+        { field: 'rawEvent.remotePort', operator: 'in', value: [4444, 5555, 6666, 8080, 1337] }
       ],
       severity: ThreatSeverity.HIGH,
       mitreTechniques: ['T1071']

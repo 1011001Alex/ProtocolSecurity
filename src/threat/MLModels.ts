@@ -196,7 +196,7 @@ export class IsolationForest extends EventEmitter implements IMLModel {
       }
     }
     for (let j = 0; j < nFeatures; j++) {
-      this.featureStds[j] = Math.sqrt(this.featureStds[j] / features.length) || 1;
+      this.featureStds[j] = Math.sqrt(this.featureStds[j] / features.length) || 1; // Если 0, используем 1
     }
 
     // Нормализация данных
@@ -273,12 +273,20 @@ export class IsolationForest extends EventEmitter implements IMLModel {
     // Anomaly score формула
     const n = this.sampleSize;
     const c = 2 * (Math.log(n - 1) + 0.5772156649) - (2 * (n - 1) / n);
-    const anomalyScore = Math.pow(2, -avgPathLength / c);
+    let anomalyScore = Math.pow(2, -avgPathLength / c);
+
+    // Дополнительная проверка на экстремальные z-score
+    const maxZScore = Math.max(...normalizedFeatures.map((v, i) => Math.abs(v)));
+    if (maxZScore > 3) {
+      // Экстремальное отклонение — усиливаем anomaly score
+      anomalyScore = Math.max(anomalyScore, 0.8);
+    }
 
     const isAnomaly = anomalyScore > this.threshold;
 
     return {
       prediction: isAnomaly ? 1 : 0,
+      isAnomaly,
       confidence: isAnomaly ? anomalyScore : 1 - anomalyScore,
       scores: {
         anomalyScore,
@@ -1323,6 +1331,14 @@ export class MLModelManager extends EventEmitter {
   private models: Map<string, IMLModel> = new Map();
   private modelRegistry: Map<string, MLModelType> = new Map();
 
+  // Статистика предсказаний
+  private predictionStats = {
+    totalPredictions: 0,
+    anomalyDetections: 0,
+    normalPredictions: 0,
+    lastPredictionTime: 0
+  };
+
   /**
    * Создание и регистрация модели
    */
@@ -1383,7 +1399,7 @@ export class MLModelManager extends EventEmitter {
   /**
    * Регистрация существующей модели
    */
-  registerModel(config: MLModelConfig): void {
+  registerModel(config: MLModelConfig): IMLModel {
     const modelType = config.modelType;
     let model: IMLModel;
 
@@ -1404,6 +1420,7 @@ export class MLModelManager extends EventEmitter {
     this.models.set(model.modelId, model);
     this.modelRegistry.set(model.modelId, modelType);
     this.emit('model_registered', { modelId: model.modelId, modelType });
+    return model;
   }
 
   /**
@@ -1609,5 +1626,40 @@ export class MLModelManager extends EventEmitter {
     this.models.clear();
     this.modelRegistry.clear();
     this.emit('disposed');
+  }
+
+  /**
+   * Предсказание всеми зарегистрированными моделями
+   */
+  async predictAll(input: Record<string, number>): Promise<Map<string, MLPrediction>> {
+    const results = new Map<string, MLPrediction>();
+
+    for (const [modelId, model] of this.models.entries()) {
+      try {
+        const prediction = await model.predict(input);
+        results.set(modelId, prediction);
+
+        // Обновление статистики
+        this.predictionStats.totalPredictions++;
+        this.predictionStats.lastPredictionTime = Date.now();
+
+        if ((prediction as any).isAnomaly === true) {
+          this.predictionStats.anomalyDetections++;
+        } else {
+          this.predictionStats.normalPredictions++;
+        }
+      } catch (error) {
+        console.error(`Model ${modelId} prediction error:`, error);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Получение статистики предсказаний
+   */
+  getPredictionStatistics(): typeof this.predictionStats {
+    return { ...this.predictionStats };
   }
 }

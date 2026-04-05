@@ -299,31 +299,37 @@ export class UEBAService {
    * Обработка события безопасности
    */
   async processEvent(event: SecurityEvent): Promise<SecurityAlert[]> {
-    // Сохранение события в историю
-    this.addToEventHistory(event);
+    try {
+      // Сохранение события в историю
+      this.addToEventHistory(event);
 
-    // Определение сущности
-    const entityId = this.extractEntityId(event);
-    if (!entityId) {
+      // Определение сущности
+      const entityId = this.extractEntityId(event);
+      if (!entityId) {
+        return [];
+      }
+
+      // Обновление профиля сущности
+      await this.updateProfileFromEvent(entityId, event);
+
+      // Обнаружение аномалий
+      const anomalyResult = await this.detectAnomalies(entityId, event);
+
+      if (anomalyResult.isAnomaly) {
+        // Создание алерта
+        const alert = this.createAnomalyAlert(entityId, event, anomalyResult);
+
+        this.statistics.anomaliesDetected++;
+
+        return [alert];
+      }
+
+      return [];
+    } catch (error) {
+      // При ошибке — возвращаем пустой массив, не ломаем pipeline
+      console.error(`[UEBAService] Ошибка обработки события: ${error}`);
       return [];
     }
-
-    // Обновление профиля сущности
-    await this.updateProfileFromEvent(entityId, event);
-
-    // Обнаружение аномалий
-    const anomalyResult = await this.detectAnomalies(entityId, event);
-
-    if (anomalyResult.isAnomaly) {
-      // Создание алерта
-      const alert = this.createAnomalyAlert(entityId, event, anomalyResult);
-
-      this.statistics.anomaliesDetected++;
-
-      return [alert];
-    }
-
-    return [];
   }
 
   /**

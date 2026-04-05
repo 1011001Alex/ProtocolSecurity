@@ -224,8 +224,8 @@ export class SecurityHeadersMiddleware {
     // Cross-Origin-Policy
     this.setCrossOriginPolicies(res);
 
-    // Cache-Control
-    this.setCacheControl(res);
+    // Cache-Control (с учётом пути запроса)
+    this.setCacheControl(res, req);
 
     // Remove headers
     this.removeHeaders(res);
@@ -379,10 +379,36 @@ export class SecurityHeadersMiddleware {
   /**
    * Cache-Control
    */
-  private setCacheControl(res: ServerResponse): void {
+  private setCacheControl(res: ServerResponse, req?: IncomingMessage): void {
     const cache = this.config.cacheControl;
     const directives: string[] = [];
+    const url = req?.url || '';
 
+    // Для чувствительных endpoints (login, auth, password) — no-cache
+    if (/\/(login|auth|password|logout|signin|signup)/i.test(url)) {
+      directives.push('no-cache', 'no-store', 'must-revalidate');
+      res.setHeader('Cache-Control', directives.join(', '));
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      return;
+    }
+
+    // Для статики — public cache с long max-age
+    if (/\/static\/|\/assets\/|\/public\/|\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?)$/i.test(url)) {
+      directives.push('public', 'max-age=31536000', 'immutable');
+      res.setHeader('Cache-Control', directives.join(', '));
+      return;
+    }
+
+    // Для API — no-store
+    if (/\/api\//i.test(url)) {
+      directives.push('no-store', 'no-cache', 'must-revalidate');
+      res.setHeader('Cache-Control', directives.join(', '));
+      res.setHeader('Pragma', 'no-cache');
+      return;
+    }
+
+    // Default из конфигурации
     if (cache.noStore) directives.push('no-store');
     if (cache.noCache) directives.push('no-cache');
     if (cache.private) directives.push('private');
@@ -407,6 +433,59 @@ export class SecurityHeadersMiddleware {
    */
   getConfig(): SecurityHeadersConfig {
     return { ...this.config };
+  }
+
+  /**
+   * Обновление конфигурации
+   */
+  updateConfig(newConfig: Partial<SecurityHeadersConfig>): void {
+    Object.assign(this.config, {
+      ...newConfig,
+      csp: newConfig.csp ? { ...this.config.csp, ...newConfig.csp } : this.config.csp,
+      hsts: newConfig.hsts ? { ...this.config.hsts, ...newConfig.hsts } : this.config.hsts,
+      permissionsPolicy: newConfig.permissionsPolicy ? { ...this.config.permissionsPolicy, ...newConfig.permissionsPolicy } : this.config.permissionsPolicy,
+      crossOriginPolicies: newConfig.crossOriginPolicies ? { ...this.config.crossOriginPolicies, ...newConfig.crossOriginPolicies } : this.config.crossOriginPolicies,
+      cacheControl: newConfig.cacheControl ? { ...this.config.cacheControl, ...newConfig.cacheControl } : this.config.cacheControl
+    });
+  }
+
+  /**
+   * Возвращает CSP как HTML meta тег
+   */
+  getCSPMetaTag(): string {
+    const csp = this.config.csp;
+    const directives: string[] = [];
+
+    const buildDirective = (name: string, values: string[]): string => {
+      if (!values || values.length === 0) return '';
+      return `${name} ${values.join(' ')}`;
+    };
+
+    if (csp.defaultSrc) directives.push(buildDirective('default-src', csp.defaultSrc));
+    if (csp.scriptSrc) {
+      const scriptValues = [...csp.scriptSrc];
+      if (csp.strictDynamic) scriptValues.push("'strict-dynamic'");
+      if (csp.useUnsafeInline) scriptValues.push("'unsafe-inline'");
+      directives.push(buildDirective('script-src', scriptValues));
+    }
+    if (csp.styleSrc) directives.push(buildDirective('style-src', csp.styleSrc));
+    if (csp.imgSrc) directives.push(buildDirective('img-src', csp.imgSrc));
+    if (csp.fontSrc) directives.push(buildDirective('font-src', csp.fontSrc));
+    if (csp.connectSrc) directives.push(buildDirective('connect-src', csp.connectSrc));
+    if (csp.mediaSrc) directives.push(buildDirective('media-src', csp.mediaSrc));
+    if (csp.objectSrc) directives.push(buildDirective('object-src', csp.objectSrc));
+    if (csp.frameSrc) directives.push(buildDirective('frame-src', csp.frameSrc));
+    if (csp.workerSrc) directives.push(buildDirective('worker-src', csp.workerSrc));
+    if (csp.baseUri) directives.push(buildDirective('base-uri', csp.baseUri));
+    if (csp.formAction) directives.push(buildDirective('form-action', csp.formAction));
+    if (csp.frameAncestors) directives.push(buildDirective('frame-ancestors', csp.frameAncestors));
+    if (csp.upgradeInsecureRequests) directives.push('upgrade-insecure-requests');
+    if (csp.blockAllMixedContent) directives.push('block-all-mixed-content');
+    if (csp.reportUri) directives.push(`report-uri ${csp.reportUri}`);
+    if (csp.reportTo) directives.push(`report-to ${csp.reportTo}`);
+
+    const cspValue = directives.filter(d => d).join('; ');
+    return `<meta http-equiv="Content-Security-Policy" content="${cspValue}">`;
   }
 }
 

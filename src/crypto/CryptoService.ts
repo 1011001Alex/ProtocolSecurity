@@ -344,6 +344,15 @@ export class CryptoService extends EventEmitter {
   ): Promise<SignatureResult> {
     return this.trackOperation('sign', async () => {
       this.validateInitialized();
+
+      // Проверяем есть ли ключ в signatureService keyStore
+      // Если нет — генерируем ключ подписи и сохраняем в signatureService
+      const keyMetadata = this.signatureService.getKeyMetadata(keyId);
+      if (!keyMetadata) {
+        // Ключ ещё не существует в signatureService — генерируем
+        await this.signatureService.generateKeyPair('Ed25519', keyId);
+      }
+
       return this.signatureService.sign(data, keyId);
     });
   }

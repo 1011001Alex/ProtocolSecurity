@@ -69,6 +69,8 @@ function setTestEnvironment(overrides: Record<string, string> = {}) {
     MTLS_ENABLED: 'true',
     LOG_LEVEL: 'warn',
     VAULT_URL: 'https://vault.test.local:8200',
+    JWT_SECRET: 'test-jwt-secret-key-for-testing-only-very-long-string',
+    CRYPTO_KEY_ID: 'test-crypto-key-id-12345678901234567890',
     ...overrides
   };
 

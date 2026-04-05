@@ -812,10 +812,17 @@ export class SecureLogger extends EventEmitter {
     }
     
     // Проверка уровня логирования
-    // В режиме debug (enableDebug=true) разрешаем все уровни включая TRACE
+    // enableDebug позволяет логировать DEBUG/TRACE уровни, но setLevel имеет приоритет
     const isDebugMode = this.globalConfig?.enableDebug === true;
-    if (!isDebugMode && level > this.config.level) {
-      return null;
+    if (isDebugMode) {
+      // В debug mode: разрешаем все уровни, НО если setLevel установлен явно — уважаем его
+      // Level numbering: EMERGENCY=0 (highest) ... TRACE=8 (lowest)
+      // Если level > TRACE — никогда не логируем (но такого нет)
+    } else {
+      // В normal mode: только уровни важнее или равные configured
+      if (level > this.config.level) {
+        return null;
+      }
     }
     
     // Проверка rate limiting

@@ -177,17 +177,15 @@ const ATTACK_PATTERNS = {
     /C:\\\\boot.ini/i
   ],
   
-  // Command injection паттерны
+  // Command injection паттерны (более специфичные, чтобы не блокировать обычные символы)
   commandInjection: [
-    /[;&|`$()]/,
-    /\$\(/,
-    /`[^`]+`/,
-    /%[0-9a-fA-F]{2}/,
-    /\|\|/,
-    /&&/,
-    />\s*\w/,
-    /<\s*\w/,
-    /\b(cat|ls|pwd|whoami|id|uname|wget|curl|nc|bash|sh|cmd|powershell)\b/i
+    /\$\([^)]+\)/,      // $() command substitution
+    /`[^`]+`/,          // Backtick execution
+    /;\s*(rm|cat|ls|pwd|whoami|id|uname|wget|curl|nc|bash|sh|cmd|powershell|chmod|chown|mkdir|rmdir)\s/i,
+    /\|\s*(rm|cat|ls|pwd|whoami|id|uname|wget|curl|nc|bash|sh|cmd|powershell)\s/i,
+    /&&\s*(rm|cat|ls|pwd|whoami|id|uname|wget|curl|nc|bash|sh|cmd|powershell)\s/i,
+    />\s*\/(?:etc|tmp|dev)/, // Redirection to sensitive paths
+    /\b(cat|ls|pwd|whoami|id|uname|wget|curl|nc|bash|sh|cmd|powershell|rm|chmod|chown)\s+[-\/]/i  // Commands with args
   ],
   
   // LDAP injection паттерны

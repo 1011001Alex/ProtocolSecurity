@@ -400,7 +400,7 @@ export class JWTBlacklist {
           return {
             isRevoked: true,
             info,
-            reason: info.reason || 'Токен отозван',
+            reason: info.reason,
           };
         }
 
@@ -412,12 +412,13 @@ export class JWTBlacklist {
         return { isRevoked: false };
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('[JWTBlacklist] Ошибка проверки токена', { error });
       // При ошибке считаем токен не отозванным (fail-open для доступности)
       // В production можно изменить на fail-close
       return {
         isRevoked: false,
-        reason: `Ошибка проверки: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: `Ошибка проверки: ${errorMessage}`,
       };
     }
   }

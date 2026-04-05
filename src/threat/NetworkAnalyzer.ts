@@ -168,9 +168,9 @@ export class NetworkAnalyzer {
    */
   private updateFlow(packet: NetworkPacket): NetworkFlow {
     const flowId = this.getFlowId(packet);
-    
+
     let flow = this.activeFlows.get(flowId);
-    
+
     if (!flow) {
       // Создание нового потока
       flow = {
@@ -187,25 +187,33 @@ export class NetworkAnalyzer {
         duration: 0,
         state: 'new'
       };
-      
+
       this.activeFlows.set(flowId, flow);
       this.statistics.totalFlowsCreated++;
+
+      // Добавляем flow в агрегатор источника
+      const srcAggregator = this.getOrCreateAggregator(packet.srcIp);
+      srcAggregator.flows.push(flow);
+
+      // Добавляем flow в агрегатор назначения
+      const dstAggregator = this.getOrCreateAggregator(packet.dstIp);
+      dstAggregator.flows.push(flow);
     } else {
       // Обновление существующего потока
       flow.packetsCount++;
       flow.bytesSent += packet.size;
       flow.duration = packet.timestamp.getTime() - flow.startTime.getTime();
       flow.state = 'established';
-      
+
       // Проверка направления
       if (packet.srcIp === flow.dstIp) {
         flow.bytesReceived += packet.size;
       }
     }
-    
+
     // Обновление времени последней активности
     flow.endTime = packet.timestamp;
-    
+
     return flow;
   }
 
@@ -281,18 +289,18 @@ export class NetworkAnalyzer {
    */
   private detectPortScan(packet: NetworkPacket): NetworkAnomaly | null {
     const srcIp = packet.srcIp;
-    
+
     // Получение агрегатора для источника
     const aggregator = this.getOrCreateAggregator(srcIp);
-    
+
     // Подсчет уникальных портов назначения за последнее время
     const recentFlows = aggregator.flows.filter(
-      f => f.srcIp === srcIp && 
+      f => f.srcIp === srcIp &&
            (Date.now() - f.startTime.getTime()) < 60000  // За последнюю минуту
     );
-    
+
     const uniquePorts = new Set(recentFlows.map(f => f.dstPort));
-    
+
     if (uniquePorts.size >= this.config.anomalyThresholds.portScan) {
       return {
         id: uuidv4(),
@@ -309,7 +317,7 @@ export class NetworkAnalyzer {
         confidence: Math.min(uniquePorts.size / this.config.anomalyThresholds.portScan, 0.95)
       };
     }
-    
+
     return null;
   }
 

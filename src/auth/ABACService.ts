@@ -365,15 +365,18 @@ export class PolicyEngine {
     context: PolicyContext
   ): PolicyDecision {
     let hasPermit = false;
-    let hasDeny = false;
+    let hasExplicitDeny = false;  // Только явные deny policy (не default-deny)
     let applicablePolicy: IPolicy | undefined;
 
     for (const policy of policies) {
+      // Пропускаем default-deny в основном цикле - он применяется только если нет permit
+      if (policy.id === 'default-deny') continue;
+
       const matches = this.evaluatePolicyConditions(policy, context);
-      
+
       if (matches) {
         if (policy.type === 'deny') {
-          hasDeny = true;
+          hasExplicitDeny = true;
           applicablePolicy = policy;
           break; // Deny сразу перекрывает
         } else {
@@ -385,7 +388,7 @@ export class PolicyEngine {
       }
     }
 
-    if (hasDeny) {
+    if (hasExplicitDeny) {
       return {
         decision: 'deny',
         policyId: applicablePolicy?.id,
@@ -401,7 +404,7 @@ export class PolicyEngine {
       };
     }
 
-    // Default deny
+    // Default deny - применяется только если нет ни permit ни explicit deny
     return {
       decision: 'deny',
       policyId: 'default-deny',

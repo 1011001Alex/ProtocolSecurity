@@ -1344,9 +1344,21 @@ describe('Input Validation - Edge Cases', () => {
 
     middleware(req, res, next);
     expect(next).toHaveBeenCalled();
+    
+    const validationResult = (req as any).validationResult;
+    expect(validationResult).toBeDefined();
+    if (!validationResult.valid) {
+      console.log('Validation errors:', JSON.stringify(validationResult.errors.map(e => ({ field: e.field, code: e.code, message: e.message })), null, 2));
+    }
+    expect(validationResult.valid).toBe(true);
+    expect(validationResult.sanitized).toBeDefined();
+    expect(validationResult.sanitized.body).toBeDefined();
+    
     // Санитизация должна заменить специальные символы на HTML entities
-    const sanitized = (req as any).validationResult.sanitized.body.description;
+    const sanitized = validationResult.sanitized.body.description;
     expect(sanitized).toContain('&lt;');
+    expect(sanitized).toContain('&gt;');
+    expect(sanitized).toContain('&amp;');
   });
 
   it('должен обрабатывать очень длинные строки', () => {
