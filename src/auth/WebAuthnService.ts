@@ -347,7 +347,7 @@ export class WebAuthnService {
         publicKey: isoBase64URL.fromBuffer(publicKey),
         counter,
         authenticatorType,
-        transports: ((response.response.transports as AuthenticatorTransportFuture[]) || []) as AuthenticatorTransport[],
+        transports: (response.response.transports as any) || [],
         authenticatorFlags: {
           userPresent: true,
           userVerified: userVerified || this.config.requireUserVerification,

@@ -193,7 +193,7 @@ export async function runAuthBenchmarks(runner: BenchmarkRunner, iterations?: nu
   // ========================================================================
   // MFA TOTP GENERATE
   // ========================================================================
-  const totpSecret = crypto.randomBytes(20).toString('base32');
+  const totpSecret = crypto.randomBytes(20).toString('base64').replace(/[+/=]/g, '').slice(0, 32).toUpperCase() as any;
   const totp = new OTPAuth.TOTP({
     issuer: 'Protocol',
     label: 'benchmark-user',

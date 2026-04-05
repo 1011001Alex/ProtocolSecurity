@@ -989,6 +989,17 @@ export class AuthService {
       this.rateLimiter.destroy(),
     ]);
   }
+
+  /**
+   * Инициализирует JWT signing key (публичный метод для createAuthService)
+   */
+  public async initializeJwtKey(algorithm: string, keyId: string): Promise<void> {
+    const keyConfig = await this.jwtService.generateKeyPair(algorithm as any, keyId);
+    await this.jwtService.addKey({
+      ...keyConfig,
+      isActive: true,
+    });
+  }
 }
 
 /**
@@ -1001,11 +1012,7 @@ export const authService = new AuthService(DEFAULT_CONFIG);
  */
 export async function createAuthService(config: Partial<AuthServiceConfig>): Promise<AuthService> {
   const service = new AuthService({ ...DEFAULT_CONFIG, ...config });
-  // Генерируем JWT signing key
-  const keyConfig = await service.jwtService.generateKeyPair('RS256', 'auth-default-key');
-  await service.jwtService.addKey({
-    ...keyConfig,
-    isActive: true,
-  });
+  // Генерируем JWT signing key через публичный метод
+  await service.initializeJwtKey('RS256', 'auth-default-key');
   return service;
 }
