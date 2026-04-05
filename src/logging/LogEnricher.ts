@@ -30,6 +30,37 @@ import {
 } from '../types/logging.types';
 
 // ============================================================================
+// INTERFACES FOR GEO IP API RESPONSES
+// ============================================================================
+
+/**
+ * Ответ MaxMind GeoIP API
+ */
+interface MaxMindResponse {
+  country?: { names?: { en?: string }; iso_code?: string };
+  subdivisions?: Array<{ names?: { en?: string } }>;
+  city?: { names?: { en?: string } };
+  location?: { latitude?: number; longitude?: number; time_zone?: string };
+  traits?: { isp?: string; autonomous_system_number?: number };
+}
+
+/**
+ * Ответ ip-api.com
+ */
+interface IpApiResponse {
+  status: string;
+  country?: string;
+  countryCode?: string;
+  regionName?: string;
+  city?: string;
+  lat?: number;
+  lon?: number;
+  timezone?: string;
+  isp?: string;
+  as?: string;
+}
+
+// ============================================================================
 // КОНСТАНТЫ
 // ============================================================================
 
@@ -382,8 +413,8 @@ class GeoIPService {
     // const response = reader.city(ip);
     
     // Эмуляция для примера
-    const response = await this.fetchGeoData(ip, 'https://geoip.maxmind.com/geoip/v2.1/city/');
-    
+    const response = await this.fetchGeoData(ip, 'https://geoip.maxmind.com/geoip/v2.1/city/') as MaxMindResponse | null;
+
     if (response) {
       const geo: GeoLocation = {
         country: response.country?.names?.en,
@@ -409,8 +440,8 @@ class GeoIPService {
    */
   private async lookupWithFreeService(ip: string): Promise<GeoLocation | null> {
     // Используем ip-api.com (бесплатно для некоммерческого использования)
-    const response = await this.fetchGeoData(ip, 'http://ip-api.com/json/');
-    
+    const response = await this.fetchGeoData(ip, 'http://ip-api.com/json/') as IpApiResponse | null;
+
     if (response && response.status === 'success') {
       const geo: GeoLocation = {
         country: response.country,
@@ -661,21 +692,21 @@ class ThreatIntelService {
         return null;
       }
       
-      const data = await response.json();
+      const data = await response.json() as { data?: { attributes?: Record<string, unknown> } };
       const attributes = data.data?.attributes;
-      
+
       if (!attributes) {
         return null;
       }
-      
-      const lastAnalysisStats = attributes.last_analysis_stats;
-      const reputation = attributes.reputation || 0;
-      
+
+      const lastAnalysisStats = attributes.last_analysis_stats as Record<string, number> | undefined;
+      const reputation = (attributes.reputation as number) || 0;
+
       return {
         isMalicious: (lastAnalysisStats?.malicious || 0) > 0,
         reputation: Math.max(0, Math.min(100, 50 + reputation / 10)),
-        categories: attributes.categories || [],
-        lastReported: attributes.last_modification_date,
+        categories: (attributes.categories as string[]) || [],
+        lastReported: (attributes.last_modification_date as string) || '',
         reports: lastAnalysisStats?.malicious || 0
       };
     } catch (error) {
@@ -709,7 +740,7 @@ class ThreatIntelService {
         return null;
       }
       
-      const data = await response.json();
+      const data = await response.json() as { data?: { abuseConfidenceScore?: number; totalReports?: number } };
       const abuseData = data.data;
       
       return {

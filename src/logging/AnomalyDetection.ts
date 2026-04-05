@@ -408,7 +408,7 @@ class IsolationForest {
     }
     
     // Расчет средней глубины изоляции
-    const avgPathLength = this.trees.reduce((sum, tree) => {
+    const avgPathLength = this.model.trees.reduce((sum: number, tree: IsolationTree) => {
       return sum + this.pathLength(point, tree, 0);
     }, 0) / this.model.numTrees;
     

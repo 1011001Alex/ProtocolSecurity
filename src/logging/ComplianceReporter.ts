@@ -28,6 +28,7 @@ import {
   MetricResult,
   EvidenceRecord,
   Recommendation,
+  EvidenceRequirement,
   LogEntry,
   LogSource,
   Alert,

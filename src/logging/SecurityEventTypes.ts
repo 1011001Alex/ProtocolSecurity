@@ -161,7 +161,7 @@ export interface DataEvent extends SecurityEvent {
 /**
  * Сетевые события
  */
-export interface NetworkEvent extends SecurityEvent {
+export interface NetworkEvent extends Omit<SecurityEvent, 'actor'> {
   category: SecurityCategory.NETWORK;
   eventType:
     | 'CONNECTION_ESTABLISHED'
@@ -211,7 +211,7 @@ export interface NetworkEvent extends SecurityEvent {
 /**
  * События угроз
  */
-export interface ThreatEvent extends SecurityEvent {
+export interface ThreatEvent extends Omit<SecurityEvent, 'actor'> {
   category: SecurityCategory.THREAT;
   eventType:
     | 'INTRUSION_ATTEMPT'
@@ -519,16 +519,5 @@ export const EventTypes = {
 } as const;
 
 // =============================================================================
-// ЭКСПОРТ
+// ЭКСПОРТ — типы уже экспортированы при определении
 // =============================================================================
-
-export {
-  AuthenticationEvent,
-  AuthorizationEvent,
-  DataEvent,
-  NetworkEvent,
-  ThreatEvent,
-  SystemEvent,
-  AuditEvent,
-  IncidentEvent
-};

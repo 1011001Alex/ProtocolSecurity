@@ -82,13 +82,13 @@ export class SecretCache extends EventEmitter {
     super();
     
     this.config = {
-      enabled: true,
-      ttl: this.DEFAULT_TTL,
-      maxEntries: 1000,
-      encryptInMemory: true,
-      encryptionAlgorithm: 'aes-256-gcm',
-      evictionStrategy: 'lru',
-      ...config
+      ...config,
+      enabled: config.enabled ?? true,
+      ttl: config.ttl ?? this.DEFAULT_TTL,
+      maxEntries: config.maxEntries ?? 1000,
+      encryptInMemory: config.encryptInMemory ?? true,
+      encryptionAlgorithm: config.encryptionAlgorithm ?? 'aes-256-gcm',
+      evictionStrategy: config.evictionStrategy ?? 'lru'
     };
     
     // Валидация ключа шифрования
@@ -573,7 +573,7 @@ export class SecretCache extends EventEmitter {
       decipher.setAuthTag(authTag!);
 
       // Расшифровка
-      let decrypted = decipher.update(encrypted);
+      let decrypted = decipher.update(encrypted, undefined, 'utf8');
       decrypted += decipher.final('utf8');
       
       return decrypted;

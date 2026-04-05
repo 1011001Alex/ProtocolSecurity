@@ -172,8 +172,10 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
     
     try {
       // Динамический импорт AWS SDK для избежания зависимости при сборке
-      const { SecretsManagerClient, ...commands } = await this.loadAWSSDK();
-      
+      const awsSdk = await this.loadAWSSDK();
+      const SecretsManagerClient = awsSdk.SecretsManagerClient as new (config: any) => any;
+      const commands = awsSdk;
+
       const clientConfig: Record<string, unknown> = {
         region: this.config.region,
         maxAttempts: this.config.maxRetries,
@@ -198,7 +200,7 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
       
       // Настройка role assumption
       if (this.config.roleArn) {
-        const { fromTemporaryCredentials } = await this.loadAWSSDK();
+        const fromTemporaryCredentials = awsSdk.fromTemporaryCredentials as (opts: { params: { RoleArn: string; RoleSessionName: string; ExternalId?: string } }) => any;
         clientConfig.credentials = fromTemporaryCredentials({
           params: {
             RoleArn: this.config.roleArn,
@@ -207,7 +209,7 @@ export class AWSSecretsBackend extends EventEmitter implements ISecretBackend {
           }
         });
       }
-      
+
       this.client = new SecretsManagerClient(clientConfig) as unknown as SecretsManagerClient;
       
       // Проверка подключения

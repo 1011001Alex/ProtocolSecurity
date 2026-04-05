@@ -383,7 +383,8 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
         updateSecret: async (vaultUrl: string, secretName: string, version: string, options?: any) => {
           const client = new SecretClient(vaultUrl, credential);
           return client.updateSecretProperties(
-            { name: secretName, version },
+            secretName,
+            version,
             options
           );
         },
@@ -429,7 +430,7 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
         },
         getCertificate: async (vaultUrl: string, certName: string, certVersion?: string) => {
           const client = new CertificateClient(vaultUrl, credential);
-          return client.getCertificate(certName, { version: certVersion });
+          return client.getCertificate(certName, certVersion ? { version: certVersion } as any : undefined);
         },
         createCertificate: async (vaultUrl: string, certName: string, policy: any) => {
           const client = new CertificateClient(vaultUrl, credential);
@@ -567,7 +568,7 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
         return null;
       }
       
-      const versionId = this.extractVersionFromId(targetVersion.id);
+      const versionId = String(this.extractVersionFromId(targetVersion.id));
       
       const response = await this.client!.getSecret(this.vaultUrl, secretId, versionId);
       
@@ -970,7 +971,7 @@ export class AzureKeyVaultBackend extends EventEmitter implements ISecretBackend
   async setAccessPolicies(policies: AccessPolicy[]): Promise<void> {
     await this.ensureInitialized();
     
-    await this.client!.setAccessPolicy(this.vaultUrl, policies);
+    await this.client!.setAccessPolicy(policies);
 
     logger.info('[AzureKeyVaultBackend] Установлены политики доступа');
     this.emit('access-policy:updated');

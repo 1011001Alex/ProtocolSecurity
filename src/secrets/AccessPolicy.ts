@@ -782,7 +782,7 @@ export class AccessPolicyManager extends EventEmitter {
    * Проверка MFA
    */
   private checkMFA(condition: PolicyCondition, context: AccessContext): boolean {
-    const required = condition.value as boolean;
+    const required = condition.value as boolean | undefined ?? false;
     const operator = condition.operator ?? 'equals';
     const mfaVerified = context.mfaVerified ?? false;
 

@@ -31,6 +31,28 @@ import {
 } from '../types/logging.types';
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Получение данных threat intel из метаданных лога
+ */
+function getThreatIntel(metadata?: Record<string, unknown>): {
+  isTor?: boolean;
+  isVpn?: boolean;
+  isProxy?: boolean;
+} {
+  if (!metadata || typeof metadata.threatIntel !== 'object' || metadata.threatIntel === null) {
+    return {};
+  }
+  return metadata.threatIntel as Record<string, unknown> as {
+    isTor?: boolean;
+    isVpn?: boolean;
+    isProxy?: boolean;
+  };
+}
+
+// ============================================================================
 // КОНСТАНТЫ
 // ============================================================================
 
@@ -173,6 +195,8 @@ interface CorrelationGroup {
   status: 'active' | 'completed' | 'expired';
   /** Детектированные атаки */
   detectedAttacks: AttackDetection[];
+  /** Добавление детектированной атаки */
+  addAttack(attack: AttackDetection): void;
   /** Создана */
   createdAt: string;
   /** Обновлена */
@@ -817,9 +841,9 @@ class AttackChainDetector {
       relatedLogs,
       source: {
         ip: sourceIp,
-        isTor: relatedLogs[0]?.context.metadata?.threatIntel?.isTor || false,
-        isVpn: relatedLogs[0]?.context.metadata?.threatIntel?.isVpn || false,
-        isProxy: relatedLogs[0]?.context.metadata?.threatIntel?.isProxy || false
+        isTor: getThreatIntel(relatedLogs[0]?.context.metadata).isTor || false,
+        isVpn: getThreatIntel(relatedLogs[0]?.context.metadata).isVpn || false,
+        isProxy: getThreatIntel(relatedLogs[0]?.context.metadata).isProxy || false
       },
       target: {
         endpoint: this.extractEndpoint(relatedLogs),
@@ -956,7 +980,7 @@ class AttackChainDetector {
    * Получение ссылок на документацию
    */
   private getReferences(category: OWASPAttackCategory): string[] {
-    const referencesMap: Record<OWASPAttackCategory, string[]> = {
+    const referencesMap: Partial<Record<OWASPAttackCategory, string[]>> = {
       [OWASPAttackCategory.INJECTION]: [
         'https://owasp.org/www-community/Injection_Flaws',
         'https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html'
@@ -971,9 +995,27 @@ class AttackChainDetector {
       ],
       [OWASPAttackCategory.BROKEN_ACCESS_CONTROL]: [
         'https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/'
+      ],
+      [OWASPAttackCategory.SENSITIVE_DATA_EXPOSURE]: [
+        'https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_Testing/'
+      ],
+      [OWASPAttackCategory.XML_EXTERNAL_ENTITIES]: [
+        'https://owasp.org/www-community/vulnerabilities/XML_External_Entity_(XXE)_Processing'
+      ],
+      [OWASPAttackCategory.SECURITY_MISCONFIGURATION]: [
+        'https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/02-Configuration_Testing/'
+      ],
+      [OWASPAttackCategory.INSECURE_DESERIALIZATION]: [
+        'https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html'
+      ],
+      [OWASPAttackCategory.VULNERABLE_COMPONENTS]: [
+        'https://owasp.org/www-community/Component_Analysis'
+      ],
+      [OWASPAttackCategory.INSUFFICIENT_LOGGING]: [
+        'https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/09-Testing_for_Weak_Authentication/'
       ]
     };
-    
+
     return referencesMap[category] || ['https://owasp.org/www-project-top-ten/'];
   }
 }

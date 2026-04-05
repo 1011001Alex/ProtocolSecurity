@@ -189,7 +189,7 @@ export class RiskScorer {
     
     const prioritizedAlert: PrioritizedAlert = {
       ...alert,
-      riskScore,
+      riskScore: riskScore.overall,
       priority,
       slaResponseTime,
       estimatedImpact,

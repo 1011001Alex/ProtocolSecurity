@@ -21,7 +21,9 @@ import {
   SecurityEvent,
   ThreatSeverity,
   ThreatCategory,
-  AttackType
+  ThreatStatus,
+  AttackType,
+  EntityType
 } from '../types/threat.types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -67,7 +69,7 @@ interface EndpointDetectionRule {
  */
 interface EndpointCondition {
   field: string;
-  operator: 'eq' | 'ne' | 'contains' | 'regex' | 'gt' | 'lt' | 'exists';
+  operator: 'eq' | 'ne' | 'contains' | 'regex' | 'gt' | 'lt' | 'exists' | 'in';
   value: any;
 }
 
@@ -540,7 +542,7 @@ export class EndpointDetector {
       title: `EDR: ${rule.name}`,
       description,
       severity: rule.severity,
-      status: 'new',
+      status: ThreatStatus.NEW,
       category: ThreatCategory.UNKNOWN,
       attackType: this.mapEventTypeToAttackType(event.eventType),
       source: 'EndpointDetector',
@@ -548,7 +550,7 @@ export class EndpointDetector {
       entities: [
         {
           id: uuidv4(),
-          type: 'host',
+          type: EntityType.HOST,
           name: event.hostname,
           value: event.endpointId,
           riskScore: event.severity === ThreatSeverity.CRITICAL ? 90 : 70,
@@ -561,7 +563,7 @@ export class EndpointDetector {
       ],
       mitreAttack: {
         tactics: [],
-        techniques: rule.mitreTechniques.map(id => ({ id, name: '' }))
+        techniques: rule.mitreTechniques.map(id => ({ id, name: '', description: '', url: '', tactics: [], platforms: [], permissionsRequired: [], dataSources: [], detection: '', mitigation: '' }))
       },
       riskScore: this.calculateAlertRiskScore(event, rule),
       confidence: 0.8,

@@ -93,9 +93,6 @@ const PATTERNS = {
   // Command injection
   COMMAND_INJECTION: /[;&|`$(){}[\]<>&]/,
 
-  // Email
-  EMAIL: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-
   // Credit card numbers (13-19 digits)
   CREDIT_CARD: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{1,7}\b/g,
 
@@ -743,9 +740,9 @@ export class LogParser {
       timestamp,
       level,
       source,
-      component: component || 'unknown',
-      hostname: context.hostname || this.hostname,
-      processId: context.metadata?.processId as number || process.pid,
+      component: typeof component === 'string' ? component : 'unknown',
+      hostname: typeof context.hostname === 'string' ? context.hostname : this.hostname,
+      processId: (typeof context.metadata?.processId === 'number' ? context.metadata.processId : process.pid) as number,
       message,
       context,
       fields: this.masker.maskObject(data),
@@ -1092,14 +1089,14 @@ export class LogParser {
     const timestamp = timeMatch ? this.timestampParser.parse(timeMatch[1])?.toISOString() : new Date().toISOString();
     const provider = providerMatch ? providerMatch[1] : 'unknown';
     const computer = computerMatch ? computerMatch[1] : this.hostname;
-    
+
     const log: LogEntry = {
       id: crypto.randomUUID(),
-      timestamp,
+      timestamp: timestamp || new Date().toISOString(),
       level,
       source: LogSource.SYSTEM,
-      component: provider,
-      hostname: computer,
+      component: provider || 'unknown',
+      hostname: computer || this.hostname,
       processId: process.pid,
       message,
       context: {
@@ -1371,9 +1368,9 @@ export class LogParser {
       timestamp,
       level,
       source,
-      component: component || 'unknown',
-      hostname: context.hostname || this.hostname,
-      processId: context.metadata?.processId as number || process.pid,
+      component: typeof component === 'string' ? component : 'unknown',
+      hostname: typeof context.hostname === 'string' ? context.hostname : this.hostname,
+      processId: (typeof context.metadata?.processId === 'number' ? context.metadata.processId : process.pid) as number,
       message,
       context,
       fields: this.masker.maskObject(fields),

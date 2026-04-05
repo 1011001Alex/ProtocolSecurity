@@ -31,6 +31,32 @@ import {
 } from '../types/logging.types';
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Получение данных threat intel из метаданных лога
+ */
+function getThreatIntel(metadata?: Record<string, unknown>): {
+  isMalicious?: boolean;
+  isTor?: boolean;
+  isVpn?: boolean;
+  isProxy?: boolean;
+  reputation?: number;
+} {
+  if (!metadata || typeof metadata.threatIntel !== 'object' || metadata.threatIntel === null) {
+    return {};
+  }
+  return metadata.threatIntel as Record<string, unknown> as {
+    isMalicious?: boolean;
+    isTor?: boolean;
+    isVpn?: boolean;
+    isProxy?: boolean;
+    reputation?: number;
+  };
+}
+
+// ============================================================================
 // OWASP TOP 10 2021 КАТЕГОРИИ И ПАТТЕРНЫ
 // ============================================================================
 
@@ -1046,19 +1072,19 @@ export class AttackDetector extends EventEmitter {
     
     const contextFactors: ContextFactors = {
       isFromSecuritySource: log.source === LogSource.SECURITY,
-      hasMaliciousIP: log.context.metadata?.threatIntel?.isMalicious || false,
+      hasMaliciousIP: getThreatIntel(log.context.metadata).isMalicious || false,
       hasSuspiciousUserAgent: this.isSuspiciousUserAgent(log.context.userAgent),
       isAfterHours: this.isAfterHours(log.timestamp),
       hasHighPrivilegeUser: false
     };
-    
+
     const confidence = this.confidenceScorer.calculate(
       OWASPAttackCategory.INJECTION,
       matches.length,
       INJECTION_PATTERNS.sqlInjection.length,
       contextFactors
     );
-    
+
     return {
       detected: confidence >= this.config.confidenceThreshold,
       attackType: OWASPAttackCategory.INJECTION,
@@ -1082,7 +1108,7 @@ export class AttackDetector extends EventEmitter {
     
     const contextFactors: ContextFactors = {
       isFromSecuritySource: log.source === LogSource.SECURITY,
-      hasMaliciousIP: log.context.metadata?.threatIntel?.isMalicious || false,
+      hasMaliciousIP: getThreatIntel(log.context.metadata).isMalicious || false,
       hasSuspiciousUserAgent: this.isSuspiciousUserAgent(log.context.userAgent),
       isAfterHours: this.isAfterHours(log.timestamp),
       hasHighPrivilegeUser: false
@@ -1118,7 +1144,7 @@ export class AttackDetector extends EventEmitter {
     
     const contextFactors: ContextFactors = {
       isFromSecuritySource: log.source === LogSource.SECURITY,
-      hasMaliciousIP: log.context.metadata?.threatIntel?.isMalicious || false,
+      hasMaliciousIP: (log.context.metadata?.threatIntel as any)?.isMalicious || false,
       hasSuspiciousUserAgent: false,
       isAfterHours: this.isAfterHours(log.timestamp),
       hasHighPrivilegeUser: false
@@ -1154,7 +1180,7 @@ export class AttackDetector extends EventEmitter {
     
     const contextFactors: ContextFactors = {
       isFromSecuritySource: log.source === LogSource.SECURITY,
-      hasMaliciousIP: log.context.metadata?.threatIntel?.isMalicious || false,
+      hasMaliciousIP: (log.context.metadata?.threatIntel as any)?.isMalicious || false,
       hasSuspiciousUserAgent: false,
       isAfterHours: this.isAfterHours(log.timestamp),
       hasHighPrivilegeUser: false
@@ -1190,7 +1216,7 @@ export class AttackDetector extends EventEmitter {
     
     const contextFactors: ContextFactors = {
       isFromSecuritySource: log.source === LogSource.SECURITY,
-      hasMaliciousIP: log.context.metadata?.threatIntel?.isMalicious || false,
+      hasMaliciousIP: (log.context.metadata?.threatIntel as any)?.isMalicious || false,
       hasSuspiciousUserAgent: false,
       isAfterHours: this.isAfterHours(log.timestamp),
       hasHighPrivilegeUser: false
@@ -1226,7 +1252,7 @@ export class AttackDetector extends EventEmitter {
     
     const contextFactors: ContextFactors = {
       isFromSecuritySource: log.source === LogSource.AUTH || log.source === LogSource.SECURITY,
-      hasMaliciousIP: log.context.metadata?.threatIntel?.isMalicious || false,
+      hasMaliciousIP: (log.context.metadata?.threatIntel as any)?.isMalicious || false,
       hasSuspiciousUserAgent: false,
       isAfterHours: this.isAfterHours(log.timestamp),
       hasHighPrivilegeUser: false
@@ -1295,10 +1321,10 @@ export class AttackDetector extends EventEmitter {
       port: log.fields?.sourcePort as number,
       country: log.context.geoLocation?.country,
       asn: log.context.geoLocation?.asn,
-      isTor: log.context.metadata?.threatIntel?.isTor || false,
-      isVpn: log.context.metadata?.threatIntel?.isVpn || false,
-      isProxy: log.context.metadata?.threatIntel?.isProxy || false,
-      reputation: log.context.metadata?.threatIntel?.reputation || 50
+      isTor: getThreatIntel(log.context.metadata).isTor || false,
+      isVpn: getThreatIntel(log.context.metadata).isVpn || false,
+      isProxy: getThreatIntel(log.context.metadata).isProxy || false,
+      reputation: getThreatIntel(log.context.metadata).reputation || 50
     };
     
     const target: AttackTarget = {

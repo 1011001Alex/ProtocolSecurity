@@ -43,6 +43,9 @@ type GcpSecretResponse = {
   versionIds?: string[];
   replication?: unknown;
   topics?: Array<{ name: string }>;
+  etag?: string;
+  state?: string;
+  destroyTime?: { toDate: () => Date };
 };
 
 interface SecretManagerClient {
@@ -78,7 +81,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   private readonly config: GCPSecretsBackendConfig;
   
   /** GCP клиент */
-  private client!: SecretManagerClient;
+  private client: SecretManagerClient | null = null;
   
   /** Флаг инициализации */
   private isInitialized = false;
@@ -201,7 +204,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       const secretName = `${this.pathPrefix}/${secretId}`;
 
       // Получение последней версии
-      const [response] = await this.client.accessSecretVersion({
+      const [response] = await this.client!.accessSecretVersion({
         name: `${secretName}/versions/latest`
       });
 
@@ -210,7 +213,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
       }
 
       // Получение метаданных секрета
-      const [secret] = await this.client.getSecret({
+      const [secret] = await this.client!.getSecret({
         name: secretName
       });
 
@@ -249,7 +252,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     try {
       const secretName = `${this.pathPrefix}/${secretId}`;
 
-      const [response] = await this.client.accessSecretVersion({
+      const [response] = await this.client!.accessSecretVersion({
         name: `${secretName}/versions/${version}`
       });
 
@@ -290,7 +293,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     const secretName = `${this.pathPrefix}/${secret.id}`;
 
     // Создание секрета
-    const [created] = await this.client.createSecret({
+    const [created] = await this.client!.createSecret({
       parent: `projects/${this.config.projectId}`,
       secretId: secret.id,
       secret: {
@@ -302,7 +305,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     });
 
     // Добавление первой версии
-    const [version] = await this.client.addSecretVersion({
+    const [version] = await this.client!.addSecretVersion({
       parent: secretName,
       payload: {
         data: Buffer.from(secret.value, 'utf8')
@@ -344,7 +347,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     const secretName = `${this.pathPrefix}/${secretId}`;
 
     // Добавление новой версии
-    const [version] = await this.client.addSecretVersion({
+    const [version] = await this.client!.addSecretVersion({
       parent: secretName,
       payload: {
         data: Buffer.from(value, 'utf8')
@@ -353,7 +356,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
     // Обновление метаданных если есть
     if (metadata) {
-      await this.client.updateSecret({
+      await this.client!.updateSecret({
         secret: {
           name: secretName,
           labels: metadata as Record<string, string>
@@ -387,7 +390,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   async deleteSecret(secretId: string): Promise<void> {
     await this.ensureInitialized();
     
-    await this.client.deleteSecret({
+    await this.client!.deleteSecret({
       name: `${this.pathPrefix}/${secretId}`
     });
     
@@ -407,7 +410,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   async listVersions(secretId: string): Promise<SecretVersion[]> {
     await this.ensureInitialized();
 
-    const [versions] = await this.client.listSecretVersions({
+    const [versions] = await this.client!.listSecretVersions({
       parent: `${this.pathPrefix}/${secretId}`
     });
 
@@ -460,8 +463,8 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
    */
   async destroy(): Promise<void> {
     if (this.client) {
-      this.client.close();
-      this.client = undefined;
+      this.client!.close();
+      this.client = null;
     }
     
     this.secretCache.clear();
@@ -482,7 +485,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     }
 
     try {
-      const [secret] = await this.client.getSecret({
+      const [secret] = await this.client!.getSecret({
         name: `${this.pathPrefix}/${secretId}`
       });
 
@@ -567,7 +570,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   async setIamPolicy(secretId: string, policy: Record<string, unknown>): Promise<void> {
     await this.ensureInitialized();
 
-    await this.client.setIamPolicy({
+    await this.client!.setIamPolicy({
       resource: `${this.pathPrefix}/${secretId}`,
       policy: policy as any
     });
@@ -586,7 +589,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     await this.ensureInitialized();
 
     try {
-      const [policy] = await this.client.getIamPolicy({
+      const [policy] = await this.client!.getIamPolicy({
         resource: `${this.pathPrefix}/${secretId}`
       });
 
@@ -611,7 +614,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
 
     const secretName = `${this.pathPrefix}/${secretId}`;
 
-    await this.client.updateSecret({
+    await this.client!.updateSecret({
       secret: {
         name: secretName,
         rotation: {
@@ -635,7 +638,7 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
   async destroyVersion(secretId: string, version: number): Promise<void> {
     await this.ensureInitialized();
     
-    await this.client.destroySecretVersion({
+    await this.client!.destroySecretVersion({
       name: `${this.pathPrefix}/${secretId}/versions/${version}`
     });
 
@@ -653,15 +656,16 @@ export class GCPSecretBackend extends EventEmitter implements ISecretBackend {
     await this.ensureInitialized();
     
     const secret = await this.getSecretMetadata(secretId);
-    
+
     if (!secret) {
       throw new SecretBackendError(`Секрет ${secretId} не найден`, this.type);
     }
-    
-    await this.client.updateSecret({
+
+    const existingTopics = (secret as any).topics ?? [];
+    await this.client!.updateSecret({
       secret: {
         name: `${this.pathPrefix}/${secretId}`,
-        topics: [...(secret.topics ?? []), { name: topicName }]
+        topics: [...existingTopics, { name: topicName }]
       },
       updateMask: 'topics'
     });

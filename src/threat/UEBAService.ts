@@ -339,9 +339,9 @@ export class UEBAService {
     const alerts: SecurityAlert[] = [];
     
     for (const event of events) {
-      const alert = await this.processEvent(event);
-      if (alert) {
-        alerts.push(alert);
+      const alertArr = await this.processEvent(event);
+      if (alertArr) {
+        alerts.push(...alertArr);
       }
     }
     

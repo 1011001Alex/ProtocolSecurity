@@ -152,8 +152,8 @@ export class PaymentCardEncryption extends EventEmitter {
     }
 
     this.emit('initialized', {
-      algorithm: this.config.algorithm,
-      tokenizationEnabled: this.config.enableTokenization
+      algorithm: this.config.algorithm || 'AES-256-GCM',
+      tokenizationEnabled: this.config.enableTokenization ?? true
     });
   }
 
@@ -189,7 +189,7 @@ export class PaymentCardEncryption extends EventEmitter {
         : '';
 
       const encryptionMetadata = {
-        algorithm: this.config.algorithm,
+        algorithm: this.config.algorithm || 'AES-256-GCM',
         keyId: this.config.hsmKeyId || 'local-key',
         encryptedAt: new Date(),
         iv: iv.toString('base64'),
@@ -306,7 +306,8 @@ export class PaymentCardEncryption extends EventEmitter {
     const encrypted = Buffer.from(encryptedPan, 'base64');
     let decrypted: Buffer;
 
-    if (this.config.algorithm.includes('GCM') && authTag) {
+    const alg = this.config.algorithm || 'AES-256-GCM';
+    if (alg.includes('GCM') && authTag) {
       const decipher = crypto.createDecipheriv(
         this.config.algorithm === 'AES-256-GCM' ? 'aes-256-gcm' : 'aes-128-gcm',
         this.encryptionKey,
@@ -378,7 +379,7 @@ export class PaymentCardEncryption extends EventEmitter {
       lastFourDigits,
       bin,
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + this.config.tokenTtlHours * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + (this.config.tokenTtlHours || 24) * 60 * 60 * 1000),
       metadata: {
         originalPanHash: this.hashPAN(pan)
       }
@@ -657,8 +658,8 @@ export class PaymentCardEncryption extends EventEmitter {
     return {
       tokensCached: this.tokenCache.size,
       auditLogSize: this.auditLog.length,
-      algorithm: this.config.algorithm,
-      tokenizationEnabled: this.config.enableTokenization
+      algorithm: this.config.algorithm || 'AES-256-GCM',
+      tokenizationEnabled: this.config.enableTokenization ?? true
     };
   }
 

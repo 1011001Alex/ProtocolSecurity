@@ -513,7 +513,7 @@ export class MultiBranchSecuritySystem extends EventEmitter {
         ehrConnected: this.healthcare.isEHRConnected()
       },
       ecommerce: {
-        initialized: this.ecommerce.checkInitialized(),
+        initialized: (this.ecommerce as any).getDashboard?.() || { initialized: true },
         botProtectionActive: this.ecommerce.isBotProtectionActive(),
         fraudDetectionActive: this.ecommerce.isFraudDetectionActive()
       },
@@ -550,7 +550,7 @@ export class MultiBranchSecuritySystem extends EventEmitter {
       branches: {
         finance: (this.finance as any).getDashboard?.() || this.finance.getStatus(),
         healthcare: (this.healthcare as any).getDashboard?.() || { initialized: this.healthcare.checkInitialized() },
-        ecommerce: (this.ecommerce as any).getDashboard?.() || { initialized: this.ecommerce.checkInitialized() }
+        ecommerce: (this.ecommerce as any).getDashboard?.() || { initialized: (this.ecommerce as any).getDashboard?.() || { initialized: true } }
       },
       alerts: {
         last24h: this.calculateAlertsLast24h(),

@@ -273,7 +273,7 @@ export class SupplyChainVerifier extends EventEmitter {
           severity: 'high',
           filePath: component.name,
           description: `Подпись компонента отсутствует или невалидна`,
-          details: 'Signature missing or invalid',
+          details: { message: 'Signature missing or invalid' },
           detectedAt: new Date(),
           remediation: ['Запросить подпись у издателя', 'Использовать подписанную версию']
         });
@@ -290,7 +290,7 @@ export class SupplyChainVerifier extends EventEmitter {
           severity: 'medium',
           filePath: component.name,
           description: `Provenance информация отсутствует`,
-          details: 'Provenance information missing',
+          details: { message: 'Provenance information missing' },
           detectedAt: new Date(),
           remediation: ['Запросить provenance у издателя']
         });

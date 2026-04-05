@@ -517,7 +517,14 @@ export class NetworkAnalyzer {
           description: `Обнаружена аномалия TCP: некорректная комбинация флагов SYN+FIN`,
           evidence: {
             flows: [],
-            statistics: {},
+            statistics: {
+              packetsPerSecond: 0,
+              bytesPerSecond: 0,
+              connectionsPerSecond: 0,
+              uniqueDestinations: 0,
+              protocolDistribution: {},
+              portDistribution: {}
+            },
             indicators: [`Flags: ${flags.join(',')}`],
             packets: [packet]
           },
@@ -525,7 +532,7 @@ export class NetworkAnalyzer {
           confidence: 0.9
         };
       }
-      
+
       // NULL scan (нет флагов)
       if (flags.length === 0) {
         return {
@@ -535,7 +542,14 @@ export class NetworkAnalyzer {
           description: `Обнаружена аномалия TCP: NULL scan (отсутствие флагов)`,
           evidence: {
             flows: [],
-            statistics: {},
+            statistics: {
+              packetsPerSecond: 0,
+              bytesPerSecond: 0,
+              connectionsPerSecond: 0,
+              uniqueDestinations: 0,
+              protocolDistribution: {},
+              portDistribution: {}
+            },
             indicators: ['No TCP flags'],
             packets: [packet]
           },
@@ -543,7 +557,7 @@ export class NetworkAnalyzer {
           confidence: 0.85
         };
       }
-      
+
       // XMAS scan (все флаги)
       if (flags.includes('FIN') && flags.includes('PSH') && flags.includes('URG')) {
         return {
@@ -553,7 +567,14 @@ export class NetworkAnalyzer {
           description: `Обнаружена аномалия TCP: XMAS scan`,
           evidence: {
             flows: [],
-            statistics: {},
+            statistics: {
+              packetsPerSecond: 0,
+              bytesPerSecond: 0,
+              connectionsPerSecond: 0,
+              uniqueDestinations: 0,
+              protocolDistribution: {},
+              portDistribution: {}
+            },
             indicators: [`Flags: ${flags.join(',')}`],
             packets: [packet]
           },

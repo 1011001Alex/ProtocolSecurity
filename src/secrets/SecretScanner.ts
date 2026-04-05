@@ -942,7 +942,7 @@ export class SecretScanner extends EventEmitter {
 
     // Удаление из известных хешей
     if (detection.metadata?.valueHash) {
-      this.knownSecretHashes.delete(detection.metadata.valueHash);
+      this.knownSecretHashes.delete(String(detection.metadata.valueHash));
     }
 
     logger.info(`[SecretScanner] Ложное срабатывание: ${detectionId}`);

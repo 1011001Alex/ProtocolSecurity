@@ -151,7 +151,7 @@ class BulkIndexer {
   add(index: string, id: string, document: object): void {
     this.buffer.push(
       { action: { index: { _index: index, _id: id } } },
-      { body: document }
+      { action: {}, body: document }
     );
     
     // Проверка размера буфера
@@ -698,7 +698,7 @@ export class ElasticsearchClient extends EventEmitter {
         const index = this.getIndexName(log.timestamp);
         actions.push(
           { action: { index: { _index: index, _id: log.id } } },
-          { body: log }
+          { action: {}, body: log }
         );
       }
       
@@ -802,7 +802,7 @@ export class ElasticsearchClient extends EventEmitter {
     
     const query: SearchQuery = {
       indices,
-      query: builder.build().query || {},
+      query: (builder.build().query || {}) as unknown as Record<string, unknown>,
       size: options?.size || 100,
       from: options?.from || 0
     };
@@ -854,9 +854,10 @@ export class ElasticsearchClient extends EventEmitter {
   ): Promise<Record<string, unknown>> {
     const searchQuery: SearchQuery = {
       indices,
-      query: query || { match_all: {} },
+      query: query || { match_all: {} } as unknown as Record<string, unknown>,
       aggregations,
-      size: 0
+      size: 0,
+      from: 0
     };
     
     const result = await this.search(searchQuery);
@@ -1051,7 +1052,7 @@ export class ElasticsearchClient extends EventEmitter {
  * Результат scroll поиска
  */
 interface ScrollResult {
-  hits: ElasticsearchHit[];
+  hits: ElasticsearchHit<LogEntry>[];
   scrollId: string;
   total: number;
 }

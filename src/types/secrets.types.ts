@@ -358,7 +358,7 @@ export interface PolicyCondition {
   /** Тип условия */
   type: 'ip_range' | 'time_range' | 'mfa_required' | 'role' | 'attribute';
   /** Значение условия */
-  value: string | string[] | Record<string, unknown>;
+  value: string | string[] | Record<string, unknown> | boolean;
   /** Оператор сравнения */
   operator?: 'equals' | 'contains' | 'in' | 'not_in' | 'greater_than' | 'less_than';
 }
@@ -473,6 +473,8 @@ export interface AuditLogEntry {
   }[];
   /** ID сессии */
   sessionId?: string;
+  /** ID операции для трекинга */
+  operationId?: string;
   /** Backend, который использовался */
   backend: SecretBackendType;
 }
@@ -776,6 +778,8 @@ export interface BackendSecret {
   updatedAt?: Date;
   /** Статус */
   status: SecretStatus;
+  /** Тип контента */
+  contentType?: string;
 }
 
 /**

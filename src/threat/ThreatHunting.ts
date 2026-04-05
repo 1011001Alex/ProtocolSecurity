@@ -70,7 +70,8 @@ export class ThreatHuntingService {
       end: new Date()
     },
     topFindings: [],
-    anomaliesDetected: 0
+    anomaliesDetected: 0,
+    lastUpdated: new Date()
   };
 
   constructor(config?: Partial<ThreatHuntingConfig>) {
@@ -506,7 +507,8 @@ export class ThreatHuntingService {
           end: new Date()
         },
         topFindings: findings.slice(0, 5).map(f => f.title),
-        anomaliesDetected: findings.length
+        anomaliesDetected: findings.length,
+        lastUpdated: new Date()
       },
       recommendations: this.generateRecommendations(findings, query),
     };

@@ -574,9 +574,9 @@ export class ThreatIntelligenceService {
       validUntil: stix.valid_until ? new Date(stix.valid_until) : undefined,
       labels: stix.labels || [],
       confidence: stix.confidence || 50,
-      severity: this.mapSeverity(stix.labels),
+      severity: this.mapSeverity(stix.labels || []),
       externalReferences: stix.external_references?.map(this.convertExternalRef) || [],
-      killChainPhases: stix.kill_chain_phases?.map(kc => this.mapKillChainPhase(kc)) || [],
+      killChainPhases: (stix.kill_chain_phases?.map(kc => this.mapKillChainPhase(kc)) ?? []).filter((v): v is KillChainPhase => v !== undefined),
       createdBy: stix.created_by_ref || '',
       created: new Date(stix.created),
       modified: new Date(stix.modified)
@@ -961,7 +961,7 @@ export class ThreatIntelligenceService {
       'strategic': 'strategic'
     };
     
-    return mapping[level?.toLowerCase()] || 'intermediate';
+    return mapping[level?.toLowerCase() ?? ''] || 'intermediate';
   }
 
   /**
@@ -976,8 +976,8 @@ export class ThreatIntelligenceService {
       'organization': 'organization',
       'government': 'government'
     };
-    
-    return mapping[level?.toLowerCase()] || 'organization';
+
+    return mapping[level?.toLowerCase() ?? ''] || 'organization';
   }
 
   // ============================================================================

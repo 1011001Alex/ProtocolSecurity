@@ -25,9 +25,9 @@ import {
   updateRequestContext,
   setRequestUserId,
   setRequestSessionId,
-  runInRequestContext,
-  RequestContext
+  runInRequestContext
 } from './RequestContextLogger';
+import type { RequestContext } from './RequestContextLogger';
 import {
   LogLevel,
   LogSource,
@@ -270,8 +270,7 @@ export {
   updateRequestContext,
   setRequestUserId,
   setRequestSessionId,
-  runInRequestContext,
-  RequestContext
+  runInRequestContext
 };
 
 export type {

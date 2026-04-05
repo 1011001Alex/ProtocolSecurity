@@ -745,14 +745,14 @@ export class DynamicSecretsManager extends EventEmitter {
 
     try {
       // Генерация ключевой пары
-      keyPair = generateKeyPairSync(keyType, {
-        modulusLength: keyLength,
+      keyPair = generateKeyPairSync(keyType as any, {
+        modulusLength: keyLength as number,
         publicKeyEncoding: {
-          type: 'spki',
-          format: 'pem'
+          type: 'spki' as const,
+          format: 'pem' as const
         },
         privateKeyEncoding: {
-          type: 'pkcs8',
+          type: 'pkcs8' as const,
           format: 'pem'
         }
       });

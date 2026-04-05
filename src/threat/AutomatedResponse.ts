@@ -343,6 +343,9 @@ export class AutomatedResponseService {
           value: AttackType.BRUTE_FORCE
         },
         {
+          field: 'riskScore',
+          operator: 'gte',
+          value: 70,
           riskScoreMin: 70
         }
       ],
@@ -664,7 +667,7 @@ export class AutomatedResponseService {
       case 'eq':
         return value === condition.value;
       case 'gte':
-        return value >= (condition.value || condition.riskScoreMin);
+        return value >= (condition.value as number ?? condition.riskScoreMin ?? 0);
       case 'in':
         return Array.isArray(condition.value) && condition.value.includes(value);
       default:

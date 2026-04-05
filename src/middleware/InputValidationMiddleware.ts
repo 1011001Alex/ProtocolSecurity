@@ -244,16 +244,22 @@ function getLogger(): SecureLogger {
       'InputValidationMiddleware',
       {
         level: LogLevel.INFO,
-        transports: [{ type: 'console', params: {} }],
+        transports: [{ type: 'console', params: {}, level: LogLevel.INFO }],
         enableColors: true,
+        enableTimestamp: true,
+        enableProcessInfo: true,
         format: 'structured'
-      },
+      } as any,
       {
-        environment: process.env.NODE_ENV || 'development',
+        environment: 'development' as const,
         region: 'local',
         version: '1.0.0',
-        serviceName: 'InputValidationMiddleware'
-      }
+        serviceName: 'InputValidationMiddleware',
+        timezone: 'UTC',
+        enableAudit: true,
+        enableDebug: false,
+        traceSampleRate: 0.1
+      } as any
     );
   }
   return cachedLogger;

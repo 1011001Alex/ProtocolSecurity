@@ -223,7 +223,7 @@ export class HSMIntegration extends EventEmitter {
       let ListClustersCommand: any;
       
       try {
-        const awsModule = await import('@aws-sdk/client-cloudhsmv2');
+        const awsModule = await import(('@aws-sdk/client-cloudhsmv2' as any));
         CloudHSMV2Client = awsModule.CloudHSMV2Client;
         ListClustersCommand = awsModule.ListClustersCommand;
       } catch {
@@ -275,7 +275,7 @@ export class HSMIntegration extends EventEmitter {
 
     try {
       // Проверка доступности кластера
-      const ListClustersCommand: any = (await import('@aws-sdk/client-cloudhsmv2')).ListClustersCommand;
+      const ListClustersCommand: any = (await import(('@aws-sdk/client-cloudhsmv2' as any))).ListClustersCommand;
       const command = new ListClustersCommand({});
       await this.hsmClient.client.send(command);
     } catch (error) {
@@ -295,7 +295,7 @@ export class HSMIntegration extends EventEmitter {
       let ManagedHSMClient: any;
       
       try {
-        const azureModule = await import('@azure/keyvault-managedhsm');
+        const azureModule = await import('@azure/keyvault-managedhsm' as any);
         ManagedHSMClient = azureModule.ManagedHSMClient;
       } catch {
         this.hsmClient = {
@@ -554,7 +554,7 @@ export class HSMIntegration extends EventEmitter {
     
     const command = new CreateKeyCommand({
       KeyUsage: options.usage.includes('ENCRYPT') ? 'ENCRYPT_DECRYPT' : 'SIGN_VERIFY',
-      CustomerMasterKeySpec: this.mapKeyTypeToKMS(options.keyType, options.keySize),
+      CustomerMasterKeySpec: this.mapKeyTypeToKMS(options.keyType, options.keySize) as any,
       Origin: 'AWS_CLOUDHSM'
     });
 
@@ -1246,15 +1246,12 @@ export class HSMIntegration extends EventEmitter {
    */
   private mapKeyTypeToKMS(keyType: HSMKeyType, keySize: number): string {
     const typeMap: Record<HSMKeyType, string> = {
-      'RSA-2048': 'RSA_2048',
-      'RSA-3072': 'RSA_3072',
-      'RSA-4096': 'RSA_4096',
-      'ECC-NIST-P256': 'ECC_NIST_P256',
-      'ECC-NIST-P384': 'ECC_NIST_P384',
-      'ECC-NIST-P521': 'ECC_NIST_P521',
-      'ECC-SECG-P256K1': 'ECC_SECG_P256K1',
-      'AES-128': 'AES_128',
-      'AES-256': 'AES_256'
+      'RSA': keySize <= 2048 ? 'RSA_2048' : keySize <= 3072 ? 'RSA_3072' : 'RSA_4096',
+      'EC': keySize <= 256 ? 'ECC_NIST_P256' : keySize <= 384 ? 'ECC_NIST_P384' : 'ECC_NIST_P521',
+      'AES': keySize <= 128 ? 'AES_128' : 'AES_256',
+      'ED25519': 'ECC_NIST_P256',
+      'DES3': 'AES_128',
+      'HMAC': 'AES_256'
     };
     return typeMap[keyType] || `SYMMETRIC_DEFAULT`;
   }
@@ -1295,7 +1292,7 @@ export class HSMIntegration extends EventEmitter {
     connected: boolean;
     provider?: string;
     keysCached: number;
-    healthStatus: typeof this.healthStatus;
+    healthStatus: Record<string, any>;
     auditLogSize: number;
   } {
     return {

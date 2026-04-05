@@ -13,6 +13,7 @@ import {
   SecurityAlert,
   ThreatSeverity,
   ThreatCategory,
+  ThreatStatus,
   AttackType,
   MitreAttackInfo,
   MitreTactic,
@@ -454,8 +455,8 @@ export class CorrelationEngine {
     const startTime = events[0].timestamp;
     const endTime = events[events.length - 1].timestamp;
     
-    const uniqueSources = new Set(events.map(e => e.sourceIp || e.hostname).filter(Boolean));
-    const uniqueTargets = new Set(events.map(e => e.destinationIp).filter(Boolean));
+    const uniqueSources = new Set(events.map(e => e.sourceIp || e.hostname).filter((v): v is string => Boolean(v)));
+    const uniqueTargets = new Set(events.map(e => e.destinationIp).filter((v): v is string => Boolean(v)));
     
     // Определение серьезности
     let severity = ThreatSeverity.LOW;
@@ -617,7 +618,7 @@ export class CorrelationEngine {
       title: `Корреляция: ${correlatedEvent.ruleName}`,
       description,
       severity,
-      status: 'new',
+      status: ThreatStatus.NEW,
       category: ThreatCategory.UNKNOWN,
       attackType: AttackType.UNKNOWN,
       source: 'CorrelationEngine',
@@ -641,7 +642,7 @@ export class CorrelationEngine {
       timeline: correlatedEvent.events.map(e => ({
         timestamp: e.timestamp,
         event: e.eventType,
-        details: e.description
+        details: JSON.stringify(e.rawEvent)
       })),
       evidence: [],
       response: {

@@ -278,7 +278,7 @@ export class KeyManager extends EventEmitter {
     }
     if (algorithm.includes('Ed25519') || algorithm.includes('Ed448')) {
       const type = algorithm.includes('Ed448') ? 'ed448' : 'ed25519';
-      const keyPair = crypto.generateKeyPairSync(type);
+      const keyPair = crypto.generateKeyPairSync(type as any);
       return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey };
     }
     const keyPair = crypto.generateKeyPairSync('rsa', { modulusLength: keySize || 2048 });

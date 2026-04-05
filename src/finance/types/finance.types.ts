@@ -133,6 +133,9 @@ export interface FraudScore {
   /** Explanation for humans */
   explanation: string;
 
+  /** Additional metadata */
+  metadata?: Record<string, unknown>;
+
   /** Analysis timestamp */
   analyzedAt: Date;
 }
@@ -307,10 +310,13 @@ export interface SuspiciousActivityReport {
   supportingDocs: string[];
   
   /** Filing status */
-  status: 'DRAFT' | 'FILED' | 'SUBMITTED' | 'ACCEPTED';
-  
+  status: 'DRAFT' | 'PENDING_REVIEW' | 'PENDING_APPROVAL' | 'FILED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'CLOSED';
+
   /** Filing date */
   filingDate?: Date;
+
+  /** Date created */
+  createdAt?: Date;
 }
 
 /**

@@ -680,10 +680,10 @@ class RuleEvaluator {
           return { matched: Number(value) <= Number(condition.value), value };
         
         case RuleOperator.IN:
-          return { matched: condition.values?.includes(value), value };
-        
+          return { matched: condition.values?.includes(value) ?? false, value };
+
         case RuleOperator.NOT_IN:
-          return { matched: !condition.values?.includes(value), value };
+          return { matched: condition.values?.includes(value) === false, value };
         
         case RuleOperator.REGEX: {
           const flags = condition.flags || 'i';
@@ -1221,7 +1221,7 @@ export class SIEMEngine extends EventEmitter {
         ? this.interpolateTemplate(action.template, log)
         : `Rule ${result.ruleName} triggered`,
       severity,
-      status: 'new',
+      status: 'new' as any,
       category: this.getRuleCategory(result.ruleId),
       tags: this.getRuleTags(result.ruleId),
       relatedLogs: result.matchedLogs,

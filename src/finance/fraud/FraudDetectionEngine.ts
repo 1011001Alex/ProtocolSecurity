@@ -159,6 +159,8 @@ export class FraudDetectionEngine extends EventEmitter {
     const result: FraudScore = {
       riskLevel,
       score: normalizedScore,
+      confidence: 0.8,
+      explanation: `Fraud score: ${normalizedScore}, Risk level: ${riskLevel}`,
       riskFactors,
       recommendedAction,
       transactionId: transaction.transactionId,

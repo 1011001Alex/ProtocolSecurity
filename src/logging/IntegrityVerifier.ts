@@ -197,11 +197,11 @@ class MerkleTree {
     }
     
     // Создание листьев
-    let nodes = this.leaves.map((hash, index) => ({
+    let nodes: MerkleNode[] = this.leaves.map((hash, index) => ({
       hash,
       index
     }));
-    
+
     // Построение дерева
     while (nodes.length > 1) {
       const newLevel: MerkleNode[] = [];
@@ -250,7 +250,7 @@ class MerkleTree {
     
     const proof: Array<{ hash: string; position: 'left' | 'right' }> = [];
     let currentIndex = index;
-    let nodes = this.leaves.map((hash, i) => ({ hash, index: i }));
+    let nodes: MerkleNode[] = this.leaves.map((hash, i) => ({ hash, index: i }));
     
     while (nodes.length > 1) {
       const newLevel: MerkleNode[] = [];

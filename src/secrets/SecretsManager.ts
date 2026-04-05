@@ -167,6 +167,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: 'system',
         success: true,
+        ipAddress: 'system',
         metadata: { event: 'rotation_started' }
       });
     });
@@ -179,6 +180,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: 'system',
         success: true,
+        ipAddress: 'system',
         metadata: { event: 'rotation_completed' }
       });
     });
@@ -191,6 +193,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: 'system',
         success: false,
+        ipAddress: 'system',
         errorMessage: error.message
       });
     });
@@ -208,6 +211,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: lease.secretId,
         performedBy: 'system',
         success: true,
+        ipAddress: 'system',
         metadata: { leaseId: lease.leaseId, reason: 'expired' }
       });
     });
@@ -221,6 +225,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: leak.secretName,
         performedBy: 'scanner',
         success: true,
+        ipAddress: 'system',
         metadata: { leak, event: 'leak_detected' }
       });
       
@@ -536,6 +541,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secret.name,
         performedBy: context.subjectId,
         success: false,
+        ipAddress: context.ipAddress,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         errorMessage: error instanceof Error ? error.message : String(error),
         operationId
@@ -622,6 +628,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: context.subjectId,
         success: false,
+        ipAddress: context.ipAddress,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         errorMessage: error instanceof Error ? error.message : String(error),
         operationId
@@ -696,6 +703,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: context.subjectId,
         success: false,
+        ipAddress: context.ipAddress,
         errorCode: error instanceof Error ? error.name : 'UnknownError',
         errorMessage: error instanceof Error ? error.message : String(error),
         operationId
@@ -788,6 +796,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: context.subjectId,
         success: true,
+        ipAddress: context.ipAddress,
         metadata: { version },
         operationId
       });
@@ -849,6 +858,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: context.subjectId,
         success: true,
+        ipAddress: context.ipAddress,
         metadata: { version, reason },
         operationId
       });
@@ -930,10 +940,11 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: lease.secretId,
         performedBy: context.subjectId,
         success: true,
+        ipAddress: context.ipAddress,
         metadata: { leaseId },
         operationId
       });
-      
+
       return {
         success: true,
         data: lease,
@@ -978,6 +989,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: lease.secretId,
         performedBy: context.subjectId,
         success: true,
+        ipAddress: context.ipAddress,
         metadata: { leaseId },
         operationId
       });
@@ -1024,6 +1036,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secret.type,
         performedBy: context.subjectId,
         success: true,
+        ipAddress: context.ipAddress,
         metadata: { type: 'dynamic', dynamicType: config.type },
         operationId
       });
@@ -1200,6 +1213,7 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
       secretName: secretId,
       performedBy: context.subjectId ?? 'unknown',
       success: true,
+      ipAddress: context.ipAddress ?? 'unknown',
       metadata: { context }
     });
   }
@@ -1334,9 +1348,10 @@ export class SecretsManager extends EventEmitter implements ISecretsManager {
         secretName: secretId,
         performedBy: context.subjectId,
         success: true,
+        ipAddress: context.ipAddress,
         operationId
       });
-      
+
       return {
         success: true,
         data: {
@@ -1407,7 +1422,6 @@ export class SecretsManagerFactory {
 
 export {
   SecretCache,
-  SecretCacheFactory,
   AccessPolicyManager,
   SecretVersioningManager,
   SecretLeaseManager,

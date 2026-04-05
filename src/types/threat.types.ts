@@ -196,7 +196,8 @@ export enum MLModelType {
   AUTOENCODER = 'autoencoder',            // Для снижения размерности
   RANDOM_FOREST = 'random_forest',        // Для классификации
   GRADIENT_BOOSTING = 'gradient_boosting', // Для классификации
-  CLUSTERING = 'clustering'               // Для кластеризации
+  CLUSTERING = 'clustering',               // Для кластеризации
+  NEURAL_NETWORK = 'neural_network'        // Для классификации угроз
 }
 
 /**

@@ -553,7 +553,7 @@ class NotificationSender {
     }
     
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      const value = (alert as Record<string, unknown>)[key];
+      const value = (alert as unknown as Record<string, unknown>)[key];
       return value !== undefined ? String(value) : match;
     });
   }

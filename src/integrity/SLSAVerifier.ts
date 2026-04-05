@@ -496,18 +496,15 @@ export class SLSAVerifier extends EventEmitter {
     const checks: SLSALevelCheck[] = [];
     
     // Проверка 4.1: Two-person review
-    const hasTwoPersonReview = provenance.build.internalParameters?.reviewers?.length >= 2 ||
-                               provenance.build.buildConfig?.reviewers?.length >= 2 ||
-                               this.config.requireTwoPersonReview === false; // Если не требуется
-    
+    const reviewers = (provenance.build.internalParameters?.reviewers as string[]) || [];
+    const hasTwoPersonReview = reviewers.length >= 2 || this.config.requireTwoPersonReview === false;
+
     checks.push({
       level: 4,
       check: 'two_person_review',
       requirement: 'Изменения должны проходить рецензирование двумя лицами',
       passed: hasTwoPersonReview,
-      evidence: provenance.build.internalParameters?.reviewers 
-        ? provenance.build.internalParameters.reviewers 
-        : []
+      evidence: reviewers
     });
     
     // Проверка 4.2: Воспроизводимая сборка

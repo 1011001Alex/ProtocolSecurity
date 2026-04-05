@@ -143,7 +143,7 @@ export class AWSKMSProvider extends HSMProvider {
         Description: params.description,
         KeyUsage: params.keyType === 'ASYMMETRIC_SIGN' ? 'SIGN_VERIFY' : 'ENCRYPT_DECRYPT',
         KeySpec: this.mapAWSKeySpec(params),
-        Tags: params.tags ? Object.entries(params.tags).map(([Key, Value]) => ({ Key, Value })) : undefined,
+        Tags: params.tags ? Object.entries(params.tags).map(([TagKey, TagValue]) => ({ TagKey, TagValue })) as any : undefined,
       }));
       
       const describeResponse = await this.client.send(new DescribeKeyCommand({ KeyId: createResponse.KeyMetadata?.KeyId }));
@@ -563,8 +563,8 @@ export class LocalKMSProvider extends HSMProvider {
       if (params.keyType === 'SYMMETRIC') {
         keyMaterial = crypto.randomBytes(params.keySize / 8);
       } else {
-        const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: params.keySize, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
-        keyMaterial = Buffer.from(privateKey as unknown as crypto.KeyObject);
+        const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: params.keySize });
+        keyMaterial = Buffer.from(privateKey.export({ type: 'pkcs8', format: 'pem' } as any));
       }
       const metadata: KeyMetadata = { keyId, name: params.name || 'Local Key', description: params.description, keyType: params.keyType, algorithm: params.algorithm, keySize: params.keySize, status: 'ACTIVE', createdAt: new Date(), version: 1, tags: params.tags };
       this.keys.set(keyId, { metadata, keyMaterial });

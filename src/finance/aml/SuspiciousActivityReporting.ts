@@ -495,7 +495,7 @@ export class SuspiciousActivityReporting extends EventEmitter {
     const filedSARs = history.filter(s => s.filingDate);
     const averageProcessingTime = filedSARs.length > 0
       ? filedSARs.reduce((sum, sar) => {
-          const processingTime = sar.filingDate!.getTime() - sar.createdAt.getTime();
+          const processingTime = sar.filingDate!.getTime() - (sar.createdAt?.getTime() || 0);
           return sum + processingTime;
         }, 0) / filedSARs.length
       : 0;

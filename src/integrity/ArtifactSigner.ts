@@ -220,10 +220,8 @@ export class ArtifactSigner extends EventEmitter {
       
       // Генерируем ephemeral ключи
       this.ephemeralKeyPair = crypto.generateKeyPairSync('ec', {
-        namedCurve: 'P-256',
-        publicKeyEncoding: { type: 'spki', format: 'pem' },
-        privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-      });
+        namedCurve: 'P-256'
+      }) as any;
       
       // Получаем OIDC токен
       const oidcToken = await this.getOIDCToken();
@@ -258,7 +256,7 @@ export class ArtifactSigner extends EventEmitter {
         type: 'COSIGN',
         signature: signature.toString('hex'),
         algorithm: 'ECDSA-SHA256',
-        keyId: this.getKeyId(this.ephemeralKeyPair.publicKey),
+        keyId: this.getKeyId(this.ephemeralKeyPair!.publicKey),
         signedAt: new Date(),
         rawSignature: signature,
         bundle,

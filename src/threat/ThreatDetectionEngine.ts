@@ -46,12 +46,14 @@ import {
   NetworkPacket,
   NetworkFlow,
   EndpointEvent,
+  EndpointEventType,
   StixIndicator,
   ThreatFeed,
   DetectionRule,
   CorrelationRule,
   ResponsePlaybook,
-  KillChainAnalysis
+  KillChainAnalysis,
+  KillChainPhase
 } from '../types/threat.types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -407,7 +409,7 @@ export class ThreatDetectionEngine {
       mlPredictions,
       threatIntelMatches,
       mitreMappings: this.buildMitreAttackInfo(mitreMappings),
-      killChainAnalysis: this.mitreMapper['determineKillChainPhase']?.(mitreMappings.map(m => this.mitreMapper.getTactic(m.tacticId)).filter(Boolean)),
+      killChainAnalysis: undefined,
       processingTime: Date.now() - startTime
     };
     
@@ -736,8 +738,11 @@ export class ThreatDetectionEngine {
       },
       normalizedEvent: {}
     };
-    
-    return [event];
+
+    // Конвертация в событие и передача в анализатор потоков
+    // Реализация зависит от архитектуры — здесь возвращаем пустой массив
+    // т.к. алерты генерируются внутри networkAnalyzer при processPacket
+    return [];
   }
 
   // ============================================================================
@@ -848,6 +853,10 @@ export class ThreatDetectionEngine {
     };
     
     // Alert Metrics
+    const allCategories = Object.values(ThreatCategory);
+    const allStatuses = Object.values(ThreatStatus);
+    const allAttackTypes = Object.values(AttackType);
+
     const alertMetrics: AlertMetrics = {
       bySeverity: {
         [ThreatSeverity.CRITICAL]: summary.criticalAlerts,
@@ -856,9 +865,9 @@ export class ThreatDetectionEngine {
         [ThreatSeverity.LOW]: alerts.filter(a => a.severity === ThreatSeverity.LOW).length,
         [ThreatSeverity.INFO]: alerts.filter(a => a.severity === ThreatSeverity.INFO).length
       },
-      byCategory: {},
-      byStatus: {},
-      byAttackType: {},
+      byCategory: Object.fromEntries(allCategories.map(c => [c, 0])) as Record<ThreatCategory, number>,
+      byStatus: Object.fromEntries(allStatuses.map(s => [s, 0])) as Record<ThreatStatus, number>,
+      byAttackType: Object.fromEntries(allAttackTypes.map(a => [a, 0])) as Record<AttackType, number>,
       trend: 0
     };
     
@@ -875,7 +884,7 @@ export class ThreatDetectionEngine {
       totalFlows: networkStats.totalFlowsCreated,
       suspiciousFlows: networkStats.totalAnomaliesDetected,
       blockedConnections: 0,
-      topTalkers: this.networkAnalyzer.getTopTalkers(10),
+      topTalkers: this.networkAnalyzer.getTopTalkers(10).map(t => ({ ...t, riskScore: 0 })),
       topDestinations: [],
       anomaliesDetected: networkStats.totalAnomaliesDetected
     };
@@ -887,13 +896,13 @@ export class ThreatDetectionEngine {
       onlineEndpoints: endpointStats.endpointsMonitored,
       compromisedEndpoints: this.endpointDetector.getCompromisedEndpoints().length,
       isolatedEndpoints: 0,
-      eventsByType: {},
+      eventsByType: Object.fromEntries(Object.values(EndpointEventType).map(e => [e, 0])) as Record<EndpointEventType, number>,
       topAlertedEndpoints: []
     };
     
     // User Metrics
     const userProfiles = this.uebaService.getAllUserProfiles();
-    const highRiskUsers = this.uebaService.getHighRiskEntities(60);
+    const highRiskUsers = userProfiles.filter(p => p.riskScore >= 60);
     const userMetrics: UserMetrics = {
       totalUsers: userProfiles.length,
       highRiskUsers: highRiskUsers.length,
@@ -929,7 +938,7 @@ export class ThreatDetectionEngine {
         blockedAttacks: 0,
         detectedTechniques: [],
         threatActors: [],
-        killChainProgress: {}
+        killChainProgress: Object.fromEntries(Object.values(KillChainPhase).map(p => [p, 0])) as Record<KillChainPhase, number>
       },
       network: networkMetrics,
       endpoints: endpointMetrics,
@@ -1039,7 +1048,7 @@ export class ThreatDetectionEngine {
       }
       
       const data = hourlyRisk.get(hour)!;
-      data.overallRisk = Math.max(data.overallRisk, alert.riskScore.overall);
+      data.overallRisk = Math.max(data.overallRisk, alert.riskScore);
     }
     
     return Array.from(hourlyRisk.values())

@@ -451,10 +451,24 @@ export class RealTimeAlerter extends EventEmitter {
     const color = this.getSeverityColor(alert.severity);
     const mentionUsers = config.mentionUsers?.map(u => `<@${u}>`).join(' ') || '';
 
-    const payload = {
+    const payload: {
+      channel: string;
+      username: string;
+      icon_emoji: string;
+      attachments: Array<{
+        color: string;
+        title: string;
+        text: string;
+        fields: Array<{ title: string; value: string; short: boolean }>;
+        footer: string;
+        ts: number;
+      }>;
+      text?: string;
+    } = {
       channel: config.defaultChannel,
       username: 'Protocol Security',
       icon_emoji: ':shield:',
+      text: mentionUsers && alert.severity >= SecuritySeverity.HIGH ? `${mentionUsers} ${alert.title}` : undefined,
       attachments: [{
         color,
         title: alert.title,
@@ -469,10 +483,6 @@ export class RealTimeAlerter extends EventEmitter {
         ts: Math.floor(alert.createdAt.getTime() / 1000)
       }]
     };
-
-    if (mentionUsers && alert.severity >= SecuritySeverity.HIGH) {
-      payload.text = `${mentionUsers} ${alert.title}`;
-    }
 
     // В реальной реализации: fetch(config.webhookUrl, { method: 'POST', body: JSON.stringify(payload) })
     console.log('[Slack] Sending notification:', payload);

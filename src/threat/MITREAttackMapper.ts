@@ -884,8 +884,12 @@ export class MITREAttackMapper {
       [ThreatCategory.COMMAND_AND_CONTROL]: 'TA0010',
       [ThreatCategory.EXFILTRATION]: 'TA0011',
       [ThreatCategory.IMPACT]: 'TA0040',
+      [ThreatCategory.EXPLOITATION]: '',
       [ThreatCategory.ANOMALY]: '',
-      [ThreatCategory.UNKNOWN]: ''
+      [ThreatCategory.UNKNOWN]: '',
+      [ThreatCategory.NETWORK]: '',
+      [ThreatCategory.MALWARE]: '',
+      [ThreatCategory.C2_COMMUNICATION]: 'TA0010'
     };
     
     const tacticId = tacticMapping[category];
@@ -959,8 +963,8 @@ export class MITREAttackMapper {
         progression: this.calculateKillChainProgression(mitreInfo.tactics)
       },
       threatActorAssessment: {
-        possibleGroups: mitreInfo.threatGroups,
-        confidence: mitreInfo.threatGroups.length > 0 ? 0.6 : 0.2
+        possibleGroups: mitreInfo.threatGroups || [],
+        confidence: (mitreInfo.threatGroups?.length ?? 0) > 0 ? 0.6 : 0.2
       },
       recommendations: this.generateRecommendations(mitreInfo)
     };
@@ -1022,8 +1026,8 @@ export class MITREAttackMapper {
     }
     
     // Рекомендации по группам угроз
-    if (mitreInfo.threatGroups.length > 0) {
-      const groupNames = mitreInfo.threatGroups.map(g => g.name).join(', ');
+    if ((mitreInfo.threatGroups?.length ?? 0) > 0) {
+      const groupNames = (mitreInfo.threatGroups || []).map(g => g.name).join(', ');
       recommendations.push(`Возможный противник: ${groupNames}. Изучить их TTPs.`);
     }
     

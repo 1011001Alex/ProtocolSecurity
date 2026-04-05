@@ -109,7 +109,7 @@ interface IMLModel {
 export class IsolationForest extends EventEmitter implements IMLModel {
   public modelId: string;
   public config: MLModelConfig;
-  public modelType: MLModelType | string = 'IsolationForest';
+  public modelType: MLModelType = MLModelType.ISOLATION_FOREST;
 
   // Параметры модели
   private nTrees: number = 100;
@@ -285,6 +285,9 @@ export class IsolationForest extends EventEmitter implements IMLModel {
     const isAnomaly = anomalyScore > this.threshold;
 
     return {
+      modelId: this.modelId,
+      timestamp: new Date(),
+      input: featureVector.reduce((acc: Record<string, number>, val, i) => { acc[`feature_${i}`] = val; return acc; }, {}),
       prediction: isAnomaly ? 1 : 0,
       isAnomaly,
       confidence: isAnomaly ? anomalyScore : 1 - anomalyScore,
@@ -330,7 +333,6 @@ export class IsolationForest extends EventEmitter implements IMLModel {
       isTrained: this.isTrained
     };
 
-    await tf.io.saveModel(`file://${path}`, tf.tensor([0]));
     // Сохраняем данные модели в JSON
     const fs = require('fs');
     fs.writeFileSync(`${path}.json`, JSON.stringify(modelData, null, 2));
@@ -532,7 +534,7 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
   public config: MLModelConfig;
   public modelType: MLModelType = MLModelType.AUTOENCODER;
 
-  private model: tf.LayersModel | null = null;
+  private model: any = null;
   private inputDim: number = 0;
   private isTrained: boolean = false;
   private reconstructionThreshold: number = 0;
@@ -558,7 +560,7 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
   /**
    * Построение архитектуры автоэнкодера
    */
-  private buildModel(inputDim: number): tf.LayersModel {
+  private buildModel(inputDim: number): any {
     const model = getSequential();
     const t = getTF();
 
@@ -636,7 +638,7 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
       validationSplit: 0.2,
       verbose: 0,
       callbacks: {
-        onEpochEnd: (epoch, logs) => {
+        onEpochEnd: (epoch: number, logs: Record<string, number> | undefined) => {
           if (epoch % 10 === 0) {
             this.emit('epoch', { epoch, loss: logs?.loss });
           }
@@ -650,9 +652,9 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
     const errorValues = reconstructionErrors.dataSync();
     
     // Порог = mean + 2*std
-    const meanError = errorValues.reduce((a, b) => a + b, 0) / errorValues.length;
+    const meanError = errorValues.reduce((a: number, b: number) => a + b, 0) / errorValues.length;
     const stdError = Math.sqrt(
-      errorValues.reduce((sum, val) => sum + Math.pow(val - meanError, 2), 0) / errorValues.length
+      errorValues.reduce((sum: number, val: number) => sum + Math.pow(val - meanError, 2), 0) / errorValues.length
     );
     this.reconstructionThreshold = meanError + 2 * stdError;
 
@@ -665,11 +667,11 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
     this.isTrained = true;
 
     const finalLogs = history.history;
-    const finalLoss = finalLogs.loss[finalLogs.loss.length - 1];
+    const finalLoss = Number(finalLogs.loss[finalLogs.loss.length - 1]);
 
     this.internalMetrics = {
       mse: finalLoss,
-      mae: finalLogs.mae[finalLogs.mae.length - 1],
+      mae: Number(finalLogs.mae[finalLogs.mae.length - 1]),
       loss: finalLoss
     };
 
@@ -678,7 +680,7 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
       modelType: this.modelType,
       trainingTime: Math.max(1, Date.now() - startTime),
       lastTrained: new Date(),
-      accuracy: 1 - finalLoss,
+      accuracy: Number(1 - finalLoss),
       loss: finalLoss,
       trainingSamples: features.length,
       features: this.inputDim,
@@ -725,12 +727,15 @@ export class AutoencoderModel extends EventEmitter implements IMLModel {
     reconstructionError.dispose();
 
     return {
+      modelId: this.modelId,
+      timestamp: new Date(),
+      input: featureVector.reduce((acc: Record<string, number>, val, i) => { acc[`feature_${i}`] = val; return acc; }, {}),
       prediction: isAnomaly ? 1 : 0,
-      confidence: isAnomaly 
+      confidence: isAnomaly
         ? Math.min(1, errorValue / this.reconstructionThreshold)
         : 1 - (errorValue / this.reconstructionThreshold),
       scores: {
-        reconstructionError: errorValue,
+        reconstructionError: Number(errorValue),
         threshold: this.reconstructionThreshold
       },
       metadata: {
@@ -817,7 +822,7 @@ export class LSTMModel extends EventEmitter implements IMLModel {
   public config: MLModelConfig;
   public modelType: MLModelType = MLModelType.LSTM;
 
-  private model: tf.LayersModel | null = null;
+  private model: any = null;
   private sequenceLength: number = 0;
   private featureDim: number = 0;
   private isTrained: boolean = false;
@@ -839,7 +844,7 @@ export class LSTMModel extends EventEmitter implements IMLModel {
   /**
    * Построение LSTM модели
    */
-  private buildModel(): tf.LayersModel {
+  private buildModel(): any {
     const model = getSequential();
     const t = getTF();
 
@@ -908,7 +913,7 @@ export class LSTMModel extends EventEmitter implements IMLModel {
       validationSplit: 0.2,
       verbose: 0,
       callbacks: {
-        onEpochEnd: (epoch, logs) => {
+        onEpochEnd: (epoch: number, logs: Record<string, number> | undefined) => {
           if (epoch % 5 === 0) {
             this.emit('epoch', { epoch, loss: logs?.loss, acc: logs?.acc });
           }
@@ -918,11 +923,11 @@ export class LSTMModel extends EventEmitter implements IMLModel {
 
     // Вычисление порога
     const predictions = this.model!.predict(inputTensor) as tf.Tensor;
-    const predValues = predictions.dataSync();
-    
-    const meanPred = predValues.reduce((a, b) => a + b, 0) / predValues.length;
+    const predValues = predictions.dataSync() as Float32Array;
+
+    const meanPred = Array.from(predValues).reduce((a: number, b: number) => a + b, 0) / predValues.length;
     const stdPred = Math.sqrt(
-      predValues.reduce((sum, val) => sum + Math.pow(val - meanPred, 2), 0) / predValues.length
+      Array.from(predValues).reduce((sum: number, val: number) => sum + Math.pow(val - meanPred, 2), 0) / predValues.length
     );
     this.anomalyThreshold = meanPred + 2 * stdPred;
 
@@ -1087,9 +1092,9 @@ export class LSTMModel extends EventEmitter implements IMLModel {
 export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
   public modelId: string;
   public config: MLModelConfig;
-  public modelType: MLModelType | string = 'NeuralNetwork';
+  public modelType: MLModelType = MLModelType.NEURAL_NETWORK;
 
-  private model: tf.LayersModel | null = null;
+  private model: any = null;
   private inputDim: number = 0;
   private numClasses: number = 0;
   private isTrained: boolean = false;
@@ -1113,7 +1118,7 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
   /**
    * Построение нейронной сети
    */
-  private buildModel(): tf.LayersModel {
+  private buildModel(): any {
     const model = getSequential();
     const t = getTF();
 
@@ -1183,7 +1188,7 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
       validationSplit: 0.2,
       verbose: 0,
       callbacks: {
-        onEpochEnd: (epoch, logs) => {
+        onEpochEnd: (epoch: number, logs: Record<string, number> | undefined) => {
           if (epoch % 10 === 0) {
             this.emit('epoch', { epoch, loss: logs?.loss, acc: logs?.acc });
           }
@@ -1192,8 +1197,8 @@ export class NeuralNetworkClassifier extends EventEmitter implements IMLModel {
     });
 
     const finalLogs = history.history;
-    const finalLoss = finalLogs.loss[finalLogs.loss.length - 1];
-    const finalAcc = finalLogs.acc[finalLogs.acc.length - 1];
+    const finalLoss = Number(finalLogs.loss[finalLogs.loss.length - 1]);
+    const finalAcc = Number(finalLogs.acc[finalLogs.acc.length - 1]);
 
     inputTensor.dispose();
     labelsOneHot.dispose();
@@ -1359,7 +1364,7 @@ export class MLModelManager extends EventEmitter {
         model = new LSTMModel(config);
         break;
       case MLModelType.RANDOM_FOREST:
-      case 'NeuralNetwork':
+      case MLModelType.NEURAL_NETWORK:
         model = new NeuralNetworkClassifier(config);
         break;
       default:

@@ -532,8 +532,8 @@ export class SecretVersioningManager extends EventEmitter {
       identical: v1.contentHash === v2.contentHash,
       hash1: v1.contentHash,
       hash2: v2.contentHash,
-      value1,
-      value2
+      value1: value1 ?? undefined,
+      value2: value2 ?? undefined
     };
   }
 

@@ -95,12 +95,12 @@ export class FinanceSecurityModule extends EventEmitter {
     };
     
     // Инициализация подмодулей
-    this.paymentEncryption = new PaymentCardEncryption(this.config);
+    this.paymentEncryption = new PaymentCardEncryption(this.config as any);
     this.tokenization = new TokenizationService(this.config);
     this.fraud = new FraudDetectionEngine(this.config);
     this.monitoring = new TransactionMonitoring(this.config);
     this.aml = new AMLChecker(this.config);
-    this.hsm = new HSMIntegration(this.config);
+    this.hsm = new HSMIntegration(this.config as any);
     
     logger.info('[FinanceSecurity] Module created', {
       pciCompliant: this.config.pciCompliant,

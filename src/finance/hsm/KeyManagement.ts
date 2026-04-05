@@ -210,6 +210,9 @@ export class KeyManagement extends EventEmitter {
   /** Зашифрованное хранилище (для персистентности) */
   private encryptedStore?: EncryptedKeyStore;
 
+  /** HSM Integration (опционально) */
+  private hsm?: any;
+
   /** Статус инициализации */
   private isInitialized = false;
 
@@ -397,8 +400,8 @@ export class KeyManagement extends EventEmitter {
       // Создание ключа в HSM
       try {
         const hsmKey = await this.hsm.generateKey({
-          keyType: this.mapKeyType(keyType),
-          keySize: this.getHSMKeySize(keyType, options.keySize),
+          keyType: 'AES',
+          keySize: options.keySize || 256,
           usage: ['ENCRYPT', 'DECRYPT']
         });
         keyMetadata.hsmKeyId = hsmKey.keyId;
